@@ -123,6 +123,42 @@ const wanted = (page) => page.evaluate(() => document.querySelector('#caption').
     await ctx.close();
   }
 
+  // installable and offline: manifest, service worker, then play a delivery with the network off
+  {
+    const { ctx, page, touch, errors } = await newPage(browser, 412, 915);
+    const man = await page.evaluate(async () => { const r = await fetch(document.querySelector('link[rel=manifest]').href); return r.json(); });
+    check('manifest: standalone with 192 and 512 px icons and a maskable one', man.display === 'standalone' && ['192x192', '512x512'].every((s) => man.icons.some((i) => i.sizes === s)) && man.icons.some((i) => i.purpose === 'maskable'));
+    const icons = await page.evaluate(async (list) => Promise.all(list.map(async (s) => (await fetch(s)).ok)), man.icons.map((i) => i.src));
+    check('manifest: every icon loads', icons.every(Boolean), icons);
+    const sw = await page.evaluate(() => navigator.serviceWorker.ready.then(() => new Promise((res) => {
+      if (navigator.serviceWorker.controller) return res(true);
+      navigator.serviceWorker.addEventListener('controllerchange', () => res(true));
+      setTimeout(() => res(false), 10000);
+    })));
+    check('service worker installed and controls the page', sw);
+    await ctx.setOffline(true);
+    await page.reload();
+    await page.waitForTimeout(600);
+    check('offline: game loads', await allOnScreen(page, '.playbtn'));
+    check('offline: fonts load', await page.evaluate(() => document.fonts.ready.then(() => document.fonts.check('800 20px "Baloo 2"') && [...document.fonts].some((f) => f.family.includes('Baloo') && f.status === 'loaded'))));
+    await page.tap('.playbtn');
+    await page.waitForTimeout(300);
+    await page.tap('.node[data-level="1"]');
+    await page.waitForTimeout(1700);
+    const id = await wanted(page);
+    const from = await center(page, '#mail');
+    const to = await center(page, `.house[data-id="${id}"]`);
+    await touch('touchStart', ...from);
+    for (let i = 1; i <= 12; i++) { await touch('touchMove', from[0] + (to[0] - from[0]) * i / 12, from[1] + (to[1] - from[1]) * i / 12); await page.waitForTimeout(16); }
+    await touch('touchEnd');
+    await page.waitForTimeout(400);
+    check('offline: drop delivers', (await page.$$eval('.pip.on', (x) => x.length)) === 1);
+    const priv = await page.evaluate(() => fetch('privacy.html').then((r) => r.ok, () => false));
+    check('offline: privacy page available', priv);
+    check('offline: no script or console errors', errors.length === 0, errors.length ? errors : undefined);
+    await ctx.close();
+  }
+
   await browser.close();
   console.log(failed ? `\n${failed} check(s) failed` : '\nall checks passed');
   process.exit(failed ? 1 : 0);

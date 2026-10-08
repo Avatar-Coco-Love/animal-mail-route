@@ -7,6 +7,7 @@
 <title>Animal Mail Route</title>
 <meta name="description" content="A mail delivery game for preschoolers: drag each letter to the right animal's house.">
 <meta name="theme-color" content="#8fd1ff">
+<link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect x='4' y='14' width='56' height='38' rx='5' fill='%23fffaf0' stroke='%23ee5350' stroke-width='5'/%3E%3Cpath d='M8 18l24 18 24-18' fill='none' stroke='%232e6fe8' stroke-width='5' stroke-linejoin='round'/%3E%3C/svg%3E">
 <style>
 /* Fonts are served with the game (SIL OFL, see fonts/) so playing makes no request to a third party. */
@@ -1050,6 +1051,10 @@ loadClips();
 updateClipCount();
 count('opens');
 show('title');
+/* ---------- Install and offline play (see sw.js) ---------- */
+if('serviceWorker' in navigator && /^https?:$/.test(location.protocol)){
+  window.addEventListener('load', function(){ navigator.serviceWorker.register('sw.js').catch(function(){}); });
+}
 })();
 </script>
 
