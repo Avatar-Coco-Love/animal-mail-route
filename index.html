@@ -228,6 +228,7 @@ svg{display:block}
 .summary ul{margin:0;padding-left:1.2em}
 .summary li{padding-block:2px}
 .summary .foot{margin:24px 0 0;font-size:.85rem;color:#555}
+.summary .sheet + .sheet{margin-top:32px;padding-top:24px;border-top:3px dashed #bbb}
 .summary .acts{display:flex;justify-content:center;gap:12px;margin-top:24px}
 @media print{
   @page{margin:16mm}
@@ -235,6 +236,8 @@ svg{display:block}
   body.sum-open #app{display:none}
   .summary{position:static;overflow:visible;padding:0}
   .summary .acts{display:none}
+  .summary .sheet + .sheet{margin-top:0;padding-top:0;border-top:0;break-before:page;page-break-before:always}
+  .summary .sheet{break-inside:avoid;page-break-inside:avoid}
 }
 .parent .close{display:block;margin:0 auto;padding:12px 30px;border-radius:999px;border:0;background:var(--blue);color:#fff;font:800 1.15rem var(--font-display)}
 
@@ -407,8 +410,9 @@ svg{display:block}
       <div class="block"><b id="prog-head">Progress</b><ul class="prog" id="progress"></ul></div>
       <div class="row"><b>Needs practice</b><span id="weaklist">None yet</span></div>
       <div class="row"><b>Paper copy</b><button class="pbtn" type="button" id="b-print">Print summary</button></div>
+      <div class="row" id="print-all-row" hidden><b>Paper copies</b><button class="pbtn" type="button" id="b-print-all">Print all players</button></div>
       <div class="row"><b>Everyone</b><button class="pbtn danger" type="button" id="b-reset">Erase everything</button></div>
-      <p class="note">Prototype 0.4. Voice prompts use your device's built-in speech until recorded voices are added. <span id="share-note" hidden>"Share play counts" sends only anonymous totals, such as rounds played per route, and is off unless you turn it on. </span><a href="privacy.html" target="_blank" rel="noopener">Privacy</a></p>
+      <p class="note">Prototype 0.5. Voice prompts use your device's built-in speech until recorded voices are added. <span id="share-note" hidden>"Share play counts" sends only anonymous totals, such as rounds played per route, and is off unless you turn it on. </span><a href="privacy.html" target="_blank" rel="noopener">Privacy</a></p>
       <button class="close" type="button" id="p-close">Done</button>
     </div>
   </div>
@@ -416,19 +420,10 @@ svg{display:block}
 </div>
 
 <section id="summary" class="summary" hidden aria-label="Progress summary">
-  <div class="sheet">
-    <h1>Animal Mail Route: progress</h1>
-    <p class="meta" id="sum-who"></p>
-    <p class="meta" id="sum-date"></p>
-    <h2>Routes and stickers</h2>
-    <ul id="sum-progress"></ul>
-    <h2>Needs practice</h2>
-    <p class="meta" id="sum-weak"></p>
-    <p class="foot">A route opens after 2 finished rounds of the route before it. Each round is 5 deliveries and earns a sticker. "Needs practice" lists the letters this player has missed most often lately; it clears as they get them right. Made on this device; nothing was sent anywhere.</p>
-    <div class="acts">
-      <button class="pbtn" type="button" id="sum-print">Print</button>
-      <button class="pbtn" type="button" id="sum-close">Done</button>
-    </div>
+  <div id="sum-sheets"></div>
+  <div class="acts">
+    <button class="pbtn" type="button" id="sum-print">Print</button>
+    <button class="pbtn" type="button" id="sum-close">Done</button>
   </div>
 </section>
 
@@ -610,13 +605,14 @@ function updateClipCount(){
 /* audio/clips.json lists the recordings that exist, e.g. ["letter-S","sound-S"], so the game
    doesn't ask the server for every missing file. No list means no recordings yet. */
 function loadClips(){
-  var c = getAc();
-  if(!c || !window.fetch) return;
+  if(!window.fetch) return;
   fetch('audio/clips.json')
     .then(function(r){ return r.ok ? r.json() : []; })
     .catch(function(){ return []; })
     .then(function(list){
-      (Array.isArray(list) ? list : []).filter(function(k){ return CLIPS.hasOwnProperty(k); }).forEach(loadClip);
+      list = (Array.isArray(list) ? list : []).filter(function(k){ return CLIPS.hasOwnProperty(k); });
+      // The audio context is made only when there is a clip to decode: it is slow to start on a phone.
+      if(list.length && getAc()) list.forEach(loadClip);
     });
 }
 function loadClip(k){
@@ -674,7 +670,7 @@ function hush(){
    Off unless a parent turns on "Share play counts". Only totals per route are kept, with no
    identifier or timestamp, and they are sent once when the page is hidden. The setting is
    not shown at all while COUNT_URL is empty. */
-var VERSION = '0.4';
+var VERSION = '0.5';
 var COUNT_URL = '';      // the Worker, e.g. 'https://animal-mail-counts.<account>.workers.dev/v1/counts'
 var CKEY = 'animal-mail-route-counts', CAP = 200, METRICS = ['started','finished','misses'];
 function emptyCounts(){ return {opens:0, started:{}, finished:{}, misses:{}}; }
@@ -1271,6 +1267,7 @@ function renderPlayers(){
       '<div class="ani" role="group" aria-label="Player ' + (i + 1) + ' animal">' + ani + '</div></div>';
   }).join('');
   $('b-add').hidden = D.players.length >= MAX_PLAYERS;
+  $('print-all-row').hidden = D.players.length < 2;
 }
 function selectPlayer(id){
   if(sel === id) return;
@@ -1344,24 +1341,39 @@ $('b-reset').addEventListener('click', function(){
 $('p-close').addEventListener('click', function(){ $('parent').hidden = true; });
 
 /* ---------- Printable summary (parent corner) ----------
-   The selected player's Progress lines and Needs practice, on a plain page, then the browser's
-   print dialog. Built from the save on this device; nothing is sent. */
+   Progress lines and Needs practice on a plain page, one sheet per player (the selected one, or
+   everyone, each on its own printed page), then the browser's print dialog.
+   Built from the save on this device; nothing is sent. */
 var pageTitle = document.title;
 function printSummary(){ try{ if(typeof window.print === 'function') window.print(); }catch(e){} }
-$('b-print').addEventListener('click', function(){
-  var sp = playerById(sel) || P, ani = BYID[sp.animal].name;
-  $('sum-who').textContent = 'Player: ' + (sp.name ? sp.name + ' (' + ani + ')' : ani);
-  $('sum-date').textContent = 'Made ' + new Date().toLocaleDateString(undefined, {year:'numeric', month:'long', day:'numeric'}) + ', game version ' + VERSION;
-  $('sum-progress').innerHTML = progressLines(sp).map(function(t){ return '<li>' + t + '</li>'; }).join('');
-  var weak = weakIds(sp);
-  $('sum-weak').textContent = weak.length ? weak.map(function(id){ return id + ' (' + BYID[id].name + ')'; }).join(', ') : 'None yet';
-  document.title = 'Animal Mail Route progress, ' + playerLabel(sp);
+function sheetHTML(p, date){
+  var ani = BYID[p.animal].name, weak = weakIds(p);
+  return '<article class="sheet">' +
+    '<h1>Animal Mail Route: progress</h1>' +
+    '<p class="meta sum-who">Player: ' + esc(p.name ? p.name + ' (' + ani + ')' : ani) + '</p>' +
+    '<p class="meta sum-date">Made ' + date + ', game version ' + VERSION + '</p>' +
+    '<h2>Routes and stickers</h2>' +
+    '<ul class="sum-progress">' + progressLines(p).map(function(t){ return '<li>' + esc(t) + '</li>'; }).join('') + '</ul>' +
+    '<h2>Needs practice</h2>' +
+    '<p class="meta sum-weak">' + (weak.length ? weak.map(function(id){ return id + ' (' + BYID[id].name + ')'; }).join(', ') : 'None yet') + '</p>' +
+    '<p class="foot">A route opens after 2 finished rounds of the route before it. Each round is 5 deliveries and earns a sticker. "Needs practice" lists the letters this player has missed most often lately; it clears as they get them right. Made on this device; nothing was sent anywhere.</p>' +
+    '</article>';
+}
+function openSummary(players, title){
+  var date = new Date().toLocaleDateString(undefined, {year:'numeric', month:'long', day:'numeric'});
+  $('sum-sheets').innerHTML = players.map(function(p){ return sheetHTML(p, date); }).join('');
+  document.title = 'Animal Mail Route progress, ' + title;
   document.body.classList.add('sum-open');
   $('summary').hidden = false;
   $('summary').scrollTop = 0;
   hush();
   printSummary();
+}
+$('b-print').addEventListener('click', function(){
+  var sp = playerById(sel) || P;
+  openSummary([sp], playerLabel(sp));
 });
+$('b-print-all').addEventListener('click', function(){ openSummary(D.players, 'all players'); });
 $('sum-print').addEventListener('click', printSummary);
 $('sum-close').addEventListener('click', function(){
   $('summary').hidden = true;
