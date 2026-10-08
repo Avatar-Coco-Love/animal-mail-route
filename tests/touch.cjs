@@ -155,6 +155,7 @@ const wanted = (page) => page.evaluate(() => document.querySelector('#caption').
     await holdGear(page, touch);
     // on this screen the finger lifts over Print summary; that lift must not press it
     check('parent corner: lifting the finger after the hold presses nothing', await page.$eval('#summary', (e) => e.hidden) && !(await page.$('.pbtn.armed')));
+    check('parent corner: no Print all players with one player', await page.$eval('#print-all-row', (e) => e.hidden));
     const want = ['Route 1, Letters: 3 rounds', 'Route 2, Animals: 1 round, so 1 more opens Route 3', 'Route 3, Letters and animals: locked', 'Route 4, Numbers: locked', 'Stickers: 4'];
     let got = await progressText(page);
     check('progress row matches the unlock rule', JSON.stringify(got) === JSON.stringify(want), got);
@@ -283,9 +284,9 @@ const wanted = (page) => page.evaluate(() => document.querySelector('#caption').
     await page.waitForTimeout(200);
     const sum = await page.evaluate(() => ({
       shown: !document.querySelector('#summary').hidden,
-      who: document.querySelector('#sum-who').textContent,
-      lines: [...document.querySelectorAll('#sum-progress li')].map((e) => e.textContent),
-      weak: document.querySelector('#sum-weak').textContent,
+      who: document.querySelector('#summary .sum-who').textContent,
+      lines: [...document.querySelectorAll('#summary .sum-progress li')].map((e) => e.textContent),
+      weak: document.querySelector('#summary .sum-weak').textContent,
       printed: window.__printed,
       fits: document.querySelector('#summary').scrollWidth <= innerWidth,
     }));
@@ -303,8 +304,39 @@ const wanted = (page) => page.evaluate(() => document.querySelector('#caption').
     await page.tap('#players .pl:nth-child(1)');
     await page.$eval('#b-print', (b) => b.scrollIntoView());
     await page.tap('#b-print');
-    const leo = await page.$$eval('#sum-progress li', (li) => li.map((e) => e.textContent));
-    check('print summary: follows the selected player', leo[0] === 'Route 1, Letters: 1 round, so 1 more opens Route 2' && leo[4] === 'Stickers: 1' && (await page.$eval('#sum-weak', (e) => e.textContent)) === 'None yet', leo);
+    const leo = await page.$$eval('#summary .sum-progress li', (li) => li.map((e) => e.textContent));
+    check('print summary: follows the selected player', leo[0] === 'Route 1, Letters: 1 round, so 1 more opens Route 2' && leo[4] === 'Stickers: 1' && (await page.$eval('#summary .sum-weak', (e) => e.textContent)) === 'None yet' && (await page.$$('#summary .sheet')).length === 1, leo);
+    await page.$eval('#sum-close', (b) => b.scrollIntoView());
+    await page.tap('#sum-close');
+
+    // print all players: every player's sheet, in order, one per printed page
+    check('print all players: shown with two players', await page.$eval('#print-all-row', (e) => !e.hidden));
+    await page.$eval('#b-print-all', (b) => b.scrollIntoView());
+    await page.tap('#b-print-all');
+    await page.waitForTimeout(200);
+    const all = await page.evaluate(() => ({
+      shown: !document.querySelector('#summary').hidden,
+      sheets: [...document.querySelectorAll('#summary .sheet')].map((s) => ({
+        who: s.querySelector('.sum-who').textContent,
+        lines: [...s.querySelectorAll('.sum-progress li')].map((e) => e.textContent),
+        weak: s.querySelector('.sum-weak').textContent,
+      })),
+      printed: window.__printed,
+      title: document.title,
+      fits: document.querySelector('#summary').scrollWidth <= innerWidth,
+    }));
+    check('print all players: opens the print dialog with one sheet per player', all.shown && all.printed === 3 && all.sheets.length === 2 && all.title === 'Animal Mail Route progress, all players', all);
+    check('print all players: each sheet has that player\'s lines, in player order',
+      all.sheets[0].who === 'Player: Leo (Pete the Penguin)' && JSON.stringify(all.sheets[0].lines) === JSON.stringify(leo) && all.sheets[0].weak === 'None yet' &&
+      all.sheets[1].who === 'Player: Mia (Kelly the Kangaroo)' && JSON.stringify(all.sheets[1].lines) === JSON.stringify(lines) && all.sheets[1].weak === 'K (Kelly the Kangaroo), C (Cody the Crane)', all.sheets);
+    check('print all players: fits the width of a sideways phone', all.fits);
+    await page.emulateMedia({ media: 'print' });
+    const brk = await page.$$eval('#summary .sheet', (s) => s.map((e) => getComputedStyle(e).breakBefore));
+    check('print all players: each player starts a new printed page', brk[0] !== 'page' && brk[1] === 'page', brk);
+    await page.emulateMedia({ media: 'screen' });
+    await page.$eval('#sum-close', (b) => b.scrollIntoView());
+    await page.tap('#sum-close');
+    check('print all players: Done goes back to the parent corner', await page.$eval('#summary', (e) => e.hidden) && await page.$eval('#parent', (e) => !e.hidden) && (await page.title()) === 'Animal Mail Route');
     check('print summary: no errors, nothing sent elsewhere', errors.length === 0 && [...hosts].every((x) => x === host), { errors, hosts: [...hosts] });
     await ctx.close();
   }
