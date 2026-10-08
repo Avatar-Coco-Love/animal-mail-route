@@ -408,7 +408,7 @@ svg{display:block}
       <div class="row"><b>Needs practice</b><span id="weaklist">None yet</span></div>
       <div class="row"><b>Paper copy</b><button class="pbtn" type="button" id="b-print">Print summary</button></div>
       <div class="row"><b>Everyone</b><button class="pbtn danger" type="button" id="b-reset">Erase everything</button></div>
-      <p class="note">Prototype 0.3. Voice prompts use your device's built-in speech until recorded voices are added. <span id="share-note" hidden>"Share play counts" sends only anonymous totals, such as rounds played per route, and is off unless you turn it on. </span><a href="privacy.html" target="_blank" rel="noopener">Privacy</a></p>
+      <p class="note">Prototype 0.4. Voice prompts use your device's built-in speech until recorded voices are added. <span id="share-note" hidden>"Share play counts" sends only anonymous totals, such as rounds played per route, and is off unless you turn it on. </span><a href="privacy.html" target="_blank" rel="noopener">Privacy</a></p>
       <button class="close" type="button" id="p-close">Done</button>
     </div>
   </div>
@@ -674,7 +674,7 @@ function hush(){
    Off unless a parent turns on "Share play counts". Only totals per route are kept, with no
    identifier or timestamp, and they are sent once when the page is hidden. The setting is
    not shown at all while COUNT_URL is empty. */
-var VERSION = '0.3';
+var VERSION = '0.4';
 var COUNT_URL = '';      // the Worker, e.g. 'https://animal-mail-counts.<account>.workers.dev/v1/counts'
 var CKEY = 'animal-mail-route-counts', CAP = 200, METRICS = ['started','finished','misses'];
 function emptyCounts(){ return {opens:0, started:{}, finished:{}, misses:{}}; }

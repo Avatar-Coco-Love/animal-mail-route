@@ -14,7 +14,8 @@ An older copy also exists as a Claude artifact. It predates the fixes below, so 
 - Privacy page is live. The game contacts no site except the one it's hosted on.
 - Installable to the home screen and playable offline (manifest + service worker). PR #3 merged; the touch test passed all 54 checks against the live site afterwards.
 - CI runs the worker tests and the touch test on every pull request.
-- Parent corner shows a Progress row per player. Up to 8 player profiles on one device, with a "Who's playing?" picker once there are two (version 0.3, PR #4).
+- Parent corner shows a Progress row per player. Up to 8 player profiles on one device, with a "Who's playing?" picker once there are two (version 0.3, PR #4). The touch test passed all 104 checks against the live site after PR #4 merged.
+- Version 0.4 (fourth session): the map path lights up as routes open, and the parent corner can print a one-page summary per child.
 
 ## Repo map
 | Path | What |
@@ -25,7 +26,7 @@ An older copy also exists as a Claude artifact. It predates the fixes below, so 
 | `audio/` | voice clips (none yet) and `clips.json`, the list of clips that exist |
 | `TELEMETRY.md` | play counts design and rules (COPPA, Google Families) |
 | `worker/` | Cloudflare Worker + D1 for play counts, with tests and deploy steps |
-| `tests/touch.cjs` | touch smoke test (104 checks), local or live |
+| `tests/touch.cjs` | touch smoke test (122 checks), local or live |
 | `manifest.webmanifest`, `sw.js` | install and offline play; bump `VERSION` in `sw.js` on every release |
 | `icons/` | app icons: `icon.svg` and `icon-maskable.svg` are the sources, `export.cjs` makes the PNGs |
 | `.github/workflows/test.yml` | CI on pull requests: worker tests and the touch test |
@@ -45,12 +46,14 @@ A mail delivery game for preschoolers (about ages 3 to 5). The child drags mail 
 Target: Android phone and tablet, touch-first. Built as plain HTML, CSS, and JavaScript (no framework, no build step), to be wrapped later (Capacitor) or shipped as an installable web app.
 
 ## Current state (all in `index.html`)
-- Screens: title, "Who's playing?" (only with 2+ players), route map, delivery, sticker book, parent corner (press and hold the gear on the title screen).
+- Screens: title, "Who's playing?" (only with 2+ players), route map, delivery, sticker book, parent corner (press and hold the gear on the title screen), printable summary (from the parent corner).
+- Map path: a dashed segment joins each route to the next. It is grey until the next route opens (2 rounds of this one, or Unlock all), then yellow on a white band. A segment that lit up since the player last saw the map plays a short animation.
 - Routes: 1 letters (2 houses, growing to 5), 2 animal pictures, 3 mixed letters and pictures, 4 numbers (numeral or stars to count, houses numbered 1 to 5). Next route unlocks after 2 finished rounds of the previous one. Parent corner can unlock all.
 - Round = 5 deliveries, then a sticker. No timers, no losing. Wrong house bounces back; after 2 misses the right house wiggles. Tap-then-tap-house works as well as dragging.
 - Adaptive practice (routes 1 to 3): wrong answers raise a letter's score, first-try correct lowers it, weak letters are picked more often. Parent corner shows "Needs practice". Not used on route 4.
 - Players: up to 8 on one device, each with an animal (one of the 5, may repeat) and an optional name (20 characters, typed only in the parent corner). Rounds, stickers and practice letters are per player; voice, sound effects, play counts and Unlock all are per device. With one player nothing changes from before. With two or more, Play opens "Who's playing?" (one big animal button per player, name under it if set) and the map's top bar shows the current player's animal, which returns to the picker.
-- Parent corner: settings, Players (name field, animal choice, Erase per player, Add player), Progress and Needs practice for the selected player, and Erase everything.
+- Parent corner: settings, Players (name field, animal choice, Erase per player, Add player), Progress and Needs practice for the selected player, Print summary, and Erase everything.
+- Print summary: a plain page with the selected player's name and animal, the date and game version, the Progress lines (routes and stickers), Needs practice (letter and animal name) and a short note on what they mean. It opens the print dialog at once and stays open with Print and Done buttons. When printed, only the summary is on the page.
 - Animation: truck arrives and hops, animals blink, tap an animal on the title to hear its name, sparkle burst and flag on delivery, idle nudge after 10 seconds.
 - Progress saved in `localStorage` under `animal-mail-route-v2`: `{v:2, device:{voice, sfx, share, unlockAll}, current, players:[{id, name, animal, rounds, stickers, weak}]}`. An old `animal-mail-route-v1` save is turned into player 1 on first load and the v1 key removed.
 
@@ -61,7 +64,10 @@ Target: Android phone and tablet, touch-first. Built as plain HTML, CSS, and Jav
 - Levels: `unlocked`, `houseCount`, `kindFor`, `buildQueue` (adaptive weighting), `promptFor`, `paperHTML`.
 - Parent corner shows how many of the 34 clips were found.
 - Saved progress: `D` is the whole save, `S` is `D.device` (settings), `P` is the current player. `cleanSave`, `cleanPlayer`, `fromV1` validate; `load`, `save`, `useSave` near the top of the script. `unlocked(l, p)` takes an optional player.
-- Players: `renderWho` (picker), `renderPlayers` and the `#players` handlers (parent corner), `erasePlayer`, `armed`/`disarm` (the two-tap erase buttons). `progressLines(p)` builds the Progress row text.
+- Players: `renderWho` (picker), `renderPlayers` and the `#players` handlers (parent corner), `erasePlayer`, `armed`/`disarm` (the two-tap erase buttons). `progressLines(p)` builds the Progress row text, `weakIds(p)` the Needs practice letters.
+- Map path: `renderMap` adds an `<svg class="path">` after the nodes and calls `drawPath(true)`, which measures the disc centres and draws one `<g class="seg" data-seg="n">` per pair (lit when `unlocked(n+1)`). It redraws on resize and once fonts load. `litSeen` (memory only) remembers what each player last saw, for the animation.
+- Summary: `#summary` sits outside `#app`, so print CSS can hide the game (`body.sum-open #app`). The `#b-print` handler fills it from `progressLines` and `weakIds` and calls `printSummary()` (a guarded `window.print()`).
+- Parent corner ignores a click whose touch began before it opened (`openedAt`, `downAt`): lifting the finger after the press-and-hold otherwise presses whatever is under it.
 - Play counts (`COUNT_URL`, `count`, `sendCounts`): opt-in, anonymous, see `TELEMETRY.md`. Hidden until `COUNT_URL` is set.
 - Fonts are served from `fonts/` (no Google Fonts request). `privacy.html` is the privacy page.
 - Win card: `finishRound` sets `winTarget`. If the round just unlocked the next route the big button says "Next route" and starts it; otherwise "Play again" replays the route (also with "Unlock all" on, and after route 4).
@@ -93,6 +99,9 @@ It needs Playwright with Chromium; in Claude Code cloud sessions it is installed
 - a v1 save turning into player 1 (seeded with `addInitScript`; `newPage` takes an optional `{key: value}` to seed)
 - with one player, no picker; adding a second player, the picker, separate progress, the top bar animal, erasing one player, Erase everything
 - "Who's playing?" with 2 and with 8 players on all 5 screen sizes, everything on screen
+- the map path on all 5 sizes: 3 segments, each from one disc's centre to the next, on screen, grey at the start; lit after 2 rounds of route 1 (and that one animates), lit to the last open route after a v1 migration, all lit with Unlock all
+- lifting the finger after the gear hold presses nothing (on the Pixel size it lands on Print summary)
+- Print summary on a sideways phone: shows the selected player's lines, Needs practice with names, opens the print dialog once (stubbed in the test), fits the width, prints only the summary (print media), Done returns to the parent corner, and switching player changes the summary
 
 Worker tests: `cd worker && npm install && npm test`.
 
@@ -130,6 +139,7 @@ Still needs a real device (emulation cannot check these):
 - Opt-in play counts: client, Worker, tests, end-to-end check against a local Worker.
 - Cody rename, win card button, installable and offline, CI, `PLAYTEST.md` (PR #3).
 - Parent-corner Progress row and player profiles (PR #4).
+- Map path that lights up as routes open, printable per-child summary, version 0.4 (fourth session).
 
 ## Decisions made by Claude (October 8, 2026, second session)
 Small calls made without the owner; change them if they're wrong.
@@ -197,20 +207,40 @@ Small calls made without the owner; change them if they're wrong.
 - **`privacy.html`:** the "Stored on your device" paragraph now mentions per-player progress, the animal and optional name, and that names never leave the device and are never part of play counts. The example game version in the play counts table is 0.3. "Last updated" was already October 8, 2026, today's date, so it stays.
 - **`PLAYTEST.md`** asks for the Progress lines and the number of players.
 
-## Next session (fourth): work that needs nothing from the owner
+## Built in the fourth session: map path and printable summary
+Built as written below (step 1, the live check of 0.3, passed before work started). Decisions on what it left open are under "Decisions made by Claude (fourth session)".
+
 Claude's recommendation, written after PR #4. Do it in one PR, run `tests/touch.cjs` after each change, and record calls in "Decisions made by Claude".
 1. **Check 0.3 on the live site:** run `tests/touch.cjs` against the live URL once PR #4 has deployed. Fix anything that fails before starting new work.
 2. **Map: show that 2 stars open the next route** (from "Ideas for later"). Light the dashed path segment from a route to the next one once that route has 2 rounds (or Unlock all is on). Locked segments stay grey. Keep the 3 stars and padlocks as they are. Test the segment state in `tests/touch.cjs` and keep everything on screen at all 5 sizes, including the sideways layout where the path runs left to right.
 3. **Printable per-child summary** (from "Classroom"): a "Print summary" button in the parent corner that opens a plain, print-friendly view of the selected player's progress (the Progress lines, Needs practice, sticker count) and calls `window.print()`. Nothing leaves the device. Add a test that the view shows the selected player's lines.
 4. Update this file, open the PR, wait for green CI, merge it if the owner allows, and send the owner one short message.
 
+## Decisions made by Claude (October 8, 2026, fourth session)
+Small calls made without the owner; change them if they're wrong.
+- **The map path is now segments, not one line.** The old single dashed line ran straight down the middle and didn't touch the zigzagging routes. Each segment now runs from one route's disc centre to the next, so it follows the zigzag upright and the left-to-right row sideways.
+- **Path colours:** grey dashes (`#b9c0ce`) when closed; yellow dashes on a white band, like a road, when open. A segment is lit by the same rule as the padlock on the route it leads to, so Unlock all lights every segment.
+- **Lighting animation:** the band fades in and the dashes march for about 2 seconds, only for a segment that lit up since that player last saw the map. It is remembered in memory only, so the first map view after opening the game doesn't animate. No sound, so it never talks over the voice.
+- **Print summary placement:** a "Paper copy" row with the "Print summary" button, right after Needs practice. It prints the player selected in the Players list, like the Progress rows.
+- **Summary content:** the Progress lines exactly as the parent corner shows them (the stickers line included), Needs practice as "K (Kelly the Kangaroo)", the player's name and animal, the date and game version, and two sentences on what the lines mean and that nothing was sent. The name appears on paper because the parent chose to print it; it is still never sent.
+- **Summary flow:** the print dialog opens straight away; the summary stays on screen afterwards with Print and Done, so a parent who cancels can still read it or try again. While it is open the page title names the player, so "Save as PDF" suggests a useful file name; Done restores the title.
+- **Lift after the gear hold:** found while testing. On a tall phone the click from lifting the finger landed on the new Print summary button. The corner now ignores any click whose touch began before it opened. Keyboard use is unaffected.
+- **Release 0.4:** `VERSION` and the "Prototype" note are 0.4, `sw.js` is `amr-v3`, and the privacy page's example game version is 0.4. The privacy text is otherwise unchanged: the summary is built and printed on the device. "Last updated" is still today, October 8, 2026.
+- **`PLAYTEST.md`** asks whether the child noticed the path light up, and whether Print summary worked on the device.
+- **Merged without a separate go-ahead:** the owner asked for this PR to be merged once CI is green.
+
+## Next session (fifth): recommendation
+The most useful next step needs the owner: the real-device playtest with a child (`PLAYTEST.md`). Its notes should drive the next fixes, so a fresh session works best once that sheet is filled in. Work that needs nothing from the owner, in one PR, if there is time before then:
+1. **Check 0.4 on the live site:** run `tests/touch.cjs` against the live URL. Fix anything that fails first.
+2. **Lighthouse pass:** run Lighthouse (mobile) on the live site for performance, accessibility and best practices, fix what is cheap and safe, and record the scores here.
+3. **Print all players (Classroom):** a second button that prints every player's summary, one per page (`page-break-after`), for a teacher with a shared tablet. Same content and rules as Print summary.
+
 ## Ideas for later
 - **Game hub (owner's idea, October 8, 2026):** a new overall name, and a home for several educational games grouped by age or grade, with Animal Mail Route as one of them. Deferred until this game reaches a finished point. Keep it in mind now:
   - Keep player profiles in their own storage key with a plain shape, so a hub could share them across games later.
   - Don't hard-code the `/animal-mail-route/` path. All URLs are relative today; keep it that way.
   - Moving to a new repo name or path changes the URL, which changes the service worker scope and loses installed home-screen copies. Saved progress stays on the same origin (`avatar-coco-love.github.io`), but a custom domain would be a different origin. If the hub happens, choose its final address once, and plan a one-time move of saved progress.
-- **Classroom:** shared tablets plus profiles plus "Unlock all" covers basic classroom use with nothing collected. A teacher dashboard across devices needs a server and accounts, which brings COPPA school consent, FERPA and district data agreements. Only do it if a real classroom asks. A middle step is a printable per-child summary on the device.
-- **Map stars:** consider showing that 2 stars open the next route (for example, light up the path to the next node).
+- **Classroom:** shared tablets plus profiles plus "Unlock all" covers basic classroom use with nothing collected. A teacher dashboard across devices needs a server and accounts, which brings COPPA school consent, FERPA and district data agreements. Only do it if a real classroom asks. A middle step, a printable per-child summary on the device, is built (0.4).
 
 ## Later steps (need the owner)
 1. **Real-device playtest** with a 3 to 5 year old on an Android phone or tablet, using `PLAYTEST.md`. The notes become the next fixes.
