@@ -16,7 +16,8 @@ An older copy also exists as a Claude artifact. It predates the fixes below, so 
 - CI runs the worker tests and the touch test on every pull request.
 - Parent corner shows a Progress row per player. Up to 8 player profiles on one device, with a "Who's playing?" picker once there are two (version 0.3, PR #4). The touch test passed all 104 checks against the live site after PR #4 merged.
 - Version 0.4 (fourth session): the map path lights up as routes open, and the parent corner can print a one-page summary per child. The touch test passed all 122 checks against the live site afterwards.
-- Version 0.5 (fifth session): Lighthouse pass (mobile Performance 79 → 99 on the title screen, the rest 100), and "Print all players" (one page per child) in the parent corner.
+- Version 0.5 (fifth session): Lighthouse pass (mobile Performance 79 → 98 on the live site, the rest 100), and "Print all players" (one page per child) in the parent corner. PR #6 merged; the touch test passed all 129 checks against the live site afterwards.
+- **Next:** the expansion roadmap under "Next sessions" (letter sets, A to Z friends, new kinds of questions, and more).
 
 ## Repo map
 | Path | What |
@@ -246,6 +247,7 @@ Recommendation as it was:
 | --- | --- | --- | --- | --- |
 | 0.4 live, before | 79 | 100 | 100 | 100 |
 | 0.5 local, after | 99 | 100 | 100 | 100 |
+| 0.5 live, after | 98 | 100 | 100 | 100 |
 
 - **The one real problem:** total blocking time 960 ms, from one ~1 s task at startup. It was `new AudioContext()` in `loadClips`, which ran on every load even though `clips.json` is empty. The context is now made only when there is a clip to decode, or on the first tap (which already happened via `unlock`). Same sound behaviour; Chrome also no longer starts a suspended audio context before any tap.
 - **Left as is:** "unminified JavaScript" (3 KiB; minifying needs a build step, which this project avoids on purpose) and "cache lifetime" of the fonts (GitHub Pages sets 10 minutes and can't be changed; the service worker serves them from its cache anyway after the first visit).
@@ -262,12 +264,120 @@ Small calls made without the owner; change them if they're wrong.
 - **Release 0.5:** `VERSION` and the "Prototype" note are 0.5, `sw.js` is `amr-v4`, the privacy page's example game version is 0.5. Its text is otherwise unchanged (printing happens on the device). "Last updated" stays October 8, 2026.
 - **`PLAYTEST.md`** asks whether Print all players gave each child their own page.
 
-## Next session (sixth): recommendation
-The most useful next step still needs the owner: the real-device playtest with a child (`PLAYTEST.md`). Paste the filled-in sheet into the next session and make its findings the first priority. Without it, the game is at a natural pause: the remaining ideas (voice clips, Worker, art, packaging) all need the owner. Small things a session could do alone, if wanted:
-1. Run `tests/touch.cjs` against the live site to confirm 0.5 (129 checks).
-2. An accessibility check of the screens Lighthouse can't see (map, delivery, sticker book, parent corner), for example axe-core in the touch test.
+## Next sessions: expansion roadmap
+Written at the end of the fifth session, from the owner's questions about variety ("Is there a capacity to choose which letters, or randomized names that are school friendly and fit the lesson? In what ways can we expand?"). The owner asked for all of it to be built, starting in a fresh conversation. This section is the plan.
+
+### How to work through it
+- **Playtest first, if it is done.** If the owner pastes a filled-in `PLAYTEST.md`, fix its findings before anything below, in their own PR.
+- **One phase per PR, in order.** Phases 1 to 3 change the data model that later phases build on, so don't reorder them. Phases 4 to 8 are independent once 1 to 3 are in; do them in the order listed unless the playtest says otherwise.
+- Same routine as before: run `tests/touch.cjs` after each change, commit as you go, open the PR, fix what CI flags, merge once green (the owner has allowed merging green PRs), check the live site with `tests/touch.cjs`, bump `VERSION` (0.6, 0.7, …) and `sw.js` (`amr-v5`, …) per release, update this file and `PLAYTEST.md`, and record calls under a new "Decisions made by Claude (Nth session)".
+- Everything below is settled unless it is marked **Owner**. Use your judgement on gaps and write the call down. Batch every **Owner** item into the one short end-of-session message; never block on one, use the default given.
+- Keep the game rules that make it suit preschoolers: no timers, no losing, no reading needed by the child, at most 5 houses on screen, every prompt spoken, everything works offline, nothing leaves the device.
+
+### Where variety stands today (0.5)
+- 5 fixed letters (S, B, K, C, P), one animal each, in the `CH` array; the letter is also the animal's id everywhere (`BYID`, `weak`, stickers, player avatars, clip keys like `name-S`).
+- 4 routes in one unlock chain: 1 letters, 2 animal pictures, 3 mixed, 4 numbers 1 to 5 (numeral or stars).
+- Randomness is the mail order (shuffled, no letter twice in a row) and the adaptive weighting of missed letters.
+- Prompts are fixed sentences. Stickers cycle through the 5 animals in a fixed order (`CH[P.stickers.length % CH.length]`).
+- Nothing can be chosen by a parent beyond Unlock all.
+
+### Phase 1: Friend library (data model)
+Split "animal friend" from "letter", so a letter can have more than one friend and a friend can be added without code changes.
+- **Data:** `FRIENDS` replaces `CH`: `{id, letter, name, animal, color, roof}`, where `id` is unique (`'S'`, `'S2'`, …) and `letter` is the uppercase letter it teaches. The existing 5 keep their ids (`S`, `B`, `K`, `C`, `P`) so saved stickers, avatars and practice scores stay valid with no migration. `ART` stays keyed by friend id.
+- **Practice scores stay per letter** (`weak.S`), not per friend: the child is learning the letter.
+- **Clips:** `name-<id>` and `reward-<id>` per friend, `letter-<L>` and `sound-<L>` per letter. Generate the `CLIPS` entries from `FRIENDS` as today; update the clip count text and docs to whatever the new total is.
+- **Rounds** pick 2 to 5 letters from the player's letter set (Phase 2), then one friend per letter for that round (rotate: the friend this player saw least recently), so the houses vary between rounds while the lesson stays the same.
+- **Tests:** a v2 save from 0.5 loads unchanged (stickers, avatar, weak); a round with two friends for one letter rotates them; all existing checks pass.
+
+### Phase 2: Letter sets in the parent corner
+- **Per player**, saved as `letters:[...]` on each player (default `['S','B','K','C','P']`, which is today's game). Add it in `cleanPlayer` with that default, so the save shape stays `v:2` (additive, no migration). Also store `device.lettersSame` (default false).
+- **Parent corner:** a "Letters" block for the selected player: a grid of A to Z toggle buttons (only letters with at least one friend are enabled), presets ("First five" = today's set, "All"), and "Use for all players" (copies this player's set to everyone; one tap, no confirm, since it is easy to undo by choosing again). At least 2 letters must stay on; the last two can't be turned off.
+- **Unlocking:** a route's progress rule doesn't change. Changing letters never erases rounds or stickers.
+- Routes 1 to 3 draw only from the set. Houses per round = `min(5, set size, growth rule)`.
+- **Progress row and printed summary** add "Letters: S, B, K, C, P".
+- **Needs practice** suggests the next step: when no letter in the set has a score of 2 or more after 3 rounds, show "Ready for new letters" next to it (text only, no automatic change).
+- **Tests:** choose 3 letters, play a round, every house and mail is from the set; the 2-letter minimum; "Use for all players"; letters show in the summary.
+
+### Phase 3: More animal friends (A to Z)
+Draft list. The rule: the friend's name, the animal and the letter all start with the sound being taught (that is why Charlie became Cody). Vowels use the short sound. No brand characters, nothing scary, and avoid the very commonest children's names. **Owner** may veto or rename any; until then use these.
+
+| Letter | Friend | Second friend (rotation) | Note |
+| --- | --- | --- | --- |
+| A | Annie the Alligator | Abby the Ant | short a |
+| B | Billy the Beaver | Bella the Bear | |
+| C | Cody the Crane | Cora the Cow | hard c only |
+| D | Dina the Duck | Dex the Dog | |
+| E | Eddie the Elephant | Emmett the Elk | short e (not emu, which is a long e) |
+| F | Freddy the Frog | Fern the Fox | |
+| G | Gus the Goat | Gabby the Goose | hard g only |
+| H | Hattie the Hippo | Hank the Horse | |
+| I | Iggy the Iguana | Izzy the Inchworm | short i |
+| J | Jojo the Jellyfish | Jasper the Jaguar | |
+| K | Kelly the Kangaroo | Kit the Koala | |
+| L | Lulu the Lion | Lenny the Llama | |
+| M | Millie the Monkey | Moe the Moose | |
+| N | Ned the Narwhal | Nell the Newt | |
+| O | Ollie the Octopus | Otto the Ox | short o |
+| P | Pete the Penguin | Polly the Pig | |
+| Q | Quinn the Quail | | tricky (kw); off by default |
+| R | Rosie the Rabbit | Rex the Raccoon | |
+| S | Sammy the Skunk | Sally the Seal | |
+| T | Toby the Turtle | Tess the Tiger | |
+| U | Upton the Umbrellabird | | tricky (few short-u animals); off by default |
+| V | Vera the Vole | | few friendly V animals; no vulture (scary) |
+| W | Wally the Walrus | Wendy the Whale | |
+| X | | | leave out: no word starts with the x sound a preschooler hears; teach later as an ending sound (fox, box) |
+| Y | Yara the Yak | | |
+| Z | Zoe the Zebra | Ziggy the Zebra | |
+
+- **Art:** draw each one as an inline SVG in the same simple style and 100×100 viewBox as `ART` today (round body, big eyes, one or two telling features: trunk, stripes, shell). Placeholder quality is fine; finished art is an **Owner** decision later (see Open questions). Pick a `color` and `roof` per friend with enough contrast for the letter on the house; extend the `--c-*` CSS variables.
+- **Size:** 50 SVGs add roughly 40 to 60 KB to `index.html`. Fine for now; if the page passes ~250 KB, move `ART` and `FRIENDS` into `friends.js` and add it to `CORE` in `sw.js`.
+- Do all 25 letters with the first friend in this phase, then the second friends; a PR per half is fine if it gets long.
+- **Avatars:** the player animal choice in the parent corner shows only the original 5 plus a "More" button that opens the full list, so the card doesn't get long.
+- **Tests:** every friend's art renders, every friend's name starts with its letter, every letter in the grid has a friend (except X), the parent corner fits on the sideways phone.
+
+### Phase 4: Map with tracks
+More routes (Phase 5) won't fit in one zigzag of 4, and a parent shouldn't have to finish letters to reach numbers.
+- **Two tracks**, each with its own unlock chain and path: **Letters** (the letter routes) and **Numbers** (the number routes). The map shows both as two lines of discs (two columns upright, two rows sideways), or a track switcher at the top if that doesn't fit at the smallest size; check all 5 sizes and decide.
+- Existing route numbers keep their saved `rounds` key (1 to 4) so progress carries over; new routes get new keys (5, 6, …).
+- The 2-rounds unlock rule, the stars, padlocks, lit path and Unlock all work per track as today.
+
+### Phase 5: New kinds of questions
+Each is a new route on the same drag-mail-to-house play, with a spoken prompt and the same 5-delivery round. In this order:
+1. **Letter sounds** (Letters track): "Who starts with *buh*?" Mail shows a speaker icon; tapping it repeats the sound. Uses `sound-<L>` clips.
+2. **Lowercase** (Letters track): mail shows `b`, houses show `B`. Watch b/d and p/q: never put both on screen in the first rounds.
+3. **Beginning sounds from a picture** (Letters track): mail shows an object (ball, cat, dog, sun, …), the child sends it to the house of the matching letter. Needs one simple object SVG per letter in the set (draw them like the friends; list them next to `FRIENDS`).
+4. **Numbers to 10** (Numbers track): numerals and dot/star counts 1 to 10, still at most 5 houses at once.
+5. **Adding to 5, then 10** (Numbers track): "2 stars and 1 star" shown as two groups; house numbers are the sum.
+6. **Colours and shapes** (a third small track, or under Numbers as "Shapes"): houses painted a colour or showing a shape.
+7. **Rhymes** (Letters track, last): "What rhymes with cat?" with picture mail. Needs voice to work; built-in speech is fine.
+- New prompt clips go in `CLIPS` with their text. Needs practice and the Progress row learn the new routes (by letter for letter routes; numbers are not tracked as weak today, keep it that way).
+
+### Phase 6: Stickers that grow
+- Each route gives its own sticker family (letter routes: the friend of a letter the child got right; number routes: number stickers; shapes: shape stickers), not one fixed cycle.
+- The sticker book becomes a scene (a town street) the child decorates by dragging stickers onto it; positions are saved per player.
+- Every 5th sticker is a **postcard** from a friend (art plus a spoken line, "Thanks for the mail! Love, Annie"), kept in the book.
+- Old stickers (`{c:'S'}`) stay valid and show as before.
+
+### Phase 7: Small story routes
+- Occasional themed rounds that change the look, not the rules: a friend's birthday (party hats, a cake at the end), a rainy day (puddles, umbrellas on the houses), snow. Picked at random, at most one in 4 rounds, and only after round 2 of a route.
+- Pure art and a new spoken intro line each; no new mechanics.
+
+### Phase 8: Accessibility and polish
+- axe-core (served locally in `tests/`, not from a CDN) run in `tests/touch.cjs` on every screen Lighthouse can't see: map, delivery, sticker book, parent corner, picker, summary.
+- A "bigger houses" option in the parent corner for small fingers, if the playtest asks for it.
+
+### Needs the owner (batch these; never block on them)
+- **Names:** approve or change the table in Phase 3. Default: use it as written.
+- **Art direction:** placeholder SVGs or commissioned art. Default: placeholders in the current style.
+- **Voices:** record or generate clips once wording has settled after the playtest and Phase 5 (the list grows a lot; regenerate it from `CLIPS`).
+- **Older children** (below) and the **game hub** decide the name and address; see Ideas for later.
+
+### After these phases: older children
+Short words (send "cat" to Cody's house: first letter, then whole word), CVC word building, sight words, spelling. This is where the game hub idea comes in: likely a second game for ages 5 to 7 sharing the same player profiles, rather than more routes here. Plan it with the owner when Phases 1 to 7 are done.
 
 ## Ideas for later
+Most earlier ideas are now phases in the roadmap above. These two stay here:
 - **Game hub (owner's idea, October 8, 2026):** a new overall name, and a home for several educational games grouped by age or grade, with Animal Mail Route as one of them. Deferred until this game reaches a finished point. Keep it in mind now:
   - Keep player profiles in their own storage key with a plain shape, so a hub could share them across games later.
   - Don't hard-code the `/animal-mail-route/` path. All URLs are relative today; keep it that way.
