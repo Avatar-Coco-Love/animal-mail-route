@@ -325,7 +325,7 @@ svg{display:block}
       <p>You delivered all the mail and earned a sticker.</p>
       <div class="actions">
         <div class="lab"><button class="rbtn" type="button" id="win-map" aria-label="Back to the map"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 4L3 6v14l6-2 6 2 6-2V4l-6 2z" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linejoin="round"/><path d="M9 4v14M15 6v14" fill="none" stroke="currentColor" stroke-width="2.4"/></svg></button>Map</div>
-        <div class="lab"><button class="rbtn go" type="button" id="win-next" aria-label="Next route"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4.5v15l13-7.5z" fill="currentColor"/></svg></button>Next route</div>
+        <div class="lab"><button class="rbtn go" type="button" id="win-next" aria-label="Play again"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4.5v15l13-7.5z" fill="currentColor"/></svg></button><span id="win-next-label">Play again</span></div>
       </div>
     </div>
   </div>
@@ -628,7 +628,7 @@ function buildQueue(ids, l){
 
 /* ---------- Navigation ---------- */
 var R = null;           // current round
-var lastLevel = 1;
+var winTarget = 1;      // route the win card's big button starts
 var SCREENS = ['title','map','play','book'];
 function show(name){
   SCREENS.forEach(function(n){ $('s-'+n).hidden = (n !== name); });
@@ -718,7 +718,6 @@ function setMail(dx, dy, sc, rot){
 function houses(){ return Array.prototype.slice.call(street.querySelectorAll('.house')); }
 
 function startLevel(l){
-  lastLevel = l;
   count('started', l);
   var n = houseCount(l);
   var ids = CH.slice(0, n).map(function(c){ return c.id; });
@@ -979,7 +978,13 @@ function confetti(){
 }
 function finishRound(){
   var level = R.level;
+  var hadNext = level < LEVELS.length && unlocked(level + 1);
   S.rounds[level] = (S.rounds[level] || 0) + 1;
+  // If this round opened the next route, the big button goes there; otherwise it replays this one.
+  winTarget = (!hadNext && level < LEVELS.length && unlocked(level + 1)) ? level + 1 : level;
+  var label = winTarget === level ? 'Play again' : 'Next route';
+  $('win-next').setAttribute('aria-label', label);
+  $('win-next-label').textContent = label;
   count('finished', level);
   var st = {c: CH[S.stickers.length % CH.length].id};
   S.stickers.push(st);
@@ -992,7 +997,7 @@ function finishRound(){
   say(['route-done']);
   R.busy = true;
 }
-$('win-next').addEventListener('click', function(){ unlock(); startLevel(lastLevel); });
+$('win-next').addEventListener('click', function(){ unlock(); startLevel(winTarget); });
 $('win-map').addEventListener('click', function(){ $('win').hidden = true; show('map'); });
 
 /* ---------- Parent corner ---------- */

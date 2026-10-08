@@ -65,9 +65,11 @@ const wanted = (page) => page.evaluate(() => document.querySelector('#caption').
     await ctx.close();
   }
 
-  // full round with tap-then-tap, wrong tries and the wiggle hint
+  // full round with tap-then-tap, wrong tries and the wiggle hint; then the win card's
+  // big button: "Play again" until a round unlocks the next route, then "Next route"
   {
     const { ctx, page } = await newPage(browser, 740, 360);
+    const winLabel = () => page.$eval('#win-next-label', (e) => e.textContent);
     await page.tap('.playbtn');
     await page.tap('.node[data-level="1"]');
     let hints = 0;
@@ -86,6 +88,21 @@ const wanted = (page) => page.evaluate(() => document.querySelector('#caption').
     check('round: hint after 2 misses, every time', hints === 5, hints);
     check('round: win card after 5 deliveries', await page.$eval('#win', (e) => !e.hidden));
     check('round: win buttons on screen (sideways phone)', await allOnScreen(page, '#win .rbtn'));
+    check('win card: first round says Play again', (await winLabel()) === 'Play again', await winLabel());
+    await page.tap('#win-next');
+    await page.waitForTimeout(300);
+    check('win card: Play again replays route 1', await page.$eval('#win', (e) => e.hidden) && !(await page.$('.house.has-pal')));
+    for (let i = 0; i < 5; i++) {
+      await page.waitForTimeout(1700);
+      await page.tap('#mail');
+      await page.tap(`.house[data-id="${await wanted(page)}"]`, { force: true });
+      await page.waitForTimeout(2700);
+    }
+    await page.waitForTimeout(500);
+    check('win card: round that unlocks route 2 says Next route', (await winLabel()) === 'Next route', await winLabel());
+    await page.tap('#win-next');
+    await page.waitForTimeout(300);
+    check('win card: Next route starts route 2', !!(await page.$('.house.has-pal')));
     await ctx.close();
   }
 
