@@ -29,9 +29,11 @@ Target: Android phone and tablet, touch-first. Built as plain HTML, CSS, and Jav
 - `say([keys], fallbackText)`: plays `audio/<key>.mp3` for each key if ALL clips in the line are loaded, otherwise uses the browser's built-in speech.
 - Levels: `unlocked`, `houseCount`, `kindFor`, `buildQueue` (adaptive weighting), `promptFor`, `paperHTML`.
 - Parent corner shows how many of the 33 clips were found.
+- Play counts (`COUNT_URL`, `count`, `sendCounts`): opt-in, anonymous, see `TELEMETRY.md`. Hidden until `COUNT_URL` is set.
+- Fonts are served from `fonts/` (no Google Fonts request). `privacy.html` is the privacy page.
 
 ## Audio
-Recordings go in `audio/` named like `letter-S.mp3`, `sound-S.mp3`, `name-S.mp3`, `reward-S.mp3`, `num-3.mp3`, `who-gets-the.mp3`, and so on. The full list with exact wording and delivery notes is in the "Animal Mail Route: Voice Script" doc (a private Claude doc; if it is not reachable, regenerate the list from `CLIPS`). The page loads clips with `fetch('audio/<key>.mp3')`, so it must be served over http(s), not opened from a file path.
+Recordings go in `audio/` named like `letter-S.mp3`, `sound-S.mp3`, `name-S.mp3`, `reward-S.mp3`, `num-3.mp3`, `who-gets-the.mp3`, and so on. The full list with exact wording and delivery notes is in the "Animal Mail Route: Voice Script" doc (a private Claude doc; if it is not reachable, regenerate the list from `CLIPS`). List the clips that exist in `audio/clips.json` (for example `["letter-S","sound-S"]`); the game only loads clips named there, so a missing list means no requests for missing files. The page loads clips with `fetch('audio/<key>.mp3')`, so it must be served over http(s), not opened from a file path.
 
 ## Testing status
 Tested on 2026-10-08 in an emulated Android Chrome with real touch input (Playwright). Sizes: small phone 360x640, Pixel 412x915, phone sideways 740x360 and 800x360, tablet 800x1280 and 1280x800. Covered: drag to deliver, tap mail then tap house, wrong house then wiggle hint, a full round to the sticker, house count growing, routes 3 and 4 with 5 houses, sticker book, parent corner by press and hold. No script errors. The only console noise is 33 expected 404s for the missing voice clips.
@@ -56,7 +58,7 @@ Still needs a real device (emulation cannot check these):
 - Game name: "Animal Mail Route" is a placeholder.
 
 ## Planned next steps
-1. New GitHub repository for the game, hosted with GitHub Pages so the link can be shared (`index.html` plus `audio/`).
+1. Done: GitHub repository. Hosting with GitHub Pages from `main` (root folder) gives https://avatar-coco-love.github.io/animal-mail-route/.
 2. Record or generate the 33 voice clips and add them to `audio/`.
-3. Telemetry. This is a children's game, so Google's Families policy and children's privacy rules (COPPA) apply: start with anonymous play counts, no personal data, no third-party ad or analytics trackers, and write down what is collected. Plan: `TELEMETRY.md` (off until a parent turns it on, Cloudflare Worker + D1).
+3. Telemetry (built, Worker not deployed yet; see `worker/README.md`). This is a children's game, so Google's Families policy and children's privacy rules (COPPA) apply: start with anonymous play counts, no personal data, no third-party ad or analytics trackers, and write down what is collected. Plan: `TELEMETRY.md` (off until a parent turns it on, Cloudflare Worker + D1).
 4. Possible later: installable offline web app, Android packaging, finished art, per-animal voices.

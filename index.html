@@ -5,8 +5,13 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <style>:root{color-scheme:light}body{margin:0}[hidden]{display:none!important}</style>
 <title>Animal Mail Route</title>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;800&family=Nunito:wght@600;800&display=swap">
+<meta name="description" content="A mail delivery game for preschoolers: drag each letter to the right animal's house.">
+<meta name="theme-color" content="#8fd1ff">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect x='4' y='14' width='56' height='38' rx='5' fill='%23fffaf0' stroke='%23ee5350' stroke-width='5'/%3E%3Cpath d='M8 18l24 18 24-18' fill='none' stroke='%232e6fe8' stroke-width='5' stroke-linejoin='round'/%3E%3C/svg%3E">
 <style>
+/* Fonts are served with the game (SIL OFL, see fonts/) so playing makes no request to a third party. */
+@font-face{font-family:'Baloo 2';font-style:normal;font-weight:400 800;font-display:swap;src:url(fonts/baloo2-latin.woff2) format('woff2')}
+@font-face{font-family:'Nunito';font-style:normal;font-weight:200 1000;font-display:swap;src:url(fonts/nunito-latin.woff2) format('woff2')}
 /* Layout concept: a sunny mail route. Sky and mail truck on top, a grass street of houses below.
    One motif carries the identity: the red-and-blue airmail stripe on every envelope. */
 :root{
@@ -178,6 +183,7 @@ svg{display:block}
 .pbtn.armed{background:var(--red);color:#fff}
 .row span{font-weight:800;font-size:1.05rem;font-variant-numeric:tabular-nums}
 .parent .note{margin:12px 0 14px;font-size:.85rem;line-height:1.4;opacity:.8}
+.parent .note a{color:var(--blue);font-weight:800}
 .parent .close{display:block;margin:0 auto;padding:12px 30px;border-radius:999px;border:0;background:var(--blue);color:#fff;font:800 1.15rem var(--font-display)}
 
 /* animation polish */
@@ -330,10 +336,11 @@ svg{display:block}
       <div class="row"><b>Voice prompts</b><button class="tog" type="button" id="t-voice" aria-pressed="true">On</button></div>
       <div class="row"><b>Sound effects</b><button class="tog" type="button" id="t-sfx" aria-pressed="true">On</button></div>
       <div class="row"><b>Unlock all routes</b><button class="tog" type="button" id="t-unlock" aria-pressed="false">Off</button></div>
+      <div class="row" id="share-row" hidden><b>Share play counts</b><button class="tog" type="button" id="t-share" aria-pressed="false">Off</button></div>
       <div class="row"><b>Recorded voice clips</b><span id="clipcount">0 of 33</span></div>
       <div class="row"><b>Needs practice</b><span id="weaklist">None yet</span></div>
       <div class="row"><b>Progress</b><button class="pbtn danger" type="button" id="b-reset">Erase</button></div>
-      <p class="note">Prototype 0.1. Voice prompts use your device's built-in speech until recorded voices are added.</p>
+      <p class="note">Prototype 0.2. Voice prompts use your device's built-in speech until recorded voices are added. <span id="share-note" hidden>"Share play counts" sends only anonymous totals, such as rounds played per route, and is off unless you turn it on. </span><a href="privacy.html" target="_blank" rel="noopener">Privacy</a></p>
       <button class="close" type="button" id="p-close">Done</button>
     </div>
   </div>
@@ -371,7 +378,7 @@ var LOCK = '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="11" width
 
 /* ---------- Saved progress ---------- */
 var KEY = 'animal-mail-route-v1';
-function defaults(){ return {rounds:{1:0,2:0,3:0,4:0}, stickers:[], unlockAll:false, voice:true, sfx:true, weak:{}}; }
+function defaults(){ return {rounds:{1:0,2:0,3:0,4:0}, stickers:[], unlockAll:false, voice:true, sfx:true, share:false, weak:{}}; }
 var S = defaults();
 function load(){
   try{
@@ -384,6 +391,7 @@ function load(){
     S.unlockAll = !!o.unlockAll;
     S.voice = o.voice !== false;
     S.sfx = o.sfx !== false;
+    S.share = o.share === true;
     if(o.weak && typeof o.weak === 'object'){
       for(var id in BYID){ var w = +o.weak[id]; if(w > 0) S.weak[id] = Math.min(6, Math.round(w)); }
     }
@@ -466,18 +474,27 @@ function updateClipCount(){
   var el = $('clipcount');
   if(el) el.textContent = Object.keys(BUF).length + ' of ' + Object.keys(CLIPS).length;
 }
+/* audio/clips.json lists the recordings that exist, e.g. ["letter-S","sound-S"], so the game
+   doesn't ask the server for every missing file. No list means no recordings yet. */
 function loadClips(){
   var c = getAc();
   if(!c || !window.fetch) return;
-  Object.keys(CLIPS).forEach(function(k){
-    fetch('audio/' + k + '.mp3')
-      .then(function(r){ if(!r.ok) throw new Error('missing'); return r.arrayBuffer(); })
-      .then(function(b){
-        return new Promise(function(res, rej){ c.decodeAudioData(b, res, rej); });
-      })
-      .then(function(buf){ BUF[k] = buf; updateClipCount(); })
-      .catch(function(){});
-  });
+  fetch('audio/clips.json')
+    .then(function(r){ return r.ok ? r.json() : []; })
+    .catch(function(){ return []; })
+    .then(function(list){
+      (Array.isArray(list) ? list : []).filter(function(k){ return CLIPS.hasOwnProperty(k); }).forEach(loadClip);
+    });
+}
+function loadClip(k){
+  var c = getAc();
+  fetch('audio/' + k + '.mp3')
+    .then(function(r){ if(!r.ok) throw new Error('missing'); return r.arrayBuffer(); })
+    .then(function(b){
+      return new Promise(function(res, rej){ c.decodeAudioData(b, res, rej); });
+    })
+    .then(function(buf){ BUF[k] = buf; updateClipCount(); })
+    .catch(function(){});
 }
 function speakText(text){
   if(!text || !('speechSynthesis' in window)) return;
@@ -519,6 +536,45 @@ function hush(){
   curSrc = null;
   try{ window.speechSynthesis.cancel(); }catch(e){}
 }
+
+/* ---------- Play counts (see TELEMETRY.md) ----------
+   Off unless a parent turns on "Share play counts". Only totals per route are kept, with no
+   identifier or timestamp, and they are sent once when the page is hidden. The setting is
+   not shown at all while COUNT_URL is empty. */
+var VERSION = '0.2';
+var COUNT_URL = '';      // the Worker, e.g. 'https://animal-mail-counts.<account>.workers.dev/v1/counts'
+var CKEY = 'animal-mail-route-counts', CAP = 200, METRICS = ['started','finished','misses'];
+function emptyCounts(){ return {opens:0, started:{}, finished:{}, misses:{}}; }
+function capN(v){ return Math.max(0, Math.min(CAP, Math.floor(+v || 0))); }
+var C = emptyCounts();
+try{
+  var oc = JSON.parse(localStorage.getItem(CKEY) || 'null');
+  if(oc && typeof oc === 'object'){
+    C.opens = capN(oc.opens);
+    METRICS.forEach(function(m){ for(var r=1;r<=4;r++){ var n = capN(oc[m] && oc[m][r]); if(n) C[m][r] = n; } });
+  }
+}catch(e){}
+function sharing(){ return !!(COUNT_URL && S.share); }
+function count(metric, route){
+  if(!sharing()) return;
+  if(metric === 'opens') C.opens = capN(C.opens + 1);
+  else C[metric][route] = capN((C[metric][route] || 0) + 1);
+  try{ localStorage.setItem(CKEY, JSON.stringify(C)); }catch(e){}
+}
+function clearCounts(){
+  C = emptyCounts();
+  try{ localStorage.removeItem(CKEY); }catch(e){}
+}
+function sendCounts(){
+  if(!sharing() || !navigator.sendBeacon) return;
+  if(!C.opens && !METRICS.some(function(m){ return Object.keys(C[m]).length; })) return;
+  var body = JSON.stringify({v:1, app:VERSION, opens:C.opens, started:C.started, finished:C.finished, misses:C.misses});
+  var ok = false;
+  // text/plain keeps this a simple request (no CORS preflight, which sendBeacon can't do)
+  try{ ok = navigator.sendBeacon(COUNT_URL, new Blob([body], {type:'text/plain'})); }catch(e){}
+  if(ok) clearCounts();
+}
+document.addEventListener('visibilitychange', function(){ if(document.visibilityState === 'hidden') sendCounts(); });
 
 /* ---------- Levels ---------- */
 function unlocked(l){ return l === 1 || S.unlockAll || (S.rounds[l-1] || 0) >= 2; }
@@ -663,6 +719,7 @@ function houses(){ return Array.prototype.slice.call(street.querySelectorAll('.h
 
 function startLevel(l){
   lastLevel = l;
+  count('started', l);
   var n = houseCount(l);
   var ids = CH.slice(0, n).map(function(c){ return c.id; });
   R = {level:l, ids:ids, queue:buildQueue(ids, l), i:0, misses:0, busy:true, current:null, selected:false, timer:null};
@@ -893,6 +950,7 @@ function success(h){
 
 function wrong(h){
   R.misses++;
+  count('misses', R.level);
   if(R.level !== 4 && R.misses <= 2){ S.weak[R.current.id] = Math.min(6, weakOf(R.current.id) + 1); save(); }
   sfx.no();
   h.classList.remove('nope'); void h.offsetWidth; h.classList.add('nope');
@@ -922,6 +980,7 @@ function confetti(){
 function finishRound(){
   var level = R.level;
   S.rounds[level] = (S.rounds[level] || 0) + 1;
+  count('finished', level);
   var st = {c: CH[S.stickers.length % CH.length].id};
   S.stickers.push(st);
   save();
@@ -955,7 +1014,8 @@ gear.addEventListener('contextmenu', function(e){ e.preventDefault(); });
 
 function setTog(el, on){ el.setAttribute('aria-pressed', on ? 'true' : 'false'); el.textContent = on ? 'On' : 'Off'; }
 function syncToggles(){
-  setTog($('t-voice'), S.voice); setTog($('t-sfx'), S.sfx); setTog($('t-unlock'), S.unlockAll);
+  setTog($('t-voice'), S.voice); setTog($('t-sfx'), S.sfx); setTog($('t-unlock'), S.unlockAll); setTog($('t-share'), S.share);
+  $('share-row').hidden = $('share-note').hidden = !COUNT_URL;
   var weak = CH.map(function(c){ return c.id; }).filter(function(id){ return weakOf(id) >= 2; });
   $('weaklist').textContent = weak.length ? weak.join(', ') : 'None yet';
   var b = $('b-reset'); b.textContent = 'Erase'; b.classList.remove('armed');
@@ -963,6 +1023,7 @@ function syncToggles(){
 $('t-voice').addEventListener('click', function(){ S.voice = !S.voice; if(!S.voice) hush(); save(); syncToggles(); });
 $('t-sfx').addEventListener('click', function(){ S.sfx = !S.sfx; save(); syncToggles(); if(S.sfx){ unlock(); sfx.pick(); } });
 $('t-unlock').addEventListener('click', function(){ S.unlockAll = !S.unlockAll; save(); syncToggles(); });
+$('t-share').addEventListener('click', function(){ S.share = !S.share; if(!S.share) clearCounts(); save(); syncToggles(); });
 var resetTimer = null;
 $('b-reset').addEventListener('click', function(){
   var b = $('b-reset');
@@ -972,8 +1033,8 @@ $('b-reset').addEventListener('click', function(){
     resetTimer = setTimeout(function(){ b.classList.remove('armed'); b.textContent = 'Erase'; }, 4000);
     return;
   }
-  var keep = {voice:S.voice, sfx:S.sfx};
-  S = defaults(); S.voice = keep.voice; S.sfx = keep.sfx;
+  var keep = {voice:S.voice, sfx:S.sfx, share:S.share};
+  S = defaults(); S.voice = keep.voice; S.sfx = keep.sfx; S.share = keep.share;
   save(); syncToggles(); renderMap(); renderBook();
   $('parent').hidden = true;
 });
@@ -982,6 +1043,7 @@ $('p-close').addEventListener('click', function(){ $('parent').hidden = true; })
 /* ---------- Boot ---------- */
 loadClips();
 updateClipCount();
+count('opens');
 show('title');
 })();
 </script>

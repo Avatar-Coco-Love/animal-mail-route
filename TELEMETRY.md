@@ -1,6 +1,6 @@
 # Telemetry plan: anonymous play counts
 
-Status: plan, not built yet.
+Status: built and tested locally (game client, Worker, privacy page). The Worker is not deployed yet, so `COUNT_URL` in `index.html` is empty and the setting is hidden. Deploy steps: `worker/README.md`.
 
 ## Goal
 Learn roughly how much the game is played and which routes children finish, without collecting anything about who is playing. This is a children's game, so COPPA and Google Play's Families policy apply.
@@ -53,13 +53,14 @@ The server adds these totals into daily rows: `(date, metric, route) -> count`. 
 > Share play counts (off unless you turn it on): the game sends totals such as "3 rounds played on route 1" to the game's own server. It sends no name, no device ID, no location and nothing that identifies your child, and the server does not keep IP addresses.
 
 ## Before shipping
-- Host the two fonts (Baloo 2, Nunito) with the game instead of loading them from Google Fonts. Today every launch sends the device's IP address to Google, which is a third-party request under these rules.
-- Privacy policy page on GitHub Pages with the table above.
+- Done: the two fonts (Baloo 2, Nunito) are served from `fonts/` instead of Google Fonts, so playing makes no third-party request.
+- Done: `privacy.html`, linked from the parent corner.
 - Google Play (later): in the Data safety form, declare App activity > App interactions, not linked to the user, not used for tracking, optional.
 
 ## Build steps
-1. Self-host the fonts.
-2. Worker + D1 schema + validation, with tests for rejected bodies.
-3. Client toggle, counters, flush on hide.
-4. Test: with sharing off, no request is ever made; with it on, one beacon per session with the expected totals; turning it off clears the stored counts.
-5. Privacy page, then link it from the parent corner.
+1. Done: self-host the fonts.
+2. Done: Worker + D1 schema + validation (`worker/`, 7 tests: `cd worker && npm test`).
+3. Done: client toggle, counters, send on hide.
+4. Done: end-to-end check against `wrangler dev` with a local D1 in an emulated phone. With sharing off, no request was made. With it on, one message per hide with the expected totals, and the stored counts were cleared. Turning it off deleted the unsent counts. The only hosts contacted were the game and the Worker.
+5. Done: privacy page, linked from the parent corner.
+6. To do: deploy the Worker and set `COUNT_URL` (`worker/README.md`).
