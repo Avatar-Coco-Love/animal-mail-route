@@ -58,5 +58,5 @@ Still needs a real device (emulation cannot check these):
 ## Planned next steps
 1. New GitHub repository for the game, hosted with GitHub Pages so the link can be shared (`index.html` plus `audio/`).
 2. Record or generate the 33 voice clips and add them to `audio/`.
-3. Telemetry. This is a children's game, so Google's Families policy and children's privacy rules (COPPA) apply: start with anonymous play counts, no personal data, no third-party ad or analytics trackers, and write down what is collected.
+3. Telemetry. This is a children's game, so Google's Families policy and children's privacy rules (COPPA) apply: start with anonymous play counts, no personal data, no third-party ad or analytics trackers, and write down what is collected. Plan: `TELEMETRY.md` (off until a parent turns it on, Cloudflare Worker + D1).
 4. Possible later: installable offline web app, Android packaging, finished art, per-animal voices.
