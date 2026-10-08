@@ -1,6 +1,28 @@
 # Animal Mail Route: handoff
 
-Read this first, then open `index.html`. It is the whole game, as a standalone page (doctype, viewport, and base reset added so it works when hosted, for example on GitHub Pages). A copy also runs as a Claude artifact without that wrapper.
+Read this first, then open `index.html`. It is the whole game, as a standalone page.
+
+**Live:** https://avatar-coco-love.github.io/animal-mail-route/ (GitHub Pages, deploys from `main`, root folder, a minute or two after each merge). Repo: `Avatar-Coco-Love/animal-mail-route`.
+
+An older copy also exists as a Claude artifact. It predates the fixes below, so treat this repo as the source of truth.
+
+## Where things stand (October 8, 2026)
+- Playable and public. Tested in emulated Android Chrome with real touch input at 5 phone and tablet sizes, on the live site too. All checks pass.
+- Not yet played on a real device or by a child.
+- Voice is the device's built-in speech; no recordings yet.
+- Opt-in play counts are built, but the Worker isn't deployed, so the setting is hidden and nothing is collected.
+- Privacy page is live. The game contacts no site except the one it's hosted on.
+
+## Repo map
+| Path | What |
+| --- | --- |
+| `index.html` | the whole game (CSS + one script block) |
+| `privacy.html` | privacy page, linked from the parent corner |
+| `fonts/` | Baloo 2 and Nunito (latin subsets, SIL OFL), served with the game |
+| `audio/` | voice clips (none yet) and `clips.json`, the list of clips that exist |
+| `TELEMETRY.md` | play counts design and rules (COPPA, Google Families) |
+| `worker/` | Cloudflare Worker + D1 for play counts, with tests and deploy steps |
+| `tests/touch.cjs` | touch smoke test (38 checks), local or live |
 
 ## What it is
 A mail delivery game for preschoolers (about ages 3 to 5). The child drags mail to the matching house and learns letters, animals, and numbers. Five animal friends (idea came from a coworker):
@@ -35,10 +57,21 @@ Target: Android phone and tablet, touch-first. Built as plain HTML, CSS, and Jav
 ## Audio
 Recordings go in `audio/` named like `letter-S.mp3`, `sound-S.mp3`, `name-S.mp3`, `reward-S.mp3`, `num-3.mp3`, `who-gets-the.mp3`, and so on. The full list with exact wording and delivery notes is in the "Animal Mail Route: Voice Script" doc (a private Claude doc; if it is not reachable, regenerate the list from `CLIPS`). List the clips that exist in `audio/clips.json` (for example `["letter-S","sound-S"]`); the game only loads clips named there, so a missing list means no requests for missing files. The page loads clips with `fetch('audio/<key>.mp3')`, so it must be served over http(s), not opened from a file path.
 
-## Testing status
-Tested on 2026-10-08 in an emulated Android Chrome with real touch input (Playwright). Sizes: small phone 360x640, Pixel 412x915, phone sideways 740x360 and 800x360, tablet 800x1280 and 1280x800. Covered: drag to deliver, tap mail then tap house, wrong house then wiggle hint, a full round to the sticker, house count growing, routes 3 and 4 with 5 houses, sticker book, parent corner by press and hold. No script errors. The only console noise is 33 expected 404s for the missing voice clips.
+## Testing
+Run after any change to `index.html`:
+```
+npx http-server -p 8080 -s .      # in one terminal, from the repo root
+NODE_PATH="$(npm root -g)" node tests/touch.cjs                 # local
+NODE_PATH="$(npm root -g)" node tests/touch.cjs https://avatar-coco-love.github.io/animal-mail-route/   # live
+```
+It needs Playwright with Chromium; in Claude Code cloud sessions it is installed globally. It checks:
+- 5 screen sizes (small phone, Pixel, phone sideways, tablet, tablet sideways): everything on screen, finger drag delivers, dragged mail stays visible, no console errors, no requests to other sites
+- a full round with wrong tries, the hint and the win card
+- the parent corner's press-and-hold, and swiping to Done on a sideways phone
 
-Fixed in that pass:
+Worker tests: `cd worker && npm install && npm test`.
+
+Bugs found and fixed in the first touch pass (October 8, 2026):
 - Dragged mail disappeared as soon as it left the sky area (the mail zone clipped it), so a child could not see what they were dragging. The delivery fly-in was hidden too. Only the clouds are clipped now.
 - Phone held sideways: routes 3 and 4 were off the bottom of the map and could not be reached. The map now runs left to right on short landscape screens.
 - Phone held sideways: the parent corner's Done and Erase buttons and the win card's buttons were cut off. Overlays now scroll, and cards are more compact on short screens.
@@ -57,8 +90,18 @@ Still needs a real device (emulation cannot check these):
 - Art direction: the animals are simple placeholder SVGs.
 - Game name: "Animal Mail Route" is a placeholder.
 
-## Planned next steps
-1. Done: GitHub repository. Hosting with GitHub Pages from `main` (root folder) gives https://avatar-coco-love.github.io/animal-mail-route/.
-2. Record or generate the 33 voice clips and add them to `audio/`.
-3. Telemetry (built, Worker not deployed yet; see `worker/README.md`). This is a children's game, so Google's Families policy and children's privacy rules (COPPA) apply: start with anonymous play counts, no personal data, no third-party ad or analytics trackers, and write down what is collected. Plan: `TELEMETRY.md` (off until a parent turns it on, Cloudflare Worker + D1).
-4. Possible later: installable offline web app, Android packaging, finished art, per-animal voices.
+## Done
+- GitHub repo, GitHub Pages hosting (PR #1 merged).
+- Device fixes from touch testing, listed under Testing.
+- Fonts served with the game, privacy page, clip list, favicon.
+- Opt-in play counts: client, Worker, tests, end-to-end check against a local Worker.
+
+## Next steps, in order
+1. **Real-device playtest** (needs a person and an Android phone or tablet). Check the "Still needs a real device" list above, and watch a 3 to 5 year old play: can they drag, do they understand the prompts, where do they get stuck. Bring the notes back as fixes.
+2. **Settle Charlie the Crane** before recording (see Open questions).
+3. **Voice clips.** Record or generate the 33 clips in `CLIPS`, put them in `audio/`, list them in `audio/clips.json`. The parent corner shows how many were found. This matters most for 3 year olds, who can't read the captions.
+4. **Deploy the play-count Worker** when you want numbers: `worker/README.md` (needs the owner's Cloudflare login). Then set `COUNT_URL` in `index.html`, which makes the parent setting appear. Run `tests/touch.cjs` afterwards; the "setting hidden" check passes either way.
+5. **Installable offline web app**: a manifest, icons and a service worker caching `index.html`, `fonts/` and `audio/`. Useful in the car, and a step toward Android packaging.
+6. **Later:** finished art, a final name, per-animal voices, Android packaging (Capacitor or a Trusted Web Activity) for Google Play. Play's Families policy then applies; `TELEMETRY.md` has the Data safety answers.
+
+Small known oddity: "Next route" on the win card replays the same route (the card calls each round a "route"). Rename it to "Play again", or make it advance once the next route unlocks.
