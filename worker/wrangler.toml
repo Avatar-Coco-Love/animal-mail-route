@@ -1,0 +1,17 @@
+name = "animal-mail-counts"
+main = "src/index.js"
+compatibility_date = "2025-09-01"
+
+# No request logs: the Worker must not keep IP addresses or anything else about callers.
+[observability]
+enabled = false
+
+[vars]
+# Pages that may send counts (comma separated, no trailing slash).
+ALLOWED_ORIGINS = "https://avatar-coco-love.github.io"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "animal-mail-counts"
+# Paste the id printed by `npx wrangler d1 create animal-mail-counts`.
+database_id = "REPLACE_WITH_DATABASE_ID"
