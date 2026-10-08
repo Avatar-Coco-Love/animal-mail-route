@@ -12,7 +12,7 @@ An older copy also exists as a Claude artifact. It predates the fixes below, so 
 - Voice is the device's built-in speech; no recordings yet.
 - Opt-in play counts are built, but the Worker isn't deployed, so the setting is hidden and nothing is collected.
 - Privacy page is live. The game contacts no site except the one it's hosted on.
-- Installable to the home screen and playable offline (manifest + service worker), once PR #3 is merged.
+- Installable to the home screen and playable offline (manifest + service worker). PR #3 merged; the touch test passed all 54 checks against the live site afterwards.
 - CI runs the worker tests and the touch test on every pull request.
 
 ## Repo map
@@ -106,6 +106,8 @@ Still needs a real device (emulation cannot check these):
 - **Win card button:** if finishing this round unlocks the next route, the button says "Next route" and starts it. Otherwise it says "Play again" and replays the route. Done.
 - **Voice:** keep the built-in speech for now. Record or generate clips only after the real-device playtest, once the wording has settled.
 - **Play counts:** leave the Worker undeployed until the owner wants numbers. Deploying needs their Cloudflare login.
+- **Progress row and player profiles: build next** (owner asked, October 8). Spec below under "Next session".
+- **Game hub idea: later.** The owner floated renaming and turning this into a hub of educational games for different ages and grades. Not now: only after this game reaches a finished point. See "Ideas for later".
 - **Owner's time is limited (working a day job).** Prefer work Claude can finish alone. Batch anything that needs the owner (merging a PR, a playtest, a login) and ask for it in one short message.
 
 ## Open questions
@@ -128,10 +130,51 @@ Small calls made without the owner; change them if they're wrong.
 - The privacy page now says the browser keeps an offline copy of the game's own files (not information about the child).
 
 ## Next session: work that needs nothing from the owner
-Done in PR #3 (rename, win card, install and offline, CI, playtest sheet). Ideas for the next pass, none urgent:
-- Check CI's first run on PR #3 and fix anything the GitHub runner does differently.
-- Bump the "Prototype 0.2" note in the parent corner (and the version sent with play counts) when the next release goes out, together with `VERSION` in `sw.js`.
-- Otherwise wait for the playtest notes; they decide the next fixes.
+Build these in one PR, in order. Run `tests/touch.cjs` locally after each change, commit as you go, open one PR at the end, and wait for CI to be green. Everything below is settled; don't ask the owner about it. Use your judgement on anything not covered, and add what you decided to the "Decisions made by Claude" list.
+
+### Background: what exists today
+- Progress the child can see: 3 stars per route on the map (one per finished round, capped at 3), a padlock on locked routes, 5 dots for deliveries in a round, and a sticker count in the sticker book. The next route opens after **2** rounds, so the 3rd star is a bonus. Houses per round also grow from 2 or 3 up to 5 as rounds are finished. None of this is shown to the parent as numbers.
+- Reset: parent corner → Erase → tap again within 4 seconds. It erases everything.
+- One save per device: `localStorage['animal-mail-route-v1']` = `{rounds:{1..4}, stickers:[{c}], unlockAll, voice, sfx, share, weak:{id:0..6}}`, handled by `defaults`, `load`, `save` near the top of the script. Play counts live separately under `animal-mail-route-counts`.
+
+### 1. Progress row in the parent corner
+- A "Progress" block in the parent corner, for the current player, with one line per route and a stickers line. For example:
+  - Route 1, Letters: 3 rounds
+  - Route 2, Animals: 1 round, so 1 more opens Route 3
+  - Route 3, Letters and animals: locked
+  - Route 4, Numbers: locked
+  - Stickers: 4
+- Use the same rule as `unlocked()`. When "Unlock all" is on, say "open (Unlock all is on)" rather than "locked".
+- Keep "Needs practice" next to it; it becomes per player too (step 2).
+- Don't change the map stars in this PR.
+
+### 2. Player profiles (several children on one device)
+- **Data:** a new key, `animal-mail-route-v2`: `{v:2, device:{voice, sfx, share, unlockAll}, current:<player id>, players:[{id, name, animal, rounds, stickers, weak}]}`. Rounds, stickers and practice letters are per player. Voice, sound effects, play counts and Unlock all stay per device: one setting for everyone, which suits a teacher.
+- **Migration:** if v1 exists and v2 doesn't, turn v1 into player 1 (`name:''`, `animal:'S'`), save v2, then remove the v1 key. Validate as strictly as `load()` does today. Add a test that seeds v1 in `addInitScript` and checks the progress carries over.
+- **Limits:** up to 8 players. The avatar is one of the 5 animals (`CH`), and two children can share one. A new player gets the first animal not yet used. Names are optional, at most 20 characters, and only a parent enters them, in the parent corner. Pre-readers can't type, so the child picks by animal picture.
+- **One player (the default):** the game works exactly as today, with no extra screen. Single-child families see no change.
+- **Two or more players:** tapping Play opens a "Who's playing?" screen with one big button per player (animal picture, with the name under it if set). The pick goes to that player's map. The map's top bar shows the current player's animal; tapping it returns to the picker. The voice says "Who's playing?" (add a `CLIPS` entry `whos-playing`, so the clip count becomes 34; update the "of 33" text and the docs).
+- **Parent corner:** a Players section listing each player with an animal choice, a name field, and "Erase" for that player (tap again to confirm, like today). Add an "Add player" button, hidden at 8. The existing Erase becomes "Erase everything" (all players and settings, same two-tap confirm). The Progress and Needs practice rows show the selected player.
+- **Privacy:** names never leave the device and are never in play counts (counts stay per device and anonymous). Add one sentence to `privacy.html` "Stored on your device", and bump its "Last updated" date.
+- **Release:** bump `VERSION` in `sw.js` (`amr-v2`), and change `VERSION` and the "Prototype 0.2" note in `index.html` to 0.3.
+- **Tests** (add to `tests/touch.cjs`):
+  - v1 migration
+  - add a second player in the parent corner, then "Who's playing?" appears and works on the 5 screen sizes, with everything on screen
+  - progress stays separate per player
+  - the progress row text matches the rule
+  - erasing one player leaves the other
+  - existing checks still pass with one player (no picker)
+
+### 3. Then
+- Update this file (repo map, code layout, current state, test count, decisions), open the PR, wait for green CI, and send the owner one short message: the PR link, and anything that needs them.
+
+## Ideas for later
+- **Game hub (owner's idea, October 8, 2026):** a new overall name, and a home for several educational games grouped by age or grade, with Animal Mail Route as one of them. Deferred until this game reaches a finished point. Keep it in mind now:
+  - Keep player profiles in their own storage key with a plain shape, so a hub could share them across games later.
+  - Don't hard-code the `/animal-mail-route/` path. All URLs are relative today; keep it that way.
+  - Moving to a new repo name or path changes the URL, which changes the service worker scope and loses installed home-screen copies. Saved progress stays on the same origin (`avatar-coco-love.github.io`), but a custom domain would be a different origin. If the hub happens, choose its final address once, and plan a one-time move of saved progress.
+- **Classroom:** shared tablets plus profiles plus "Unlock all" covers basic classroom use with nothing collected. A teacher dashboard across devices needs a server and accounts, which brings COPPA school consent, FERPA and district data agreements. Only do it if a real classroom asks. A middle step is a printable per-child summary on the device.
+- **Map stars:** consider showing that 2 stars open the next route (for example, light up the path to the next node).
 
 ## Later steps (need the owner)
 1. **Real-device playtest** with a 3 to 5 year old on an Android phone or tablet, using `PLAYTEST.md`. The notes become the next fixes.
