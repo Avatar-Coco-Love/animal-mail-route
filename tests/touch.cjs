@@ -188,6 +188,64 @@ const wanted = (page) => page.evaluate(() => document.querySelector('#caption').
     await ctx.close();
   }
 
+  // friend library: a 0.5 save loads unchanged, and a letter's friends take turns between rounds
+  {
+    const old = { v: 2, device: { voice: true, sfx: true, share: false, unlockAll: false }, current: 1, players: [{ id: 1, name: 'Ada', animal: 'K', rounds: { 1: 1, 2: 0, 3: 0, 4: 0 }, stickers: [{ c: 'S' }, { c: 'B' }, { c: 'P' }], weak: { C: 3, B: 1 } }] };
+    const { ctx, page, touch, errors } = await newPage(browser, 412, 915, { 'animal-mail-route-v2': old });
+    await holdGear(page, touch);
+    const got = await progressText(page);
+    check('0.5 save loads unchanged: progress, practice letters, avatar', got[0] === 'Route 1, Letters: 1 round, so 1 more opens Route 2' && got[4] === 'Stickers: 3' && (await page.$eval('#weaklist', (e) => e.textContent)) === 'C' && (await page.$eval('#players [data-ani][aria-pressed="true"]', (e) => e.getAttribute('data-ani'))) === 'K', got);
+    check('clip count covers every friend and letter', (await page.$eval('#clipcount', (e) => e.textContent)) === '0 of 36');
+    await page.tap('#p-close');
+    await page.tap('.playbtn');
+    await page.waitForTimeout(300);
+    const friendOfS = async () => {
+      await page.tap('.node[data-level="1"]');
+      await page.waitForTimeout(1200);
+      return page.$eval('.house[data-id="S"]', (e) => e.getAttribute('data-friend') + '|' + e.getAttribute('aria-label'));
+    };
+    const turns = [];
+    for (let i = 0; i < 3; i++) {
+      turns.push(await friendOfS());
+      await page.tap('[data-go="map"]');
+      await page.waitForTimeout(300);
+    }
+    check('two friends for S take turns between rounds', turns.map((t) => t.split('|')[0]).join() === 'S,S2,S' && /Sally the Seal/.test(turns[1]), turns);
+    const st = await page.evaluate(() => JSON.parse(localStorage.getItem('animal-mail-route-v2')).players[0]);
+    check('0.5 save keeps stickers, avatar and practice scores after playing', st.animal === 'K' && st.name === 'Ada' && JSON.stringify(st.stickers) === JSON.stringify(old.players[0].stickers) && st.weak.C === 3 && st.weak.B === 1 && st.rounds[1] === 1, st);
+    // picture mail names the friend in the house, and the reward line follows them
+    await page.evaluate(() => { const d = JSON.parse(localStorage.getItem('animal-mail-route-v2')); d.device.unlockAll = true; localStorage.setItem('animal-mail-route-v2', JSON.stringify(d)); });
+    await page.reload();
+    await page.waitForTimeout(600);
+    await page.tap('.playbtn');
+    await page.waitForTimeout(300);
+    let sally = false;
+    for (let i = 0; i < 4 && !sally; i++) {
+      await page.tap('.node[data-level="2"]');
+      await page.waitForTimeout(1200);
+      if (await page.$('.house[data-friend="S2"]')) {
+        for (let k = 0; k < 5 && !sally; k++) {
+          const cap = await page.$eval('#caption', (e) => e.textContent);
+          if (cap === 'This mail is for Sally the Seal!') {
+            await page.tap('#mail');
+            await page.tap('.house[data-id="S"]', { force: true });
+            await page.waitForTimeout(400);
+            sally = (await page.$eval('#banner', (e) => e.textContent)) === 'S for Sally the Seal!';
+            break;
+          }
+          await page.tap('#mail');
+          await page.tap(`.house[aria-label$="home of ${cap.slice(17, -1)}"]`, { force: true });
+          await page.waitForTimeout(2900);
+        }
+      }
+      await page.tap('[data-go="map"]');
+      await page.waitForTimeout(300);
+    }
+    check('picture mail for Sally the Seal goes to the S house', sally);
+    check('friend library: no script or console errors', errors.length === 0, errors.length ? errors : undefined);
+    await ctx.close();
+  }
+
   // a second player: add in the parent corner, then "Who's playing?" with separate progress
   {
     const { ctx, page, touch, errors } = await newPage(browser, 412, 915);

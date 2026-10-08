@@ -36,6 +36,7 @@ Tick or write yes / no / unsure. A word or two of detail helps a lot.
 - [ ] Understood numbers and stars (route 4, if reached):
 - [ ] Knew what to press on the "Route complete" card
 - [ ] Noticed the path on the map light up after a route's second round (said or pointed at it?):
+- [ ] Noticed that the S house sometimes has Sally the Seal instead of Sammy the Skunk (confused, or liked it?):
 
 **Feel**
 - [ ] Enjoyed it (smiled, wanted more)
