@@ -15,7 +15,7 @@ function check(name, ok, info) {
   console.log((ok ? 'ok   ' : 'FAIL ') + name + (info !== undefined ? '  ' + JSON.stringify(info) : ''));
 }
 
-async function newPage(browser, w, h) {
+async function newPage(browser, w, h, init) {
   const ctx = await browser.newContext({ viewport: { width: w, height: h }, hasTouch: true, isMobile: true });
   const page = await ctx.newPage();
   const cdp = await ctx.newCDPSession(page);
@@ -25,6 +25,8 @@ async function newPage(browser, w, h) {
   page.on('console', (m) => { if (m.type() === 'error') errors.push(m.text()); });
   page.on('request', (r) => hosts.add(new URL(r.url()).host));
   await page.addInitScript(() => { try { speechSynthesis.speak = () => {}; } catch (e) {} });
+  // init: {key: value} seeded into localStorage once, before the game's first load
+  if (init) await page.addInitScript((kv) => { if (!sessionStorage.seeded) { sessionStorage.seeded = 1; for (const k in kv) localStorage.setItem(k, JSON.stringify(kv[k])); } }, init);
   await page.goto(BASE, { timeout: 60000 });
   await page.waitForTimeout(600);
   const touch = (type, x, y) => cdp.send('Input.dispatchTouchEvent', { type, touchPoints: type === 'touchEnd' ? [] : [{ x, y }] });
@@ -32,6 +34,14 @@ async function newPage(browser, w, h) {
 }
 const center = (page, sel) => page.$eval(sel, (e) => { const r = e.getBoundingClientRect(); return [r.left + r.width / 2, r.top + r.height / 2]; });
 const allOnScreen = (page, sel) => page.$$eval(sel, (els) => els.every((e) => { const r = e.getBoundingClientRect(); return r.width > 0 && r.left >= -1 && r.top >= -1 && r.right <= innerWidth + 1 && r.bottom <= innerHeight + 1; }));
+const holdGear = async (page, touch) => {
+  const g = await center(page, '#gear');
+  await touch('touchStart', ...g);
+  await page.waitForTimeout(1400);
+  await touch('touchEnd');
+  await page.waitForTimeout(100);
+};
+const progressText = (page) => page.$$eval('#progress li', (li) => li.map((e) => e.textContent));
 const wanted = (page) => page.evaluate(() => document.querySelector('#caption').textContent.slice(-2, -1));
 
 (async () => {
@@ -109,17 +119,31 @@ const wanted = (page) => page.evaluate(() => document.querySelector('#caption').
   // parent corner: press and hold opens it; on a sideways phone a swipe reaches Done
   {
     const { ctx, page, touch } = await newPage(browser, 740, 360);
-    const g = await center(page, '#gear');
-    await touch('touchStart', ...g);
-    await page.waitForTimeout(1400);
-    await touch('touchEnd');
+    await holdGear(page, touch);
     check('parent corner opens with press and hold', await page.$eval('#parent', (e) => !e.hidden));
     check('play counts setting hidden while COUNT_URL is empty', await page.evaluate(() => document.querySelector('#share-row').hidden || /COUNT_URL = '[^']+'/.test(document.documentElement.innerHTML)));
-    await touch('touchStart', 370, 320);
-    for (let y = 320; y >= 60; y -= 10) { await touch('touchMove', 370, y); await page.waitForTimeout(16); }
-    await touch('touchEnd');
-    await page.waitForTimeout(500);
+    // the card is long, so a parent may swipe a few times
+    for (let n = 0; n < 4 && !(await allOnScreen(page, '#p-close')); n++) {
+      await touch('touchStart', 370, 320);
+      for (let y = 320; y >= 60; y -= 10) { await touch('touchMove', 370, y); await page.waitForTimeout(16); }
+      await touch('touchEnd');
+      await page.waitForTimeout(500);
+    }
     check('parent corner Done reachable by swiping', await allOnScreen(page, '#p-close'));
+    await ctx.close();
+  }
+
+  // progress row: one line per route by the unlock rule, plus stickers
+  {
+    const v1 = { rounds: { 1: 3, 2: 1, 3: 0, 4: 0 }, stickers: [{ c: 'S' }, { c: 'B' }, { c: 'K' }, { c: 'C' }], unlockAll: false, voice: true, sfx: true, share: false, weak: {} };
+    const { ctx, page, touch } = await newPage(browser, 412, 915, { 'animal-mail-route-v1': v1 });
+    await holdGear(page, touch);
+    const want = ['Route 1, Letters: 3 rounds', 'Route 2, Animals: 1 round, so 1 more opens Route 3', 'Route 3, Letters and animals: locked', 'Route 4, Numbers: locked', 'Stickers: 4'];
+    let got = await progressText(page);
+    check('progress row matches the unlock rule', JSON.stringify(got) === JSON.stringify(want), got);
+    await page.tap('#t-unlock');
+    got = await progressText(page);
+    check('progress row with Unlock all on', got[2] === 'Route 3, Letters and animals: open (Unlock all is on)' && got[1] === 'Route 2, Animals: 1 round', got);
     await ctx.close();
   }
 

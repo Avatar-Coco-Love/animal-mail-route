@@ -182,6 +182,10 @@ svg{display:block}
 .pbtn{padding:10px 18px;border-radius:14px;border:3px solid var(--ink);background:#fff;font-weight:800;font-size:1rem}
 .pbtn.danger{border-color:var(--red-deep);color:var(--red-deep)}
 .pbtn.armed{background:var(--red);color:#fff}
+.block{padding-block:10px;border-bottom:2px solid rgba(36,48,77,.1)}
+.block>b{font-size:1.05rem}
+.prog{margin:6px 0 0;padding:0;list-style:none;font-size:.95rem;line-height:1.35}
+.prog li{padding-block:3px}
 .row span{font-weight:800;font-size:1.05rem;font-variant-numeric:tabular-nums}
 .parent .note{margin:12px 0 14px;font-size:.85rem;line-height:1.4;opacity:.8}
 .parent .note a{color:var(--blue);font-weight:800}
@@ -213,7 +217,7 @@ svg{display:block}
   .card{padding:14px 18px}
   .card p{margin-bottom:10px}
   .win .sticker{width:clamp(64px,22vh,150px);margin:2px auto 8px}
-  .row{padding-block:6px}
+  .row,.block{padding-block:6px}
   .parent .note{margin:8px 0 10px}
 }
 @media (orientation:landscape) and (max-height:560px){
@@ -339,8 +343,9 @@ svg{display:block}
       <div class="row"><b>Unlock all routes</b><button class="tog" type="button" id="t-unlock" aria-pressed="false">Off</button></div>
       <div class="row" id="share-row" hidden><b>Share play counts</b><button class="tog" type="button" id="t-share" aria-pressed="false">Off</button></div>
       <div class="row"><b>Recorded voice clips</b><span id="clipcount">0 of 33</span></div>
+      <div class="block"><b>Progress</b><ul class="prog" id="progress"></ul></div>
       <div class="row"><b>Needs practice</b><span id="weaklist">None yet</span></div>
-      <div class="row"><b>Progress</b><button class="pbtn danger" type="button" id="b-reset">Erase</button></div>
+      <div class="row"><b>All progress</b><button class="pbtn danger" type="button" id="b-reset">Erase</button></div>
       <p class="note">Prototype 0.2. Voice prompts use your device's built-in speech until recorded voices are added. <span id="share-note" hidden>"Share play counts" sends only anonymous totals, such as rounds played per route, and is off unless you turn it on. </span><a href="privacy.html" target="_blank" rel="noopener">Privacy</a></p>
       <button class="close" type="button" id="p-close">Done</button>
     </div>
@@ -1019,10 +1024,29 @@ gear.addEventListener('click', function(e){ if(e.detail === 0) openParent(); });
 gear.addEventListener('contextmenu', function(e){ e.preventDefault(); });
 
 function setTog(el, on){ el.setAttribute('aria-pressed', on ? 'true' : 'false'); el.textContent = on ? 'On' : 'Off'; }
+/* Progress lines for the parent: the same rule as unlocked(), in words. */
+function plural(n, word){ return n + ' ' + word + (n === 1 ? '' : 's'); }
+function progressLines(){
+  var out = LEVELS.map(function(L){
+    var l = L.id, n = S.rounds[l] || 0, head = 'Route ' + l + ', ' + LEVEL_NAME[l] + ': ';
+    var earned = l === 1 || (S.rounds[l-1] || 0) >= 2;
+    if(!earned && !S.unlockAll) return head + 'locked';
+    if(!earned) return head + (n ? plural(n, 'round') : 'open') + ' (Unlock all is on)';
+    var line = head + plural(n, 'round');
+    if(l < LEVELS.length && !unlocked(l + 1)){
+      var left = 2 - n;
+      line += ', so ' + left + ' more ' + (left === 1 ? 'opens' : 'open') + ' Route ' + (l + 1);
+    }
+    return line;
+  });
+  out.push('Stickers: ' + S.stickers.length);
+  return out;
+}
 function syncToggles(){
   setTog($('t-voice'), S.voice); setTog($('t-sfx'), S.sfx); setTog($('t-unlock'), S.unlockAll); setTog($('t-share'), S.share);
   $('share-row').hidden = $('share-note').hidden = !COUNT_URL;
   var weak = CH.map(function(c){ return c.id; }).filter(function(id){ return weakOf(id) >= 2; });
+  $('progress').innerHTML = progressLines().map(function(t){ return '<li>' + t + '</li>'; }).join('');
   $('weaklist').textContent = weak.length ? weak.join(', ') : 'None yet';
   var b = $('b-reset'); b.textContent = 'Erase'; b.classList.remove('armed');
 }
