@@ -153,6 +153,8 @@ const wanted = (page) => page.evaluate(() => document.querySelector('#caption').
     const v1 = { rounds: { 1: 3, 2: 1, 3: 0, 4: 0 }, stickers: [{ c: 'S' }, { c: 'B' }, { c: 'K' }, { c: 'C' }], unlockAll: false, voice: true, sfx: true, share: false, weak: {} };
     const { ctx, page, touch } = await newPage(browser, 412, 915, { 'animal-mail-route-v1': v1 });
     await holdGear(page, touch);
+    // on this screen the finger lifts over Print summary; that lift must not press it
+    check('parent corner: lifting the finger after the hold presses nothing', await page.$eval('#summary', (e) => e.hidden) && !(await page.$('.pbtn.armed')));
     const want = ['Route 1, Letters: 3 rounds', 'Route 2, Animals: 1 round, so 1 more opens Route 3', 'Route 3, Letters and animals: locked', 'Route 4, Numbers: locked', 'Stickers: 4'];
     let got = await progressText(page);
     check('progress row matches the unlock rule', JSON.stringify(got) === JSON.stringify(want), got);
@@ -262,6 +264,49 @@ const wanted = (page) => page.evaluate(() => document.querySelector('#caption').
       check(`${name}, ${n} players: no errors`, errors.length === 0, errors.length ? errors : undefined);
       await ctx.close();
     }
+  }
+
+  // printable summary: the selected player's lines on a plain page, then the print dialog
+  {
+    const mk = (id, name, animal, rounds, n, weak) => ({ id, name, animal, rounds, stickers: Array.from({ length: n }, () => ({ c: 'S' })), weak });
+    const v2 = { v: 2, device: { voice: true, sfx: true, share: false, unlockAll: false }, current: 1, players: [
+      mk(1, 'Leo', 'P', { 1: 1, 2: 0, 3: 0, 4: 0 }, 1, {}),
+      mk(2, 'Mia', 'K', { 1: 3, 2: 2, 3: 1, 4: 0 }, 6, { K: 3, C: 2, B: 1 }),
+    ] };
+    const { ctx, page, touch, errors, hosts } = await newPage(browser, 740, 360, { 'animal-mail-route-v2': v2 });
+    await page.evaluate(() => { window.__printed = 0; window.print = () => { window.__printed++; }; });
+    await holdGear(page, touch);
+    await page.tap('#players .pl:nth-child(2)');
+    const lines = await progressText(page);
+    await page.$eval('#b-print', (b) => b.scrollIntoView());
+    await page.tap('#b-print');
+    await page.waitForTimeout(200);
+    const sum = await page.evaluate(() => ({
+      shown: !document.querySelector('#summary').hidden,
+      who: document.querySelector('#sum-who').textContent,
+      lines: [...document.querySelectorAll('#sum-progress li')].map((e) => e.textContent),
+      weak: document.querySelector('#sum-weak').textContent,
+      printed: window.__printed,
+      fits: document.querySelector('#summary').scrollWidth <= innerWidth,
+    }));
+    check('print summary: opens the summary and the print dialog', sum.shown && sum.printed === 1, sum);
+    check("print summary: shows the selected player's lines", sum.who === 'Player: Mia (Kelly the Kangaroo)' && JSON.stringify(sum.lines) === JSON.stringify(lines) && sum.lines[0] === 'Route 1, Letters: 3 rounds' && sum.lines[2] === 'Route 3, Letters and animals: 1 round, so 1 more opens Route 4' && sum.lines[4] === 'Stickers: 6', sum);
+    check('print summary: needs practice with names', sum.weak === 'K (Kelly the Kangaroo), C (Cody the Crane)', sum.weak);
+    check('print summary: fits the width of a sideways phone', sum.fits);
+    await page.emulateMedia({ media: 'print' });
+    const pr = await page.evaluate(() => ({ app: getComputedStyle(document.querySelector('#app')).display, acts: getComputedStyle(document.querySelector('.summary .acts')).display, sheet: document.querySelector('#summary .sheet').getBoundingClientRect().height > 0 }));
+    check('print summary: printed page has only the summary, no buttons', pr.app === 'none' && pr.acts === 'none' && pr.sheet, pr);
+    await page.emulateMedia({ media: 'screen' });
+    await page.$eval('#sum-close', (b) => b.scrollIntoView());
+    await page.tap('#sum-close');
+    check('print summary: Done goes back to the parent corner', await page.$eval('#summary', (e) => e.hidden) && await page.$eval('#parent', (e) => !e.hidden) && (await page.title()) === 'Animal Mail Route');
+    await page.tap('#players .pl:nth-child(1)');
+    await page.$eval('#b-print', (b) => b.scrollIntoView());
+    await page.tap('#b-print');
+    const leo = await page.$$eval('#sum-progress li', (li) => li.map((e) => e.textContent));
+    check('print summary: follows the selected player', leo[0] === 'Route 1, Letters: 1 round, so 1 more opens Route 2' && leo[4] === 'Stickers: 1' && (await page.$eval('#sum-weak', (e) => e.textContent)) === 'None yet', leo);
+    check('print summary: no errors, nothing sent elsewhere', errors.length === 0 && [...hosts].every((x) => x === host), { errors, hosts: [...hosts] });
+    await ctx.close();
   }
 
   // installable and offline: manifest, service worker, then play a delivery with the network off

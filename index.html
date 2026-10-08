@@ -219,6 +219,23 @@ svg{display:block}
 .row span{font-weight:800;font-size:1.05rem;font-variant-numeric:tabular-nums}
 .parent .note{margin:12px 0 14px;font-size:.85rem;line-height:1.4;opacity:.8}
 .parent .note a{color:var(--blue);font-weight:800}
+/* printable summary: plain black on white, outside #app so it can run past one screen when printed */
+.summary{position:fixed;inset:0;z-index:40;overflow-y:auto;background:#fff;color:#111;padding:max(20px,env(safe-area-inset-top,0px)) max(16px,env(safe-area-inset-right,0px)) max(24px,env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px));font:600 1rem/1.45 var(--font-body);-webkit-user-select:text;user-select:text}
+.summary .sheet{max-width:640px;margin:0 auto}
+.summary h1{margin:0 0 4px;font:800 1.6rem/1.2 var(--font-display)}
+.summary h2{margin:20px 0 6px;padding-bottom:4px;border-bottom:2px solid #ccc;font:800 1.1rem/1.3 var(--font-body)}
+.summary .meta{margin:0;color:#444}
+.summary ul{margin:0;padding-left:1.2em}
+.summary li{padding-block:2px}
+.summary .foot{margin:24px 0 0;font-size:.85rem;color:#555}
+.summary .acts{display:flex;justify-content:center;gap:12px;margin-top:24px}
+@media print{
+  @page{margin:16mm}
+  html,body{height:auto;overflow:visible;background:#fff;padding:0}
+  body.sum-open #app{display:none}
+  .summary{position:static;overflow:visible;padding:0}
+  .summary .acts{display:none}
+}
 .parent .close{display:block;margin:0 auto;padding:12px 30px;border-radius:999px;border:0;background:var(--blue);color:#fff;font:800 1.15rem var(--font-display)}
 
 /* animation polish */
@@ -389,6 +406,7 @@ svg{display:block}
       <div class="block"><b>Players</b><p class="hint-text">Tap a player to see their progress. Names are optional and stay on this device.</p><div id="players"></div><button class="pbtn" type="button" id="b-add">Add player</button></div>
       <div class="block"><b id="prog-head">Progress</b><ul class="prog" id="progress"></ul></div>
       <div class="row"><b>Needs practice</b><span id="weaklist">None yet</span></div>
+      <div class="row"><b>Paper copy</b><button class="pbtn" type="button" id="b-print">Print summary</button></div>
       <div class="row"><b>Everyone</b><button class="pbtn danger" type="button" id="b-reset">Erase everything</button></div>
       <p class="note">Prototype 0.3. Voice prompts use your device's built-in speech until recorded voices are added. <span id="share-note" hidden>"Share play counts" sends only anonymous totals, such as rounds played per route, and is off unless you turn it on. </span><a href="privacy.html" target="_blank" rel="noopener">Privacy</a></p>
       <button class="close" type="button" id="p-close">Done</button>
@@ -396,6 +414,23 @@ svg{display:block}
   </div>
 
 </div>
+
+<section id="summary" class="summary" hidden aria-label="Progress summary">
+  <div class="sheet">
+    <h1>Animal Mail Route: progress</h1>
+    <p class="meta" id="sum-who"></p>
+    <p class="meta" id="sum-date"></p>
+    <h2>Routes and stickers</h2>
+    <ul id="sum-progress"></ul>
+    <h2>Needs practice</h2>
+    <p class="meta" id="sum-weak"></p>
+    <p class="foot">A route opens after 2 finished rounds of the route before it. Each round is 5 deliveries and earns a sticker. "Needs practice" lists the letters this player has missed most often lately; it clears as they get them right. Made on this device; nothing was sent anywhere.</p>
+    <div class="acts">
+      <button class="pbtn" type="button" id="sum-print">Print</button>
+      <button class="pbtn" type="button" id="sum-close">Done</button>
+    </div>
+  </div>
+</section>
 
 <script>
 (function(){
@@ -1156,7 +1191,9 @@ $('win-map').addEventListener('click', function(){ $('win').hidden = true; show(
 /* ---------- Parent corner ---------- */
 var gear = $('gear'), holdTimer = null;
 var sel = 1;             // player shown in the parent corner's Progress rows
+var openedAt = 0, downAt = 0;
 function openParent(){
+  openedAt = Date.now();
   sel = P.id;
   renderPlayers();
   syncToggles();
@@ -1172,6 +1209,12 @@ gear.addEventListener('pointerdown', function(){
 ['pointerup','pointerleave','pointercancel'].forEach(function(t){ gear.addEventListener(t, cancelHold); });
 gear.addEventListener('click', function(e){ if(e.detail === 0) openParent(); });   // keyboard users
 gear.addEventListener('contextmenu', function(e){ e.preventDefault(); });
+/* Lifting the finger after the hold sends a click to whatever in the corner is now under it
+   (Print summary, on a tall phone). Ignore clicks whose touch began before the corner opened. */
+document.addEventListener('pointerdown', function(){ downAt = Date.now(); }, true);
+$('parent').addEventListener('click', function(e){
+  if(e.detail !== 0 && downAt < openedAt){ e.preventDefault(); e.stopPropagation(); }
+}, true);
 
 function setTog(el, on){ el.setAttribute('aria-pressed', on ? 'true' : 'false'); el.textContent = on ? 'On' : 'Off'; }
 /* Progress lines for the parent: the same rule as unlocked(), in words. */
@@ -1192,11 +1235,12 @@ function progressLines(p){
   out.push('Stickers: ' + p.stickers.length);
   return out;
 }
+function weakIds(p){ return CH.map(function(c){ return c.id; }).filter(function(id){ return (p.weak[id] || 0) >= 2; }); }
 function syncToggles(){
   setTog($('t-voice'), S.voice); setTog($('t-sfx'), S.sfx); setTog($('t-unlock'), S.unlockAll); setTog($('t-share'), S.share);
   $('share-row').hidden = $('share-note').hidden = !COUNT_URL;
   var sp = playerById(sel) || P;
-  var weak = CH.map(function(c){ return c.id; }).filter(function(id){ return (sp.weak[id] || 0) >= 2; });
+  var weak = weakIds(sp);
   $('prog-head').textContent = D.players.length > 1 ? 'Progress: ' + playerLabel(sp) : 'Progress';
   $('progress').innerHTML = progressLines(sp).map(function(t){ return '<li>' + t + '</li>'; }).join('');
   $('weaklist').textContent = weak.length ? weak.join(', ') : 'None yet';
@@ -1298,6 +1342,32 @@ $('b-reset').addEventListener('click', function(){
   $('parent').hidden = true;
 });
 $('p-close').addEventListener('click', function(){ $('parent').hidden = true; });
+
+/* ---------- Printable summary (parent corner) ----------
+   The selected player's Progress lines and Needs practice, on a plain page, then the browser's
+   print dialog. Built from the save on this device; nothing is sent. */
+var pageTitle = document.title;
+function printSummary(){ try{ if(typeof window.print === 'function') window.print(); }catch(e){} }
+$('b-print').addEventListener('click', function(){
+  var sp = playerById(sel) || P, ani = BYID[sp.animal].name;
+  $('sum-who').textContent = 'Player: ' + (sp.name ? sp.name + ' (' + ani + ')' : ani);
+  $('sum-date').textContent = 'Made ' + new Date().toLocaleDateString(undefined, {year:'numeric', month:'long', day:'numeric'}) + ', game version ' + VERSION;
+  $('sum-progress').innerHTML = progressLines(sp).map(function(t){ return '<li>' + t + '</li>'; }).join('');
+  var weak = weakIds(sp);
+  $('sum-weak').textContent = weak.length ? weak.map(function(id){ return id + ' (' + BYID[id].name + ')'; }).join(', ') : 'None yet';
+  document.title = 'Animal Mail Route progress, ' + playerLabel(sp);
+  document.body.classList.add('sum-open');
+  $('summary').hidden = false;
+  $('summary').scrollTop = 0;
+  hush();
+  printSummary();
+});
+$('sum-print').addEventListener('click', printSummary);
+$('sum-close').addEventListener('click', function(){
+  $('summary').hidden = true;
+  document.body.classList.remove('sum-open');
+  document.title = pageTitle;
+});
 
 /* ---------- Boot ---------- */
 loadClips();
