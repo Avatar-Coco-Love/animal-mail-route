@@ -15,7 +15,8 @@ An older copy also exists as a Claude artifact. It predates the fixes below, so 
 - Installable to the home screen and playable offline (manifest + service worker). PR #3 merged; the touch test passed all 54 checks against the live site afterwards.
 - CI runs the worker tests and the touch test on every pull request.
 - Parent corner shows a Progress row per player. Up to 8 player profiles on one device, with a "Who's playing?" picker once there are two (version 0.3, PR #4). The touch test passed all 104 checks against the live site after PR #4 merged.
-- Version 0.4 (fourth session): the map path lights up as routes open, and the parent corner can print a one-page summary per child.
+- Version 0.4 (fourth session): the map path lights up as routes open, and the parent corner can print a one-page summary per child. The touch test passed all 122 checks against the live site afterwards.
+- Version 0.5 (fifth session): Lighthouse pass (mobile Performance 79 → 99 on the title screen, the rest 100), and "Print all players" (one page per child) in the parent corner.
 
 ## Repo map
 | Path | What |
@@ -26,7 +27,7 @@ An older copy also exists as a Claude artifact. It predates the fixes below, so 
 | `audio/` | voice clips (none yet) and `clips.json`, the list of clips that exist |
 | `TELEMETRY.md` | play counts design and rules (COPPA, Google Families) |
 | `worker/` | Cloudflare Worker + D1 for play counts, with tests and deploy steps |
-| `tests/touch.cjs` | touch smoke test (122 checks), local or live |
+| `tests/touch.cjs` | touch smoke test (129 checks), local or live |
 | `manifest.webmanifest`, `sw.js` | install and offline play; bump `VERSION` in `sw.js` on every release |
 | `icons/` | app icons: `icon.svg` and `icon-maskable.svg` are the sources, `export.cjs` makes the PNGs |
 | `.github/workflows/test.yml` | CI on pull requests: worker tests and the touch test |
@@ -52,8 +53,8 @@ Target: Android phone and tablet, touch-first. Built as plain HTML, CSS, and Jav
 - Round = 5 deliveries, then a sticker. No timers, no losing. Wrong house bounces back; after 2 misses the right house wiggles. Tap-then-tap-house works as well as dragging.
 - Adaptive practice (routes 1 to 3): wrong answers raise a letter's score, first-try correct lowers it, weak letters are picked more often. Parent corner shows "Needs practice". Not used on route 4.
 - Players: up to 8 on one device, each with an animal (one of the 5, may repeat) and an optional name (20 characters, typed only in the parent corner). Rounds, stickers and practice letters are per player; voice, sound effects, play counts and Unlock all are per device. With one player nothing changes from before. With two or more, Play opens "Who's playing?" (one big animal button per player, name under it if set) and the map's top bar shows the current player's animal, which returns to the picker.
-- Parent corner: settings, Players (name field, animal choice, Erase per player, Add player), Progress and Needs practice for the selected player, Print summary, and Erase everything.
-- Print summary: a plain page with the selected player's name and animal, the date and game version, the Progress lines (routes and stickers), Needs practice (letter and animal name) and a short note on what they mean. It opens the print dialog at once and stays open with Print and Done buttons. When printed, only the summary is on the page.
+- Parent corner: settings, Players (name field, animal choice, Erase per player, Add player), Progress and Needs practice for the selected player, Print summary, Print all players (only with 2+ players), and Erase everything.
+- Print summary: a plain page with the selected player's name and animal, the date and game version, the Progress lines (routes and stickers), Needs practice (letter and animal name) and a short note on what they mean. It opens the print dialog at once and stays open with Print and Done buttons. When printed, only the summary is on the page. "Print all players" shows the same sheet for every player, in player order, and each one after the first starts a new printed page.
 - Animation: truck arrives and hops, animals blink, tap an animal on the title to hear its name, sparkle burst and flag on delivery, idle nudge after 10 seconds.
 - Progress saved in `localStorage` under `animal-mail-route-v2`: `{v:2, device:{voice, sfx, share, unlockAll}, current, players:[{id, name, animal, rounds, stickers, weak}]}`. An old `animal-mail-route-v1` save is turned into player 1 on first load and the v1 key removed.
 
@@ -66,7 +67,8 @@ Target: Android phone and tablet, touch-first. Built as plain HTML, CSS, and Jav
 - Saved progress: `D` is the whole save, `S` is `D.device` (settings), `P` is the current player. `cleanSave`, `cleanPlayer`, `fromV1` validate; `load`, `save`, `useSave` near the top of the script. `unlocked(l, p)` takes an optional player.
 - Players: `renderWho` (picker), `renderPlayers` and the `#players` handlers (parent corner), `erasePlayer`, `armed`/`disarm` (the two-tap erase buttons). `progressLines(p)` builds the Progress row text, `weakIds(p)` the Needs practice letters.
 - Map path: `renderMap` adds an `<svg class="path">` after the nodes and calls `drawPath(true)`, which measures the disc centres and draws one `<g class="seg" data-seg="n">` per pair (lit when `unlocked(n+1)`). It redraws on resize and once fonts load. `litSeen` (memory only) remembers what each player last saw, for the animation.
-- Summary: `#summary` sits outside `#app`, so print CSS can hide the game (`body.sum-open #app`). The `#b-print` handler fills it from `progressLines` and `weakIds` and calls `printSummary()` (a guarded `window.print()`).
+- Summary: `#summary` sits outside `#app`, so print CSS can hide the game (`body.sum-open #app`). `sheetHTML(p, date)` builds one player's `<article class="sheet">` from `progressLines` and `weakIds`; `openSummary(players, title)` fills `#sum-sheets` with one sheet per player, sets the page title, shows it and calls `printSummary()` (a guarded `window.print()`). `#b-print` passes the selected player, `#b-print-all` passes `D.players`. `renderPlayers` hides `#print-all-row` with one player.
+- Sound: the `AudioContext` is made on the first tap (`unlock`) or when `clips.json` lists a clip, never at startup: creating it cost a ~1 s main-thread task under Lighthouse's mobile throttling.
 - Parent corner ignores a click whose touch began before it opened (`openedAt`, `downAt`): lifting the finger after the press-and-hold otherwise presses whatever is under it.
 - Play counts (`COUNT_URL`, `count`, `sendCounts`): opt-in, anonymous, see `TELEMETRY.md`. Hidden until `COUNT_URL` is set.
 - Fonts are served from `fonts/` (no Google Fonts request). `privacy.html` is the privacy page.
@@ -102,6 +104,7 @@ It needs Playwright with Chromium; in Claude Code cloud sessions it is installed
 - the map path on all 5 sizes: 3 segments, each from one disc's centre to the next, on screen, grey at the start; lit after 2 rounds of route 1 (and that one animates), lit to the last open route after a v1 migration, all lit with Unlock all
 - lifting the finger after the gear hold presses nothing (on the Pixel size it lands on Print summary)
 - Print summary on a sideways phone: shows the selected player's lines, Needs practice with names, opens the print dialog once (stubbed in the test), fits the width, prints only the summary (print media), Done returns to the parent corner, and switching player changes the summary
+- Print all players: hidden with one player; with two, one sheet per player in order with each player's lines, the print dialog, fits the width, the second sheet starts a new printed page, Done returns to the parent corner
 
 Worker tests: `cd worker && npm install && npm test`.
 
@@ -140,6 +143,7 @@ Still needs a real device (emulation cannot check these):
 - Cody rename, win card button, installable and offline, CI, `PLAYTEST.md` (PR #3).
 - Parent-corner Progress row and player profiles (PR #4).
 - Map path that lights up as routes open, printable per-child summary, version 0.4 (fourth session).
+- Lighthouse pass and Print all players, version 0.5 (fifth session).
 
 ## Decisions made by Claude (October 8, 2026, second session)
 Small calls made without the owner; change them if they're wrong.
@@ -229,11 +233,40 @@ Small calls made without the owner; change them if they're wrong.
 - **`PLAYTEST.md`** asks whether the child noticed the path light up, and whether Print summary worked on the device.
 - **Merged without a separate go-ahead:** the owner asked for this PR to be merged once CI is green.
 
-## Next session (fifth): recommendation
-The most useful next step needs the owner: the real-device playtest with a child (`PLAYTEST.md`). Its notes should drive the next fixes, so a fresh session works best once that sheet is filled in. Work that needs nothing from the owner, in one PR, if there is time before then:
-1. **Check 0.4 on the live site:** run `tests/touch.cjs` against the live URL. Fix anything that fails first.
+## Built in the fifth session: Lighthouse pass and Print all players
+Steps 2 and 3 of the fifth-session recommendation (kept below for reference). Step 1 was skipped at the owner's word: 0.4 had already passed all 122 touch checks on the live site. No playtest notes yet, so nothing from `PLAYTEST.md` went in.
+
+Recommendation as it was:
+1. Check 0.4 on the live site. (Already done.)
 2. **Lighthouse pass:** run Lighthouse (mobile) on the live site for performance, accessibility and best practices, fix what is cheap and safe, and record the scores here.
 3. **Print all players (Classroom):** a second button that prints every player's summary, one per page (`page-break-after`), for a teacher with a shared tablet. Same content and rules as Print summary.
+
+### Lighthouse scores (mobile, Lighthouse 12, default throttling)
+| | Performance | Accessibility | Best practices | SEO |
+| --- | --- | --- | --- | --- |
+| 0.4 live, before | 79 | 100 | 100 | 100 |
+| 0.5 local, after | 99 | 100 | 100 | 100 |
+| 0.5 live, after | LIVE_SCORES |
+
+- **The one real problem:** total blocking time 960 ms, from one ~1 s task at startup. It was `new AudioContext()` in `loadClips`, which ran on every load even though `clips.json` is empty. The context is now made only when there is a clip to decode, or on the first tap (which already happened via `unlock`). Same sound behaviour; Chrome also no longer starts a suspended audio context before any tap.
+- **Left as is:** "unminified JavaScript" (3 KiB; minifying needs a build step, which this project avoids on purpose) and "cache lifetime" of the fonts (GitHub Pages sets 10 minutes and can't be changed; the service worker serves them from its cache anyway after the first visit).
+- Lighthouse only sees the title screen. The other screens are covered by the touch test, not by Lighthouse.
+- To rerun: install `lighthouse@12` in a scratch folder and run it with `CHROME_PATH=/opt/pw-browsers/chromium-1194/chrome-linux/chrome` and `--chrome-flags="--headless=new --no-sandbox"`. Scores from a cloud container vary by a few points between runs.
+
+## Decisions made by Claude (October 8, 2026, fifth session)
+Small calls made without the owner; change them if they're wrong.
+- **Print all players** has its own row ("Paper copies"), under Print summary, and only shows with 2 or more players: with one player it would print the same page as Print summary.
+- **Page breaks** use `break-before: page` (with `page-break-before` for older engines) on every sheet after the first, rather than `page-break-after` on each, so no blank page is printed at the end. Each sheet also avoids breaking inside if it fits on a page.
+- **On screen**, the sheets are one scrolling page separated by a dashed line, with one Print and Done at the bottom.
+- **Order and content:** players in the order the parent corner lists them; each sheet is exactly what Print summary shows for that player (same date, version, lines and note). The page title is "Animal Mail Route progress, all players", for "Save as PDF".
+- **Escaping:** the summary is now built as HTML, so the player's name is escaped (it used `textContent` before). Names never leave the device, as before.
+- **Release 0.5:** `VERSION` and the "Prototype" note are 0.5, `sw.js` is `amr-v4`, the privacy page's example game version is 0.5. Its text is otherwise unchanged (printing happens on the device). "Last updated" stays October 8, 2026.
+- **`PLAYTEST.md`** asks whether Print all players gave each child their own page.
+
+## Next session (sixth): recommendation
+The most useful next step still needs the owner: the real-device playtest with a child (`PLAYTEST.md`). Paste the filled-in sheet into the next session and make its findings the first priority. Without it, the game is at a natural pause: the remaining ideas (voice clips, Worker, art, packaging) all need the owner. Small things a session could do alone, if wanted:
+1. Run `tests/touch.cjs` against the live site to confirm 0.5 (129 checks).
+2. An accessibility check of the screens Lighthouse can't see (map, delivery, sticker book, parent corner), for example axe-core in the touch test.
 
 ## Ideas for later
 - **Game hub (owner's idea, October 8, 2026):** a new overall name, and a home for several educational games grouped by age or grade, with Animal Mail Route as one of them. Deferred until this game reaches a finished point. Keep it in mind now:

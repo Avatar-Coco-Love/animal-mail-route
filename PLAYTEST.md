@@ -65,3 +65,4 @@ Press and hold the gear on the title screen. Copy these lines:
 - Needs practice:
 - Number of players set up, if more than one child plays:
 - Tap "Print summary": did the print screen open, and did the page look right (or save as PDF)?
+- With two or more players: tap "Print all players". Did each child get their own page?
