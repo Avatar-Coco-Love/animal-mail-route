@@ -197,6 +197,13 @@ Small calls made without the owner; change them if they're wrong.
 - **`privacy.html`:** the "Stored on your device" paragraph now mentions per-player progress, the animal and optional name, and that names never leave the device and are never part of play counts. The example game version in the play counts table is 0.3. "Last updated" was already October 8, 2026, today's date, so it stays.
 - **`PLAYTEST.md`** asks for the Progress lines and the number of players.
 
+## Next session (fourth): work that needs nothing from the owner
+Claude's recommendation, written after PR #4. Do it in one PR, run `tests/touch.cjs` after each change, and record calls in "Decisions made by Claude".
+1. **Check 0.3 on the live site:** run `tests/touch.cjs` against the live URL once PR #4 has deployed. Fix anything that fails before starting new work.
+2. **Map: show that 2 stars open the next route** (from "Ideas for later"). Light the dashed path segment from a route to the next one once that route has 2 rounds (or Unlock all is on). Locked segments stay grey. Keep the 3 stars and padlocks as they are. Test the segment state in `tests/touch.cjs` and keep everything on screen at all 5 sizes, including the sideways layout where the path runs left to right.
+3. **Printable per-child summary** (from "Classroom"): a "Print summary" button in the parent corner that opens a plain, print-friendly view of the selected player's progress (the Progress lines, Needs practice, sticker count) and calls `window.print()`. Nothing leaves the device. Add a test that the view shows the selected player's lines.
+4. Update this file, open the PR, wait for green CI, merge it if the owner allows, and send the owner one short message.
+
 ## Ideas for later
 - **Game hub (owner's idea, October 8, 2026):** a new overall name, and a home for several educational games grouped by age or grade, with Animal Mail Route as one of them. Deferred until this game reaches a finished point. Keep it in mind now:
   - Keep player profiles in their own storage key with a plain shape, so a hub could share them across games later.
