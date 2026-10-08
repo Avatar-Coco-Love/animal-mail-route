@@ -32,7 +32,7 @@ A mail delivery game for preschoolers (about ages 3 to 5). The child drags mail 
 | S | Sammy the Skunk |
 | B | Billy the Beaver |
 | K | Kelly the Kangaroo |
-| C | Charlie the Crane |
+| C | Cody the Crane |
 | P | Pete the Penguin |
 
 Target: Android phone and tablet, touch-first. Built as plain HTML, CSS, and JavaScript (no framework, no build step), to be wrapped later (Capacitor) or shipped as an installable web app.

@@ -41,6 +41,7 @@ const wanted = (page) => page.evaluate(() => document.querySelector('#caption').
   for (const [name, [w, h]] of Object.entries(SIZES)) {
     const { ctx, page, touch, errors, hosts } = await newPage(browser, w, h);
     check(`${name}: title buttons on screen`, await allOnScreen(page, '.playbtn, .title .rbtn'));
+    if (name === 'pixel') check('crane is Cody the Crane', !!(await page.$('.pal[aria-label="Hear Cody the Crane"]')) && !/Charlie/.test(await page.content()));
     await page.tap('.playbtn');
     await page.waitForTimeout(300);
     check(`${name}: all 4 routes on screen`, await allOnScreen(page, '.node'));
