@@ -17,7 +17,8 @@ An older copy also exists as a Claude artifact. It predates the fixes below, so 
 - Parent corner shows a Progress row per player. Up to 8 player profiles on one device, with a "Who's playing?" picker once there are two (version 0.3, PR #4). The touch test passed all 104 checks against the live site after PR #4 merged.
 - Version 0.4 (fourth session): the map path lights up as routes open, and the parent corner can print a one-page summary per child. The touch test passed all 122 checks against the live site afterwards.
 - Version 0.5 (fifth session): Lighthouse pass (mobile Performance 79 → 98 on the live site, the rest 100), and "Print all players" (one page per child) in the parent corner. PR #6 merged; the touch test passed all 129 checks against the live site afterwards.
-- **Next:** the expansion roadmap under "Next sessions" (letter sets, A to Z friends, new kinds of questions, and more).
+- Version 0.6 (sixth session): Phase 1 of the expansion roadmap, the friend library. A letter can have several animal friends who take turns between rounds; Sally the Seal joins S as the first second friend.
+- **Next:** Phase 2 of the expansion roadmap (letter sets in the parent corner), then the rest under "Next sessions".
 
 ## Repo map
 | Path | What |
@@ -28,14 +29,14 @@ An older copy also exists as a Claude artifact. It predates the fixes below, so 
 | `audio/` | voice clips (none yet) and `clips.json`, the list of clips that exist |
 | `TELEMETRY.md` | play counts design and rules (COPPA, Google Families) |
 | `worker/` | Cloudflare Worker + D1 for play counts, with tests and deploy steps |
-| `tests/touch.cjs` | touch smoke test (129 checks), local or live |
+| `tests/touch.cjs` | touch smoke test (135 checks), local or live |
 | `manifest.webmanifest`, `sw.js` | install and offline play; bump `VERSION` in `sw.js` on every release |
 | `icons/` | app icons: `icon.svg` and `icon-maskable.svg` are the sources, `export.cjs` makes the PNGs |
 | `.github/workflows/test.yml` | CI on pull requests: worker tests and the touch test |
 | `PLAYTEST.md` | checklist for the owner's first playtest with a child |
 
 ## What it is
-A mail delivery game for preschoolers (about ages 3 to 5). The child drags mail to the matching house and learns letters, animals, and numbers. Five animal friends (idea came from a coworker):
+A mail delivery game for preschoolers (about ages 3 to 5). The child drags mail to the matching house and learns letters, animals, and numbers. Five animal friends (idea came from a coworker), plus Sally the Seal, a second S friend added in 0.6:
 
 | Letter | Character |
 | --- | --- |
@@ -44,12 +45,14 @@ A mail delivery game for preschoolers (about ages 3 to 5). The child drags mail 
 | K | Kelly the Kangaroo |
 | C | Cody the Crane |
 | P | Pete the Penguin |
+| S | Sally the Seal (second S friend, 0.6) |
 
 Target: Android phone and tablet, touch-first. Built as plain HTML, CSS, and JavaScript (no framework, no build step), to be wrapped later (Capacitor) or shipped as an installable web app.
 
 ## Current state (all in `index.html`)
 - Screens: title, "Who's playing?" (only with 2+ players), route map, delivery, sticker book, parent corner (press and hold the gear on the title screen), printable summary (from the parent corner).
 - Map path: a dashed segment joins each route to the next. It is grey until the next route opens (2 rounds of this one, or Unlock all), then yellow on a white band. A segment that lit up since the player last saw the map plays a short animation.
+- Friends: each house is one letter's friend. With more than one friend for a letter (today only S: Sammy and Sally), the player's friend for that letter is the one they met least recently, so the S house changes between rounds while the letter stays the same.
 - Routes: 1 letters (2 houses, growing to 5), 2 animal pictures, 3 mixed letters and pictures, 4 numbers (numeral or stars to count, houses numbered 1 to 5). Next route unlocks after 2 finished rounds of the previous one. Parent corner can unlock all.
 - Round = 5 deliveries, then a sticker. No timers, no losing. Wrong house bounces back; after 2 misses the right house wiggles. Tap-then-tap-house works as well as dragging.
 - Adaptive practice (routes 1 to 3): wrong answers raise a letter's score, first-try correct lowers it, weak letters are picked more often. Parent corner shows "Needs practice". Not used on route 4.
@@ -57,14 +60,15 @@ Target: Android phone and tablet, touch-first. Built as plain HTML, CSS, and Jav
 - Parent corner: settings, Players (name field, animal choice, Erase per player, Add player), Progress and Needs practice for the selected player, Print summary, Print all players (only with 2+ players), and Erase everything.
 - Print summary: a plain page with the selected player's name and animal, the date and game version, the Progress lines (routes and stickers), Needs practice (letter and animal name) and a short note on what they mean. It opens the print dialog at once and stays open with Print and Done buttons. When printed, only the summary is on the page. "Print all players" shows the same sheet for every player, in player order, and each one after the first starts a new printed page.
 - Animation: truck arrives and hops, animals blink, tap an animal on the title to hear its name, sparkle burst and flag on delivery, idle nudge after 10 seconds.
-- Progress saved in `localStorage` under `animal-mail-route-v2`: `{v:2, device:{voice, sfx, share, unlockAll}, current, players:[{id, name, animal, rounds, stickers, weak}]}`. An old `animal-mail-route-v1` save is turned into player 1 on first load and the v1 key removed.
+- Progress saved in `localStorage` under `animal-mail-route-v2`: `{v:2, device:{voice, sfx, share, unlockAll}, current, players:[{id, name, animal, rounds, stickers, weak, seen}]}`. `seen` (0.6, additive) maps friend id to a running count of when the player last met them. An old `animal-mail-route-v1` save is turned into player 1 on first load and the v1 key removed.
 
 ## Code layout (one script block)
-- `CH` array: the characters (data driven, add an entry to add an animal). `ART`: inline SVG art per character.
-- `CLIPS`: every spoken line, keyed by clip name (34 total). Text in `CLIPS` is what the built-in voice says when a recording is missing.
+- `FRIENDS` array: `{id, letter, name, animal, color, roof}`, data driven (add an entry and its `ART`). The first five keep their letter as id (`S`, `B`, `K`, `C`, `P`); later ones are `S2`, …. Built from it: `BYID` (friend by id), `BYLETTER` (friends per letter, in `FRIENDS` order), `LETTERS` (letters with a friend). `STARTERS` (`S B K C P`) is the title cast, the avatar choices, the sticker cycle, the numbers-route houses, and for now the letters every round uses (Phase 2 replaces that with the player's set). `ART`: inline SVG per friend id.
+- Letters vs friends: practice scores (`weak`), house `data-id`, mail items (`item.id`), `NUM` and the `letter-`/`sound-` clips are per letter. Art, names, `name-`/`reward-` clips, avatars and stickers are per friend. A round's `R.friend` maps letter to friend (`pickFriends`, least recently met, which also updates `P.seen`); each queue item carries its friend as `item.f`; houses have `data-friend`.
+- `CLIPS`: every spoken line, keyed by clip name (36 total: `letter-`/`sound-` per letter, `name-`/`reward-` per friend). Text in `CLIPS` is what the built-in voice says when a recording is missing.
 - `say([keys], fallbackText)`: plays `audio/<key>.mp3` for each key if ALL clips in the line are loaded, otherwise uses the browser's built-in speech.
 - Levels: `unlocked`, `houseCount`, `kindFor`, `buildQueue` (adaptive weighting), `promptFor`, `paperHTML`.
-- Parent corner shows how many of the 34 clips were found.
+- Parent corner shows how many of the 36 clips were found.
 - Saved progress: `D` is the whole save, `S` is `D.device` (settings), `P` is the current player. `cleanSave`, `cleanPlayer`, `fromV1` validate; `load`, `save`, `useSave` near the top of the script. `unlocked(l, p)` takes an optional player.
 - Players: `renderWho` (picker), `renderPlayers` and the `#players` handlers (parent corner), `erasePlayer`, `armed`/`disarm` (the two-tap erase buttons). `progressLines(p)` builds the Progress row text, `weakIds(p)` the Needs practice letters.
 - Map path: `renderMap` adds an `<svg class="path">` after the nodes and calls `drawPath(true)`, which measures the disc centres and draws one `<g class="seg" data-seg="n">` per pair (lit when `unlocked(n+1)`). It redraws on resize and once fonts load. `litSeen` (memory only) remembers what each player last saw, for the animation.
@@ -105,6 +109,7 @@ It needs Playwright with Chromium; in Claude Code cloud sessions it is installed
 - the map path on all 5 sizes: 3 segments, each from one disc's centre to the next, on screen, grey at the start; lit after 2 rounds of route 1 (and that one animates), lit to the last open route after a v1 migration, all lit with Unlock all
 - lifting the finger after the gear hold presses nothing (on the Pixel size it lands on Print summary)
 - Print summary on a sideways phone: shows the selected player's lines, Needs practice with names, opens the print dialog once (stubbed in the test), fits the width, prints only the summary (print media), Done returns to the parent corner, and switching player changes the summary
+- Friend library: a 0.5 save (no `seen`) loads unchanged (progress, practice letters, avatar, stickers, also after playing); the clip count is 36; S's two friends take turns over three rounds (Sammy, Sally, Sammy); picture mail for Sally goes to the S house and the banner says "S for Sally the Seal!"
 - Print all players: hidden with one player; with two, one sheet per player in order with each player's lines, the print dialog, fits the width, the second sheet starts a new printed page, Done returns to the parent corner
 
 Worker tests: `cd worker && npm install && npm test`.
@@ -145,6 +150,7 @@ Still needs a real device (emulation cannot check these):
 - Parent-corner Progress row and player profiles (PR #4).
 - Map path that lights up as routes open, printable per-child summary, version 0.4 (fourth session).
 - Lighthouse pass and Print all players, version 0.5 (fifth session).
+- Roadmap Phase 1, friend library, version 0.6 (sixth session).
 
 ## Decisions made by Claude (October 8, 2026, second session)
 Small calls made without the owner; change them if they're wrong.
@@ -264,6 +270,16 @@ Small calls made without the owner; change them if they're wrong.
 - **Release 0.5:** `VERSION` and the "Prototype" note are 0.5, `sw.js` is `amr-v4`, the privacy page's example game version is 0.5. Its text is otherwise unchanged (printing happens on the device). "Last updated" stays October 8, 2026.
 - **`PLAYTEST.md`** asks whether Print all players gave each child their own page.
 
+## Decisions made by Claude (October 8, 2026, sixth session)
+Phase 1 of the roadmap. Small calls made without the owner; change them if they're wrong.
+- **Sally the Seal (`S2`) added now**, from the Phase 3 table, so rotation is real and tested rather than a code path nothing uses. She is a grey seal on a light aqua house (`--c-S2`), teal roof. Phase 3 adds the rest.
+- **What stays on the first five (`STARTERS`):** title cast, avatar choices (Phase 3 adds "More"), the sticker cycle (Phase 6 replaces it), the numbers-route houses 1 to 5, and the letters a round uses until Phase 2. So adding a friend never changes these.
+- **Turn-taking is saved per player** as `seen` (friend id → running count), set when a round starts. A friend nobody has met counts as never seen, so a new friend shows up in the player's next round of that letter. Ties go to the first in `FRIENDS`, so a fresh player always starts with the original five. Leaving a round early still counts as meeting them. Route 4 houses rotate too (same houses, different faces).
+- **Needs practice and the printed summary** name a letter's first friend ("S (Sammy the Skunk)"), since practice is per letter.
+- **Clip count:** 36 (34 + `name-S2` + `reward-S2`). `reward-S2` says "S for Sally the Seal!"; the letter and sound clips are shared per letter.
+- **Release 0.6:** `VERSION` and the "Prototype" note are 0.6, `sw.js` is `amr-v5`, the privacy page's example game version is 0.6, and its "Stored on your device" paragraph mentions which friends each player met most recently. "Last updated" stays October 8, 2026.
+- **`PLAYTEST.md`** asks whether the child noticed Sally at the S house sometimes.
+
 ## Next sessions: expansion roadmap
 Written at the end of the fifth session, from the owner's questions about variety ("Is there a capacity to choose which letters, or randomized names that are school friendly and fit the lesson? In what ways can we expand?"). The owner asked for all of it to be built, starting in a fresh conversation. This section is the plan.
 
@@ -281,7 +297,7 @@ Written at the end of the fifth session, from the owner's questions about variet
 - Prompts are fixed sentences. Stickers cycle through the 5 animals in a fixed order (`CH[P.stickers.length % CH.length]`).
 - Nothing can be chosen by a parent beyond Unlock all.
 
-### Phase 1: Friend library (data model)
+### Phase 1: Friend library (data model) — done in 0.6 (sixth session)
 Split "animal friend" from "letter", so a letter can have more than one friend and a friend can be added without code changes.
 - **Data:** `FRIENDS` replaces `CH`: `{id, letter, name, animal, color, roof}`, where `id` is unique (`'S'`, `'S2'`, …) and `letter` is the uppercase letter it teaches. The existing 5 keep their ids (`S`, `B`, `K`, `C`, `P`) so saved stickers, avatars and practice scores stay valid with no migration. `ART` stays keyed by friend id.
 - **Practice scores stay per letter** (`weak.S`), not per friend: the child is learning the letter.
@@ -386,6 +402,6 @@ Most earlier ideas are now phases in the roadmap above. These two stay here:
 
 ## Later steps (need the owner)
 1. **Real-device playtest** with a 3 to 5 year old on an Android phone or tablet, using `PLAYTEST.md`. The notes become the next fixes.
-2. **Voice clips:** record or generate the 34 lines in `CLIPS`, put them in `audio/`, list them in `audio/clips.json`.
+2. **Voice clips:** record or generate the 36 lines in `CLIPS`, put them in `audio/`, list them in `audio/clips.json`.
 3. **Deploy the play-count Worker** (`worker/README.md`), then set `COUNT_URL` in `index.html`.
 4. **Later:** finished art, a final name, per-animal voices, Android packaging (Capacitor or a Trusted Web Activity) for Google Play. Play's Families policy then applies; `TELEMETRY.md` has the Data safety answers.

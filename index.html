@@ -32,6 +32,7 @@
   --c-K:#f3c350;
   --c-C:#5fc7b4;
   --c-P:#79b7f3;
+  --c-S2:#8fd3e8;
   --airmail:repeating-linear-gradient(135deg,var(--red) 0 12px,var(--paper) 12px 24px,var(--blue) 24px 36px,var(--paper) 36px 48px);
   --font-display:'Baloo 2','Trebuchet MS',system-ui,sans-serif;
   --font-body:'Nunito',system-ui,-apple-system,'Segoe UI',sans-serif;
@@ -405,14 +406,14 @@ svg{display:block}
       <div class="row"><b>Sound effects</b><button class="tog" type="button" id="t-sfx" aria-pressed="true">On</button></div>
       <div class="row"><b>Unlock all routes</b><button class="tog" type="button" id="t-unlock" aria-pressed="false">Off</button></div>
       <div class="row" id="share-row" hidden><b>Share play counts</b><button class="tog" type="button" id="t-share" aria-pressed="false">Off</button></div>
-      <div class="row"><b>Recorded voice clips</b><span id="clipcount">0 of 34</span></div>
+      <div class="row"><b>Recorded voice clips</b><span id="clipcount">0 of 36</span></div>
       <div class="block"><b>Players</b><p class="hint-text">Tap a player to see their progress. Names are optional and stay on this device.</p><div id="players"></div><button class="pbtn" type="button" id="b-add">Add player</button></div>
       <div class="block"><b id="prog-head">Progress</b><ul class="prog" id="progress"></ul></div>
       <div class="row"><b>Needs practice</b><span id="weaklist">None yet</span></div>
       <div class="row"><b>Paper copy</b><button class="pbtn" type="button" id="b-print">Print summary</button></div>
       <div class="row" id="print-all-row" hidden><b>Paper copies</b><button class="pbtn" type="button" id="b-print-all">Print all players</button></div>
       <div class="row"><b>Everyone</b><button class="pbtn danger" type="button" id="b-reset">Erase everything</button></div>
-      <p class="note">Prototype 0.5. Voice prompts use your device's built-in speech until recorded voices are added. <span id="share-note" hidden>"Share play counts" sends only anonymous totals, such as rounds played per route, and is off unless you turn it on. </span><a href="privacy.html" target="_blank" rel="noopener">Privacy</a></p>
+      <p class="note">Prototype 0.6. Voice prompts use your device's built-in speech until recorded voices are added. <span id="share-note" hidden>"Share play counts" sends only anonymous totals, such as rounds played per route, and is off unless you turn it on. </span><a href="privacy.html" target="_blank" rel="noopener">Privacy</a></p>
       <button class="close" type="button" id="p-close">Done</button>
     </div>
   </div>
@@ -433,23 +434,35 @@ svg{display:block}
 
 var $ = function(id){ return document.getElementById(id); };
 
-/* ---------- Characters (data driven: add an entry to add an animal) ---------- */
-var CH = [
-  {id:'S', name:'Sammy the Skunk',   color:'var(--c-S)', roof:'#6f5fd0'},
-  {id:'B', name:'Billy the Beaver',  color:'var(--c-B)', roof:'#b9692f'},
-  {id:'K', name:'Kelly the Kangaroo',color:'var(--c-K)', roof:'#c9962a'},
-  {id:'C', name:'Cody the Crane',    color:'var(--c-C)', roof:'#2f9f8c'},
-  {id:'P', name:'Pete the Penguin',  color:'var(--c-P)', roof:'#3f86cf'}
+/* ---------- Animal friends (data driven: add an entry here and its art in ART) ----------
+   A friend teaches one letter, and a letter can have several friends, who take turns between
+   rounds. The first five keep their letter as their id, so saved stickers, avatars and practice
+   scores from 0.5 stay valid. */
+var FRIENDS = [
+  {id:'S',  letter:'S', name:'Sammy the Skunk',    animal:'skunk',    color:'var(--c-S)',  roof:'#6f5fd0'},
+  {id:'B',  letter:'B', name:'Billy the Beaver',   animal:'beaver',   color:'var(--c-B)',  roof:'#b9692f'},
+  {id:'K',  letter:'K', name:'Kelly the Kangaroo', animal:'kangaroo', color:'var(--c-K)',  roof:'#c9962a'},
+  {id:'C',  letter:'C', name:'Cody the Crane',     animal:'crane',    color:'var(--c-C)',  roof:'#2f9f8c'},
+  {id:'P',  letter:'P', name:'Pete the Penguin',   animal:'penguin',  color:'var(--c-P)',  roof:'#3f86cf'},
+  {id:'S2', letter:'S', name:'Sally the Seal',     animal:'seal',     color:'var(--c-S2)', roof:'#2f7f9c'}
 ];
-var BYID = {};
-CH.forEach(function(c){ BYID[c.id] = c; });
+var BYID = {}, BYLETTER = {}, LETTERS = [];
+FRIENDS.forEach(function(f){
+  BYID[f.id] = f;
+  if(!BYLETTER[f.letter]){ BYLETTER[f.letter] = []; LETTERS.push(f.letter); }
+  BYLETTER[f.letter].push(f);
+});
+/* The first five friends: the title screen, the avatar choices, the sticker cycle and the houses
+   on the numbers route. Also the letters every round uses for now. */
+var STARTERS = ['S','B','K','C','P'];
 
 var ART = {
 S:'<ellipse cx="50" cy="84" rx="26" ry="19" fill="#2c2b3a"/><path d="M72 84C98 78 100 36 78 22 70 40 76 52 66 66Z" fill="#2c2b3a"/><path d="M79 26C90 38 91 56 80 70" fill="none" stroke="#fff" stroke-width="6" stroke-linecap="round"/><circle cx="28" cy="31" r="9" fill="#2c2b3a"/><circle cx="72" cy="31" r="9" fill="#2c2b3a"/><circle cx="28" cy="32" r="4" fill="#f4a6b8"/><circle cx="72" cy="32" r="4" fill="#f4a6b8"/><ellipse cx="50" cy="53" rx="28" ry="26" fill="#2c2b3a"/><path d="M50 27C43 39 43 52 45 64H55C57 52 57 39 50 27Z" fill="#fff"/><circle cx="37" cy="53" r="6" fill="#fff"/><circle cx="63" cy="53" r="6" fill="#fff"/><circle cx="38" cy="54" r="3.2" fill="#1b1a24"/><circle cx="62" cy="54" r="3.2" fill="#1b1a24"/><ellipse cx="50" cy="62" rx="4.5" ry="3.2" fill="#1b1a24"/><path d="M44 69Q50 74 56 69" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round"/>',
 B:'<path d="M30 92Q50 104 70 92L64 80H36Z" fill="#5d3a1f"/><ellipse cx="50" cy="84" rx="26" ry="19" fill="#8c5a30"/><ellipse cx="50" cy="90" rx="14" ry="10" fill="#d9b48a"/><circle cx="27" cy="32" r="9" fill="#8c5a30"/><circle cx="73" cy="32" r="9" fill="#8c5a30"/><circle cx="27" cy="33" r="4" fill="#5d3a1f"/><circle cx="73" cy="33" r="4" fill="#5d3a1f"/><ellipse cx="50" cy="53" rx="28" ry="25" fill="#8c5a30"/><ellipse cx="50" cy="63" rx="17" ry="13" fill="#d9b48a"/><ellipse cx="50" cy="56" rx="6.5" ry="4.2" fill="#3a2312"/><rect x="43.5" y="63" width="6" height="10" rx="2" fill="#fff" stroke="#c9b9a0" stroke-width="1"/><rect x="50.5" y="63" width="6" height="10" rx="2" fill="#fff" stroke="#c9b9a0" stroke-width="1"/><circle cx="39" cy="46" r="4.2" fill="#1b1b1b"/><circle cx="61" cy="46" r="4.2" fill="#1b1b1b"/><circle cx="40.2" cy="44.8" r="1.4" fill="#fff"/><circle cx="62.2" cy="44.8" r="1.4" fill="#fff"/>',
 K:'<ellipse cx="50" cy="85" rx="24" ry="19" fill="#c98d4e"/><ellipse cx="50" cy="89" rx="14" ry="12" fill="#ecd0a8"/><ellipse cx="33" cy="22" rx="6.5" ry="17" transform="rotate(-14 33 22)" fill="#c98d4e"/><ellipse cx="67" cy="22" rx="6.5" ry="17" transform="rotate(14 67 22)" fill="#c98d4e"/><ellipse cx="33" cy="23" rx="3" ry="11" transform="rotate(-14 33 23)" fill="#f4a6b8"/><ellipse cx="67" cy="23" rx="3" ry="11" transform="rotate(14 67 23)" fill="#f4a6b8"/><ellipse cx="50" cy="53" rx="25" ry="25" fill="#c98d4e"/><ellipse cx="50" cy="63" rx="15" ry="12" fill="#ecd0a8"/><ellipse cx="50" cy="57" rx="5" ry="3.5" fill="#4a2a1a"/><circle cx="39" cy="48" r="4" fill="#1b1b1b"/><circle cx="61" cy="48" r="4" fill="#1b1b1b"/><circle cx="40.2" cy="46.8" r="1.4" fill="#fff"/><circle cx="62.2" cy="46.8" r="1.4" fill="#fff"/><path d="M44 66Q50 71 56 66" fill="none" stroke="#4a2a1a" stroke-width="2" stroke-linecap="round"/>',
 C:'<ellipse cx="50" cy="86" rx="28" ry="17" fill="#f4f6fa" stroke="#c3cbd8" stroke-width="2"/><path d="M34 84Q50 74 66 84" fill="none" stroke="#8d98ab" stroke-width="4" stroke-linecap="round"/><path d="M50 72C42 60 58 50 50 36" fill="none" stroke="#c3cbd8" stroke-width="17" stroke-linecap="round"/><path d="M50 72C42 60 58 50 50 36" fill="none" stroke="#f4f6fa" stroke-width="13" stroke-linecap="round"/><circle cx="50" cy="29" r="13" fill="#f4f6fa" stroke="#c3cbd8" stroke-width="2"/><path d="M40 22Q50 12 60 22Q50 19 40 22Z" fill="#e54b4b"/><path d="M60 29L90 35L60 38Z" fill="#f2a93b"/><circle cx="52" cy="27" r="3.4" fill="#1b1b1b"/><circle cx="53" cy="26" r="1.1" fill="#fff"/>',
-P:'<ellipse cx="38" cy="97" rx="10" ry="4.5" fill="#f2a93b"/><ellipse cx="62" cy="97" rx="10" ry="4.5" fill="#f2a93b"/><ellipse cx="19" cy="72" rx="7" ry="17" transform="rotate(18 19 72)" fill="#1f2d47"/><ellipse cx="81" cy="72" rx="7" ry="17" transform="rotate(-18 81 72)" fill="#1f2d47"/><ellipse cx="50" cy="62" rx="31" ry="35" fill="#1f2d47"/><ellipse cx="50" cy="75" rx="20" ry="22" fill="#fff"/><ellipse cx="50" cy="46" rx="21" ry="15" fill="#fff"/><circle cx="41" cy="44" r="4" fill="#1b1b1b"/><circle cx="59" cy="44" r="4" fill="#1b1b1b"/><circle cx="42.2" cy="42.8" r="1.3" fill="#fff"/><circle cx="60.2" cy="42.8" r="1.3" fill="#fff"/><path d="M43 51H57L50 61Z" fill="#f2a93b"/>'
+P:'<ellipse cx="38" cy="97" rx="10" ry="4.5" fill="#f2a93b"/><ellipse cx="62" cy="97" rx="10" ry="4.5" fill="#f2a93b"/><ellipse cx="19" cy="72" rx="7" ry="17" transform="rotate(18 19 72)" fill="#1f2d47"/><ellipse cx="81" cy="72" rx="7" ry="17" transform="rotate(-18 81 72)" fill="#1f2d47"/><ellipse cx="50" cy="62" rx="31" ry="35" fill="#1f2d47"/><ellipse cx="50" cy="75" rx="20" ry="22" fill="#fff"/><ellipse cx="50" cy="46" rx="21" ry="15" fill="#fff"/><circle cx="41" cy="44" r="4" fill="#1b1b1b"/><circle cx="59" cy="44" r="4" fill="#1b1b1b"/><circle cx="42.2" cy="42.8" r="1.3" fill="#fff"/><circle cx="60.2" cy="42.8" r="1.3" fill="#fff"/><path d="M43 51H57L50 61Z" fill="#f2a93b"/>',
+S2:'<ellipse cx="22" cy="90" rx="13" ry="6" transform="rotate(-20 22 90)" fill="#6c7d93"/><ellipse cx="78" cy="90" rx="13" ry="6" transform="rotate(20 78 90)" fill="#6c7d93"/><ellipse cx="50" cy="82" rx="27" ry="19" fill="#8a9bb0"/><ellipse cx="50" cy="86" rx="15" ry="11" fill="#c9d4e0"/><ellipse cx="50" cy="51" rx="27" ry="25" fill="#8a9bb0"/><circle cx="38" cy="47" r="5.2" fill="#1b1b1b"/><circle cx="62" cy="47" r="5.2" fill="#1b1b1b"/><circle cx="39.6" cy="45.4" r="1.7" fill="#fff"/><circle cx="63.6" cy="45.4" r="1.7" fill="#fff"/><ellipse cx="44" cy="63" rx="7" ry="5.5" fill="#c9d4e0"/><ellipse cx="56" cy="63" rx="7" ry="5.5" fill="#c9d4e0"/><ellipse cx="50" cy="58" rx="4.5" ry="3.2" fill="#1b1b1b"/><path d="M38 62L26 59M38 65L26 67M62 62L74 59M62 65L74 67" stroke="#4d5a6b" stroke-width="1.4" stroke-linecap="round"/><circle cx="31" cy="57" r="3.5" fill="#f4a6b8" opacity=".7"/><circle cx="69" cy="57" r="3.5" fill="#f4a6b8" opacity=".7"/>'
 };
 function art(id){ return '<svg viewBox="0 0 100 100" aria-hidden="true">' + ART[id] + '</svg>'; }
 
@@ -461,7 +474,7 @@ var LOCK = '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="11" width
    their own rounds, stickers and practice letters. P is the player who is playing now.
    Kept in its own key with a plain shape so other games could share players later. */
 var KEY = 'animal-mail-route-v2', OLD_KEY = 'animal-mail-route-v1', MAX_PLAYERS = 8, NAME_MAX = 20;
-function newPlayer(id, animal){ return {id:id, name:'', animal:animal || 'S', rounds:{1:0,2:0,3:0,4:0}, stickers:[], weak:{}}; }
+function newPlayer(id, animal){ return {id:id, name:'', animal:animal || 'S', rounds:{1:0,2:0,3:0,4:0}, stickers:[], weak:{}, seen:{}}; }
 function defaults(){ return {v:2, device:{voice:true, sfx:true, share:false, unlockAll:false}, current:1, players:[newPlayer(1, 'S')]}; }
 function cleanDevice(o){
   o = (o && typeof o === 'object') ? o : {};
@@ -475,7 +488,11 @@ function cleanPlayer(o, id){
   if(o.rounds && typeof o.rounds === 'object'){ for(var k in p.rounds){ p.rounds[k] = Math.max(0, Math.floor(+o.rounds[k] || 0)); } }
   if(Array.isArray(o.stickers)){ p.stickers = o.stickers.filter(function(s){ return s && BYID[s.c]; }).map(function(s){ return {c:s.c}; }).slice(0,300); }
   if(o.weak && typeof o.weak === 'object'){
-    for(var wid in BYID){ var w = +o.weak[wid]; if(w > 0) p.weak[wid] = Math.min(6, Math.round(w)); }
+    LETTERS.forEach(function(l){ var w = +o.weak[l]; if(w > 0) p.weak[l] = Math.min(6, Math.round(w)); });
+  }
+  // seen: friend id -> when this player last met them (a running count), for taking turns
+  if(o.seen && typeof o.seen === 'object'){
+    for(var fid in BYID){ var n = Math.floor(+o.seen[fid]); if(n > 0) p.seen[fid] = n; }
   }
   return p;
 }
@@ -586,14 +603,15 @@ var CLIPS = {
 };
 var SOUNDS = {S:'sss', B:'buh', K:'kuh', C:'kuh', P:'puh'};
 var NUMWORD = ['one','two','three','four','five'];
-var NUM = {};            // character id -> house number on the numbers route
-CH.forEach(function(c, i){
-  NUM[c.id] = i + 1;
-  CLIPS['num-' + (i + 1)] = NUMWORD[i];
-  CLIPS['letter-' + c.id] = c.id;
-  CLIPS['sound-' + c.id]  = SOUNDS[c.id] || '';
-  CLIPS['name-' + c.id]   = c.name;
-  CLIPS['reward-' + c.id] = c.id + ' for ' + c.name + '!';
+var NUM = {};            // letter -> house number on the numbers route
+STARTERS.forEach(function(l, i){ NUM[l] = i + 1; CLIPS['num-' + (i + 1)] = NUMWORD[i]; });
+LETTERS.forEach(function(l){
+  CLIPS['letter-' + l] = l;
+  CLIPS['sound-' + l]  = SOUNDS[l] || '';
+});
+FRIENDS.forEach(function(f){
+  CLIPS['name-' + f.id]   = f.name;
+  CLIPS['reward-' + f.id] = f.letter + ' for ' + f.name + '!';
 });
 var BUF = {};            // key -> decoded audio, filled as recordings are found
 var seqToken = 0, curSrc = null;
@@ -670,7 +688,7 @@ function hush(){
    Off unless a parent turns on "Share play counts". Only totals per route are kept, with no
    identifier or timestamp, and they are sent once when the page is hidden. The setting is
    not shown at all while COUNT_URL is empty. */
-var VERSION = '0.5';
+var VERSION = '0.6';
 var COUNT_URL = '';      // the Worker, e.g. 'https://animal-mail-counts.<account>.workers.dev/v1/counts'
 var CKEY = 'animal-mail-route-counts', CAP = 200, METRICS = ['started','finished','misses'];
 function emptyCounts(){ return {opens:0, started:{}, finished:{}, misses:{}}; }
@@ -795,7 +813,8 @@ document.addEventListener('click', function(e){
 });
 
 /* ---------- Title ---------- */
-$('cast').innerHTML = CH.map(function(c){
+$('cast').innerHTML = STARTERS.map(function(id){
+  var c = BYID[id];
   return '<button type="button" class="pal" data-id="' + c.id + '" aria-label="Hear ' + c.name + '">' + art(c.id) + '</button>';
 }).join('');
 $('cast').addEventListener('click', function(e){
@@ -904,20 +923,24 @@ function houses(){ return Array.prototype.slice.call(street.querySelectorAll('.h
 function startLevel(l){
   count('started', l);
   var n = houseCount(l);
-  var ids = CH.slice(0, n).map(function(c){ return c.id; });
-  R = {level:l, ids:ids, queue:buildQueue(ids, l), i:0, misses:0, busy:true, current:null, selected:false, timer:null};
+  var ids = STARTERS.slice(0, n);
+  var friend = pickFriends(ids);
+  R = {level:l, ids:ids, friend:friend, queue:buildQueue(ids, l), i:0, misses:0, busy:true, current:null, selected:false, timer:null};
+  R.queue.forEach(function(q){ q.f = friend[q.id]; });
+  save();
   street.innerHTML = '';
   street.classList.remove('armed');
   shuffle(ids.slice()).forEach(function(id){
-    var c = BYID[id];
+    var c = BYID[friend[id]];
     var b = document.createElement('button');
     b.type = 'button';
     b.className = 'house' + (l === 2 ? ' has-pal' : '');
     b.setAttribute('data-id', id);
+    b.setAttribute('data-friend', c.id);
     b.setAttribute('aria-label', l === 4 ? 'House number ' + NUM[id] + ', home of ' + c.name : 'House with the letter ' + id + ', home of ' + c.name);
     b.style.setProperty('--wall', c.color);
     b.style.setProperty('--roof', c.roof);
-    b.innerHTML = '<span class="roof"></span><span class="wall"></span><span class="window"><span class="pal">' + art(id) + '</span></span><span class="sign">' + (l === 4 ? NUM[id] : id) + '</span>';
+    b.innerHTML = '<span class="roof"></span><span class="wall"></span><span class="window"><span class="pal">' + art(c.id) + '</span></span><span class="sign">' + (l === 4 ? NUM[id] : id) + '</span>';
     b.addEventListener('click', onHouse);
     street.appendChild(b);
   });
@@ -931,8 +954,20 @@ function startLevel(l){
   R.timer = setTimeout(function(){ if(R) nextMail(); }, 900);
 }
 
+/* One friend per letter for this round: the one this player met least recently (first in FRIENDS
+   on a tie), so the houses change between rounds while the letters stay the same. */
+function pickFriends(letters){
+  var seen = P.seen, last = 0, out = {};
+  for(var k in seen) last = Math.max(last, seen[k]);
+  letters.forEach(function(l){
+    var f = BYLETTER[l].slice().sort(function(a, b){ return (seen[a.id] || 0) - (seen[b.id] || 0); })[0];
+    out[l] = f.id;
+    seen[f.id] = ++last;
+  });
+  return out;
+}
 function promptFor(item){
-  var c = BYID[item.id];
+  var c = BYID[item.f];
   if(item.kind === 'letter'){
     return {cap:'Who gets the ' + item.id + '?', say:['who-gets-the', 'letter-' + item.id], label:'Mail with the letter ' + item.id};
   }
@@ -942,7 +977,7 @@ function promptFor(item){
   if(item.kind === 'count'){
     return {cap:'Count the stars. Which number?', say:['count-prompt'], label:'Mail with ' + NUM[item.id] + ' stars'};
   }
-  return {cap:'This mail is for ' + c.name + '!', say:['mail-for', 'name-' + item.id], label:'Mail with a picture of ' + c.name};
+  return {cap:'This mail is for ' + c.name + '!', say:['mail-for', 'name-' + item.f], label:'Mail with a picture of ' + c.name};
 }
 function paperHTML(item){
   if(item.kind === 'letter') return '<span class="big">' + item.id + '</span>';
@@ -952,7 +987,7 @@ function paperHTML(item){
     for(var i=0;i<NUM[item.id];i++) s += STAR;
     return '<span class="cnt">' + s + '</span>';
   }
-  return art(item.id);
+  return art(item.f);
 }
 
 function nextMail(){
@@ -1110,7 +1145,7 @@ function success(h){
   if(R.level !== 4 && R.misses === 0 && weakOf(R.current.id) > 0){ P.weak[R.current.id] = weakOf(R.current.id) - 1; save(); }
   street.classList.remove('armed');
   houses().forEach(function(x){ x.classList.remove('hint'); });
-  var c = BYID[R.current.id];
+  var c = BYID[R.current.f];
   clearTimeout(R.idleT);
   fly(h);
   sfx.ok();
@@ -1120,9 +1155,9 @@ function success(h){
   banner.classList.remove('pop'); void banner.offsetWidth; banner.classList.add('pop');
   caption.textContent = '';
   if(R.level === 4){
-    say(['num-' + NUM[R.current.id], 'name-' + R.current.id], NUM[R.current.id] + '! ' + c.name + '!');
+    say(['num-' + NUM[R.current.id], 'name-' + c.id], NUM[R.current.id] + '! ' + c.name + '!');
   }else{
-    say(['letter-' + R.current.id, 'sound-' + R.current.id, 'reward-' + R.current.id], R.current.id + '! ' + R.current.id + ' for ' + c.name + '!');
+    say(['letter-' + R.current.id, 'sound-' + R.current.id, 'reward-' + c.id], R.current.id + '! ' + R.current.id + ' for ' + c.name + '!');
   }
   var pips = $('pips').children;
   if(pips[R.i]) pips[R.i].classList.add('on');
@@ -1170,7 +1205,7 @@ function finishRound(){
   $('win-next').setAttribute('aria-label', label);
   $('win-next-label').textContent = label;
   count('finished', level);
-  var st = {c: CH[P.stickers.length % CH.length].id};
+  var st = {c: STARTERS[P.stickers.length % STARTERS.length]};
   P.stickers.push(st);
   save();
   mail.hidden = true;
@@ -1231,7 +1266,7 @@ function progressLines(p){
   out.push('Stickers: ' + p.stickers.length);
   return out;
 }
-function weakIds(p){ return CH.map(function(c){ return c.id; }).filter(function(id){ return (p.weak[id] || 0) >= 2; }); }
+function weakIds(p){ return LETTERS.filter(function(l){ return (p.weak[l] || 0) >= 2; }); }
 function syncToggles(){
   setTog($('t-voice'), S.voice); setTog($('t-sfx'), S.sfx); setTog($('t-unlock'), S.unlockAll); setTog($('t-share'), S.share);
   $('share-row').hidden = $('share-note').hidden = !COUNT_URL;
@@ -1258,7 +1293,8 @@ function armed(b){
 /* ---------- Players (parent corner) ---------- */
 function renderPlayers(){
   $('players').innerHTML = D.players.map(function(p, i){
-    var ani = CH.map(function(c){
+    var ani = STARTERS.map(function(id){
+      var c = BYID[id];
       return '<button type="button" data-ani="' + c.id + '" style="--bg:' + c.color + '" aria-pressed="' + (p.animal === c.id) + '" aria-label="' + c.name + '">' + art(c.id) + '</button>';
     }).join('');
     return '<div class="pl' + (p.id === sel ? ' sel' : '') + '" data-pid="' + p.id + '">' +
@@ -1319,7 +1355,7 @@ $('b-add').addEventListener('click', function(){
   if(D.players.length >= MAX_PLAYERS) return;
   var used = {};
   D.players.forEach(function(p){ used[p.animal] = (used[p.animal] || 0) + 1; });
-  var animal = CH.slice().sort(function(a, b){ return (used[a.id] || 0) - (used[b.id] || 0); })[0].id;
+  var animal = STARTERS.slice().sort(function(a, b){ return (used[a] || 0) - (used[b] || 0); })[0];
   var id = Math.max.apply(null, D.players.map(function(p){ return p.id; })) + 1;
   D.players.push(newPlayer(id, animal));
   sel = id;
@@ -1355,7 +1391,7 @@ function sheetHTML(p, date){
     '<h2>Routes and stickers</h2>' +
     '<ul class="sum-progress">' + progressLines(p).map(function(t){ return '<li>' + esc(t) + '</li>'; }).join('') + '</ul>' +
     '<h2>Needs practice</h2>' +
-    '<p class="meta sum-weak">' + (weak.length ? weak.map(function(id){ return id + ' (' + BYID[id].name + ')'; }).join(', ') : 'None yet') + '</p>' +
+    '<p class="meta sum-weak">' + (weak.length ? weak.map(function(id){ return id + ' (' + BYLETTER[id][0].name + ')'; }).join(', ') : 'None yet') + '</p>' +
     '<p class="foot">A route opens after 2 finished rounds of the route before it. Each round is 5 deliveries and earns a sticker. "Needs practice" lists the letters this player has missed most often lately; it clears as they get them right. Made on this device; nothing was sent anywhere.</p>' +
     '</article>';
 }
