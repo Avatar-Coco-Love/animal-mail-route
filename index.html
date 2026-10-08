@@ -610,13 +610,14 @@ function updateClipCount(){
 /* audio/clips.json lists the recordings that exist, e.g. ["letter-S","sound-S"], so the game
    doesn't ask the server for every missing file. No list means no recordings yet. */
 function loadClips(){
-  var c = getAc();
-  if(!c || !window.fetch) return;
+  if(!window.fetch) return;
   fetch('audio/clips.json')
     .then(function(r){ return r.ok ? r.json() : []; })
     .catch(function(){ return []; })
     .then(function(list){
-      (Array.isArray(list) ? list : []).filter(function(k){ return CLIPS.hasOwnProperty(k); }).forEach(loadClip);
+      list = (Array.isArray(list) ? list : []).filter(function(k){ return CLIPS.hasOwnProperty(k); });
+      // The audio context is made only when there is a clip to decode: it is slow to start on a phone.
+      if(list.length && getAc()) list.forEach(loadClip);
     });
 }
 function loadClip(k){
