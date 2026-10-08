@@ -1,0 +1,40 @@
+name: Tests
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  worker:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      # The tests use only Node built-ins (node:test, node:sqlite), so wrangler is not installed.
+      - name: Worker tests
+        working-directory: worker
+        run: npm test
+
+  touch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Install Playwright and Chromium
+        run: |
+          npm install --no-save --no-package-lock playwright@1.56.1 http-server@14
+          npx playwright install --with-deps chromium
+      - name: Serve the game
+        run: |
+          npx http-server -p 8080 -s -c-1 . &
+          for i in $(seq 1 30); do curl -sf http://localhost:8080/ >/dev/null && break; sleep 1; done
+      - name: Touch smoke test
+        run: node tests/touch.cjs http://localhost:8080/

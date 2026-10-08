@@ -12,6 +12,8 @@ An older copy also exists as a Claude artifact. It predates the fixes below, so 
 - Voice is the device's built-in speech; no recordings yet.
 - Opt-in play counts are built, but the Worker isn't deployed, so the setting is hidden and nothing is collected.
 - Privacy page is live. The game contacts no site except the one it's hosted on.
+- Installable to the home screen and playable offline (manifest + service worker), once PR #3 is merged.
+- CI runs the worker tests and the touch test on every pull request.
 
 ## Repo map
 | Path | What |
@@ -22,7 +24,11 @@ An older copy also exists as a Claude artifact. It predates the fixes below, so 
 | `audio/` | voice clips (none yet) and `clips.json`, the list of clips that exist |
 | `TELEMETRY.md` | play counts design and rules (COPPA, Google Families) |
 | `worker/` | Cloudflare Worker + D1 for play counts, with tests and deploy steps |
-| `tests/touch.cjs` | touch smoke test (38 checks), local or live |
+| `tests/touch.cjs` | touch smoke test (54 checks), local or live |
+| `manifest.webmanifest`, `sw.js` | install and offline play; bump `VERSION` in `sw.js` on every release |
+| `icons/` | app icons: `icon.svg` and `icon-maskable.svg` are the sources, `export.cjs` makes the PNGs |
+| `.github/workflows/test.yml` | CI on pull requests: worker tests and the touch test |
+| `PLAYTEST.md` | checklist for the owner's first playtest with a child |
 
 ## What it is
 A mail delivery game for preschoolers (about ages 3 to 5). The child drags mail to the matching house and learns letters, animals, and numbers. Five animal friends (idea came from a coworker):
@@ -32,7 +38,7 @@ A mail delivery game for preschoolers (about ages 3 to 5). The child drags mail 
 | S | Sammy the Skunk |
 | B | Billy the Beaver |
 | K | Kelly the Kangaroo |
-| C | Charlie the Crane |
+| C | Cody the Crane |
 | P | Pete the Penguin |
 
 Target: Android phone and tablet, touch-first. Built as plain HTML, CSS, and JavaScript (no framework, no build step), to be wrapped later (Capacitor) or shipped as an installable web app.
@@ -53,9 +59,17 @@ Target: Android phone and tablet, touch-first. Built as plain HTML, CSS, and Jav
 - Parent corner shows how many of the 33 clips were found.
 - Play counts (`COUNT_URL`, `count`, `sendCounts`): opt-in, anonymous, see `TELEMETRY.md`. Hidden until `COUNT_URL` is set.
 - Fonts are served from `fonts/` (no Google Fonts request). `privacy.html` is the privacy page.
+- Win card: `finishRound` sets `winTarget`. If the round just unlocked the next route the big button says "Next route" and starts it; otherwise "Play again" replays the route (also with "Unlock all" on, and after route 4).
+- Service worker registration is the last thing in the script, and only over http(s).
+
+## Install and offline
+- `manifest.webmanifest`: standalone, sky blue theme, icons at 192 and 512 px plus a maskable 512 (artwork inside the 80% safe zone).
+- `sw.js` precaches `index.html`, `privacy.html`, the manifest, fonts, icons and `audio/clips.json`, plus every clip that `clips.json` lists. Same-origin GETs are served stale-while-revalidate: from the cache at once, refreshed from the network behind, so a change shows on the second load. Cross-origin requests and POSTs (play counts) are not touched.
+- **On every release, bump `VERSION` in `sw.js`** so installed copies drop the old cache. Add any new file the game needs offline to `CORE`.
+- To redraw the icons, edit the SVGs and run `NODE_PATH="$(npm root -g)" node icons/export.cjs`.
 
 ## Audio
-Recordings go in `audio/` named like `letter-S.mp3`, `sound-S.mp3`, `name-S.mp3`, `reward-S.mp3`, `num-3.mp3`, `who-gets-the.mp3`, and so on. The full list with exact wording and delivery notes is in the "Animal Mail Route: Voice Script" doc (a private Claude doc; if it is not reachable, regenerate the list from `CLIPS`). List the clips that exist in `audio/clips.json` (for example `["letter-S","sound-S"]`); the game only loads clips named there, so a missing list means no requests for missing files. The page loads clips with `fetch('audio/<key>.mp3')`, so it must be served over http(s), not opened from a file path.
+Recordings go in `audio/` named like `letter-S.mp3`, `sound-S.mp3`, `name-S.mp3`, `reward-S.mp3`, `num-3.mp3`, `who-gets-the.mp3`, and so on. The full list with exact wording and delivery notes is in the "Animal Mail Route: Voice Script" doc (a private Claude doc; if it is not reachable, regenerate the list from `CLIPS`). That doc predates the rename, so `name-C` and `reward-C` there may still say Charlie: the right lines are "Cody the Crane" and "C for Cody the Crane!". `CLIPS` is the source of truth. List the clips that exist in `audio/clips.json` (for example `["letter-S","sound-S"]`); the game only loads clips named there, so a missing list means no requests for missing files. The page loads clips with `fetch('audio/<key>.mp3')`, so it must be served over http(s), not opened from a file path.
 
 ## Testing
 Run after any change to `index.html`:
@@ -64,10 +78,12 @@ npx http-server -p 8080 -s .      # in one terminal, from the repo root
 NODE_PATH="$(npm root -g)" node tests/touch.cjs                 # local
 NODE_PATH="$(npm root -g)" node tests/touch.cjs https://avatar-coco-love.github.io/animal-mail-route/   # live
 ```
-It needs Playwright with Chromium; in Claude Code cloud sessions it is installed globally. It checks:
+It needs Playwright with Chromium; in Claude Code cloud sessions it is installed globally. CI (`.github/workflows/test.yml`) installs Playwright 1.56.1 and runs the same command on every pull request. It checks:
 - 5 screen sizes (small phone, Pixel, phone sideways, tablet, tablet sideways): everything on screen, finger drag delivers, dragged mail stays visible, no console errors, no requests to other sites
 - a full round with wrong tries, the hint and the win card
 - the parent corner's press-and-hold, and swiping to Done on a sideways phone
+- the crane is Cody; the win card says "Play again" after round 1 and "Next route" after the round that unlocks route 2, and each button goes where it says
+- the manifest and its icons, the service worker taking control, then with the network off: the game, fonts and privacy page load and a delivery works
 
 Worker tests: `cd worker && npm install && npm test`.
 
@@ -86,8 +102,8 @@ Still needs a real device (emulation cannot check these):
 - The URL bar fix on a real Android Chrome.
 
 ## Decisions (made October 8, 2026; the owner accepted these recommendations)
-- **Charlie the Crane becomes Cody the Crane.** "Cody", "C" (as "kuh") and "Crane" all start with the same hard k sound, which is what route 1 teaches. Not yet applied in code.
-- **Win card button:** if finishing this round unlocks the next route, the button says "Next route" and starts it. Otherwise it says "Play again" and replays the route. Not yet applied in code.
+- **Charlie the Crane becomes Cody the Crane.** "Cody", "C" (as "kuh") and "Crane" all start with the same hard k sound, which is what route 1 teaches. Done.
+- **Win card button:** if finishing this round unlocks the next route, the button says "Next route" and starts it. Otherwise it says "Play again" and replays the route. Done.
 - **Voice:** keep the built-in speech for now. Record or generate clips only after the real-device playtest, once the wording has settled.
 - **Play counts:** leave the Worker undeployed until the owner wants numbers. Deploying needs their Cloudflare login.
 - **Owner's time is limited (working a day job).** Prefer work Claude can finish alone. Batch anything that needs the owner (merging a PR, a playtest, a login) and ask for it in one short message.
@@ -101,20 +117,21 @@ Still needs a real device (emulation cannot check these):
 - Device fixes from touch testing, listed under Testing.
 - Fonts served with the game, privacy page, clip list, favicon.
 - Opt-in play counts: client, Worker, tests, end-to-end check against a local Worker.
+- Cody rename, win card button, installable and offline, CI, `PLAYTEST.md` (PR #3).
+
+## Decisions made by Claude (October 8, 2026, second session)
+Small calls made without the owner; change them if they're wrong.
+- Win card keeps one icon (the play triangle) for both labels; only the words change.
+- No Apple touch icon: the target is Android, and iOS adds its own corners to a full-bleed icon. Add one if iOS matters.
+- Service worker uses stale-while-revalidate rather than cache-first, so a forgotten `VERSION` bump still shows changes on the second load.
+- CI runs the worker tests without `npm install`: they use only Node built-ins, and installing wrangler would add a large download for nothing.
+- The privacy page now says the browser keeps an offline copy of the game's own files (not information about the child).
 
 ## Next session: work that needs nothing from the owner
-Do these in order. Run `tests/touch.cjs` locally after each change to `index.html`. Open one PR at the end, then ask the owner to merge it.
-1. **Rename Charlie to Cody** everywhere: `CH`, aria labels, `CLIPS` (`name-C`, `reward-C`), docs. Check the voice script note under Audio.
-2. **Win card button** as decided above. Add a check for it in `tests/touch.cjs`.
-3. **Installable and offline:**
-   - `manifest.webmanifest` with name, colors and `display: standalone`
-   - icons at 192 and 512 px, plus a maskable one, drawn as SVG and exported to PNG
-   - a small service worker caching `index.html`, `privacy.html`, `fonts/` and `audio/`, with a version string to bump on each release
-   - test offline play in Playwright (`context.setOffline(true)` after the first load)
-   - keep it free of third-party requests
-4. **CI:** a GitHub Actions workflow on pull requests that runs `worker` tests and `tests/touch.cjs` against a local server. Install Playwright Chromium in the workflow.
-5. **Playtest sheet for the owner:** `PLAYTEST.md`, a short phone-friendly checklist for a parent watching a child play (voice heard? can drag? understood the prompts? where stuck?), with space for notes to paste back to Claude.
-6. Update this file, then open the PR and give the owner the merge link plus anything else that needs them, in one message.
+Done in PR #3 (rename, win card, install and offline, CI, playtest sheet). Ideas for the next pass, none urgent:
+- Check CI's first run on PR #3 and fix anything the GitHub runner does differently.
+- Bump the "Prototype 0.2" note in the parent corner (and the version sent with play counts) when the next release goes out, together with `VERSION` in `sw.js`.
+- Otherwise wait for the playtest notes; they decide the next fixes.
 
 ## Later steps (need the owner)
 1. **Real-device playtest** with a 3 to 5 year old on an Android phone or tablet, using `PLAYTEST.md`. The notes become the next fixes.

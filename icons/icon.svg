@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <!-- App icon: an airmail envelope on a sunny sky. Exported to PNG by export.cjs. -->
+  <defs>
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#8fd1ff"/><stop offset="1" stop-color="#e2f4ff"/></linearGradient>
+    <pattern id="air" width="72" height="72" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+      <rect width="18" height="72" fill="#ee5350"/><rect x="18" width="18" height="72" fill="#fffaf0"/><rect x="36" width="18" height="72" fill="#2e6fe8"/><rect x="54" width="18" height="72" fill="#fffaf0"/>
+    </pattern>
+    <clipPath id="env"><rect x="86" y="150" width="340" height="232" rx="26"/></clipPath>
+  </defs>
+  <rect width="512" height="512" rx="112" fill="url(#sky)"/>
+  <circle cx="404" cy="108" r="46" fill="#ffd34d"/>
+  <rect x="86" y="166" width="340" height="232" rx="26" fill="#24304d" opacity=".18"/>
+  <g clip-path="url(#env)">
+    <rect x="86" y="150" width="340" height="232" fill="url(#air)"/>
+    <rect x="110" y="174" width="292" height="184" rx="10" fill="#fffaf0"/>
+  </g>
+  <path d="M112 178l144 108 144-108" fill="none" stroke="#2e6fe8" stroke-width="22" stroke-linecap="round" stroke-linejoin="round"/>
+  <rect x="330" y="292" width="54" height="50" rx="6" fill="#ee5350"/>
+</svg>
