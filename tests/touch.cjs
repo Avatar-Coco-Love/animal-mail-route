@@ -41,6 +41,15 @@ const holdGear = async (page, touch) => {
   await touch('touchEnd');
   await page.waitForTimeout(100);
 };
+// map path: which of the 3 segments are lit, and whether each runs from one disc's centre to the next
+const segState = (page) => page.$$eval('#route .seg', (gs) => gs.map((g) => g.classList.contains('lit') ? 1 : 0).join(''));
+const segsJoinDiscs = (page) => page.evaluate(() => {
+  const route = document.querySelector('#route'), box = route.getBoundingClientRect();
+  const c = [...route.querySelectorAll('.disc')].map((d) => { const r = d.getBoundingClientRect(); return [r.left - box.left + r.width / 2, r.top - box.top + r.height / 2]; });
+  const lines = [...route.querySelectorAll('.seg .dash')];
+  const near = (a, b) => Math.abs(a - b) <= 2;
+  return lines.length === 3 && lines.every((l, i) => near(+l.getAttribute('x1'), c[i][0]) && near(+l.getAttribute('y1'), c[i][1]) && near(+l.getAttribute('x2'), c[i + 1][0]) && near(+l.getAttribute('y2'), c[i + 1][1]));
+});
 const progressText = (page) => page.$$eval('#progress li', (li) => li.map((e) => e.textContent));
 const wanted = (page) => page.evaluate(() => document.querySelector('#caption').textContent.slice(-2, -1));
 
@@ -56,6 +65,7 @@ const wanted = (page) => page.evaluate(() => document.querySelector('#caption').
     await page.waitForTimeout(300);
     if (name === 'pixel') check('one player: Play goes straight to the map, no picker or avatar', await page.$eval('#s-who', (e) => e.hidden) && await page.$eval('#m-who', (e) => e.hidden));
     check(`${name}: all 4 routes on screen`, await allOnScreen(page, '.node'));
+    check(`${name}: map path joins the 4 routes, on screen, all grey at the start`, (await segState(page)) === '000' && await segsJoinDiscs(page) && await allOnScreen(page, '#route .seg'));
     await page.tap('.node[data-level="1"]');
     await page.waitForTimeout(1700);
     check(`${name}: houses, mail and prompt on screen`, await allOnScreen(page, '.house, #mail, #caption'));
@@ -114,6 +124,10 @@ const wanted = (page) => page.evaluate(() => document.querySelector('#caption').
     await page.tap('#win-next');
     await page.waitForTimeout(300);
     check('win card: Next route starts route 2', !!(await page.$('.house.has-pal')));
+    await page.tap('[data-go="map"]');
+    await page.waitForTimeout(300);
+    check('map path: 2 rounds of route 1 light the path to route 2', (await segState(page)) === '100', await segState(page));
+    check('map path: the segment that just lit animates once', await page.$$eval('#route .seg.new', (g) => g.map((x) => x.getAttribute('data-seg')).join()) === '1');
     await ctx.close();
   }
 
@@ -145,6 +159,10 @@ const wanted = (page) => page.evaluate(() => document.querySelector('#caption').
     await page.tap('#t-unlock');
     got = await progressText(page);
     check('progress row with Unlock all on', got[2] === 'Route 3, Letters and animals: open (Unlock all is on)' && got[1] === 'Route 2, Animals: 1 round', got);
+    await page.tap('#p-close');
+    await page.tap('.playbtn');
+    await page.waitForTimeout(300);
+    check('map path: Unlock all lights every segment', (await segState(page)) === '111', await segState(page));
     await ctx.close();
   }
 
@@ -163,6 +181,7 @@ const wanted = (page) => page.evaluate(() => document.querySelector('#caption').
     await page.tap('.playbtn');
     await page.waitForTimeout(300);
     check('v1: route 2 open on the map after migration', !(await page.$('.node[data-level="2"].locked')) && !!(await page.$('.node[data-level="3"].locked')));
+    check('map path: lit up to the last open route, grey after', (await segState(page)) === '100' && !(await page.$('#route .seg.new')), await segState(page));
     await ctx.close();
   }
 

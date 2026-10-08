@@ -75,7 +75,15 @@ svg{display:block}
 /* map */
 .map{background:linear-gradient(180deg,var(--sky-top) 0%,var(--sky-low) 40%,var(--grass) 40%,var(--grass-deep) 100%)}
 .route{position:relative;flex:1;display:flex;flex-direction:column;justify-content:space-evenly;padding-block:8px 24px}
-.route::before{content:'';position:absolute;left:50%;top:7%;bottom:9%;border-left:7px dashed rgba(255,255,255,.9);transform:translateX(-50%)}
+/* the path between routes: drawn by drawPath() from disc centre to disc centre, lit once the route before has 2 rounds */
+.path{position:absolute;inset:0;width:100%;height:100%;overflow:visible;pointer-events:none;z-index:0}
+.seg line{fill:none;stroke-linecap:round}
+.seg .base{stroke:#fff;stroke-width:15;opacity:0}
+.seg .dash{stroke:#b9c0ce;stroke-width:7;stroke-dasharray:14 12}
+.seg.lit .base{opacity:.95}
+.seg.lit .dash{stroke:var(--sun)}
+.seg.new .base{animation:segIn .9s ease-out}
+.seg.new .dash{animation:march .8s linear 3}
 .node{position:relative;z-index:1;display:flex;flex-direction:column;align-items:center;gap:8px;background:none;border:0;padding:0;width:max-content}
 .node:nth-child(1){align-self:flex-start;margin-left:10%}
 .node:nth-child(2){align-self:flex-end;margin-right:10%}
@@ -244,10 +252,11 @@ svg{display:block}
 }
 @media (orientation:landscape) and (max-height:560px){
   .route{flex-direction:row;justify-content:space-evenly;align-items:center;padding-block:4px 12px}
-  .route::before{left:6%;right:6%;top:50%;bottom:auto;border-left:0;border-top:7px dashed rgba(255,255,255,.9);transform:translateY(-50%)}
   .route .node:nth-child(odd){align-self:flex-start;margin:0}
   .route .node:nth-child(even){align-self:flex-end;margin:0}
 }
+@keyframes segIn{from{opacity:0}}
+@keyframes march{to{stroke-dashoffset:-52}}
 @keyframes blink{0%,92%,100%{transform:scaleY(1)}95%{transform:scaleY(.08)}}
 @keyframes jumpy{0%{transform:translateY(0) scale(1)}35%{transform:translateY(-24px) scale(1.12,.94)}60%{transform:translateY(0) scale(.94,1.08)}80%{transform:translateY(-6px)}100%{transform:translateY(0) scale(1)}}
 @keyframes drive{from{transform:translateX(-170%)}70%{transform:translateX(5px)}to{transform:translateX(0)}}
@@ -786,13 +795,41 @@ function renderMap(){
       '<span class="disc"><span class="mini' + (L.two?' two':'') + '">' + L.mini + '</span><span class="lock">' + LOCK + '</span></span>' +
       '<span class="stars" aria-hidden="true">' + stars + '</span></button>';
   }).join('');
-  $('route').innerHTML = html;
+  $('route').innerHTML = html + '<svg class="path" aria-hidden="true"></svg>';
+  drawPath(true);
   var me = $('m-who');
   me.hidden = D.players.length < 2;
   me.style.setProperty('--bg', BYID[P.animal].color);
   me.innerHTML = art(P.animal);
   me.setAttribute('aria-label', 'Playing: ' + playerLabel(P) + '. Tap to change player.');
 }
+/* One segment per pair of neighbouring routes, lit when the second one is open by the same rule
+   as unlocked() (2 rounds of the route before, or Unlock all). Lines run between disc centres, so
+   they follow the zigzag on tall screens and the left-to-right row on a sideways phone. A segment
+   that lit up since this player last saw the map plays a short animation. */
+var litSeen = {};        // player id -> which segments were lit last time (memory only)
+function drawPath(fresh){
+  var route = $('route'), svg = route.querySelector('.path');
+  if(!svg || $('s-map').hidden) return;
+  var box = route.getBoundingClientRect();
+  var pts = Array.prototype.map.call(route.querySelectorAll('.disc'), function(d){
+    var r = d.getBoundingClientRect();
+    return [Math.round(r.left - box.left + r.width / 2), Math.round(r.top - box.top + r.height / 2)];
+  });
+  var seen = litSeen[P.id], lit = [], out = '';
+  for(var i=1;i<pts.length;i++){
+    var on = unlocked(i + 1), a = pts[i-1], b = pts[i];
+    var ends = ' x1="' + a[0] + '" y1="' + a[1] + '" x2="' + b[0] + '" y2="' + b[1] + '"/>';
+    lit.push(on);
+    out += '<g class="seg' + (on ? ' lit' : '') + (on && fresh && seen && !seen[i-1] ? ' new' : '') + '" data-seg="' + i + '">' +
+      '<line class="base"' + ends + '<line class="dash"' + ends + '</g>';
+  }
+  svg.setAttribute('viewBox', '0 0 ' + Math.round(box.width) + ' ' + Math.round(box.height));
+  svg.innerHTML = out;
+  litSeen[P.id] = lit;
+}
+window.addEventListener('resize', function(){ drawPath(false); });
+if(document.fonts && document.fonts.ready) document.fonts.ready.then(function(){ drawPath(false); });
 $('route').addEventListener('click', function(e){
   var n = e.target.closest('.node');
   if(!n) return;
