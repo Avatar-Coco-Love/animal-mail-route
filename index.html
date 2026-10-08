@@ -98,6 +98,18 @@ svg{display:block}
 .node:not(.locked) .lock{display:none}
 .node.shake .disc{animation:shake .45s}
 
+/* who's playing */
+.who{background:linear-gradient(180deg,var(--sky-top) 0%,var(--sky-low) 80%,var(--grass) 80%,var(--grass-deep) 100%)}
+.who .bar h2{margin:0;font:800 clamp(1.4rem,6vw,2rem)/1 var(--font-display);text-align:center}
+.kids{flex:1;display:flex;flex-wrap:wrap;justify-content:center;align-content:center;gap:clamp(10px,2.4vh,22px) clamp(10px,3vw,24px);padding-block:8px 20px}
+.kid{display:flex;flex-direction:column;align-items:center;gap:6px;width:var(--kw);padding:0;border:0;background:none;--kw:clamp(72px,min(28vw,20vh),160px)}
+.kid .face{width:100%;aspect-ratio:1;border-radius:50%;background:var(--bg);border:6px solid var(--paper);box-shadow:0 6px 0 rgba(36,48,77,.25);display:grid;place-items:center}
+.kid .face svg{width:82%;height:82%}
+.kid:active .face{transform:translateY(4px)}
+.kid .nm{max-width:calc(var(--kw) + 24px);padding:2px 10px;border-radius:999px;background:rgba(255,255,255,.85);font:800 clamp(.9rem,3.6vw,1.15rem)/1.2 var(--font-body);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.rbtn.me{background:var(--bg,var(--paper));border:4px solid var(--paper)}
+.rbtn.me svg{width:44px;height:44px}
+
 /* play */
 .play{padding-inline:0;background:var(--sky-low)}
 .play .bar{padding-inline:16px}
@@ -182,6 +194,20 @@ svg{display:block}
 .pbtn{padding:10px 18px;border-radius:14px;border:3px solid var(--ink);background:#fff;font-weight:800;font-size:1rem}
 .pbtn.danger{border-color:var(--red-deep);color:var(--red-deep)}
 .pbtn.armed{background:var(--red);color:#fff}
+.block{padding-block:10px;border-bottom:2px solid rgba(36,48,77,.1)}
+.block>b{font-size:1.05rem}
+.prog{margin:6px 0 0;padding:0;list-style:none;font-size:.95rem;line-height:1.35}
+.prog li{padding-block:3px}
+.hint-text{margin:4px 0 8px!important;font-size:.85rem!important;opacity:.8}
+.pl{display:block;margin-bottom:10px;padding:8px 10px;border:3px solid rgba(36,48,77,.15);border-radius:16px}
+.pl.sel{border-color:var(--blue);background:#eef4ff}
+.pl .top{display:flex;align-items:center;gap:8px}
+.pl input{flex:1;min-width:0;padding:8px 10px;border:3px solid var(--ink);border-radius:12px;font:700 1rem var(--font-body);color:var(--ink);background:#fff;-webkit-user-select:text;user-select:text}
+.pl .pbtn{padding:8px 12px}
+.pl .ani{display:flex;gap:6px;margin-top:8px}
+.pl .ani button{width:40px;height:40px;padding:0;border-radius:50%;border:3px solid transparent;background:var(--bg);display:grid;place-items:center}
+.pl .ani button svg{width:34px;height:34px}
+.pl .ani button[aria-pressed="true"]{border-color:var(--ink);box-shadow:0 0 0 3px var(--sun)}
 .row span{font-weight:800;font-size:1.05rem;font-variant-numeric:tabular-nums}
 .parent .note{margin:12px 0 14px;font-size:.85rem;line-height:1.4;opacity:.8}
 .parent .note a{color:var(--blue);font-weight:800}
@@ -213,7 +239,7 @@ svg{display:block}
   .card{padding:14px 18px}
   .card p{margin-bottom:10px}
   .win .sticker{width:clamp(64px,22vh,150px);margin:2px auto 8px}
-  .row{padding-block:6px}
+  .row,.block{padding-block:6px}
   .parent .note{margin:8px 0 10px}
 }
 @media (orientation:landscape) and (max-height:560px){
@@ -255,7 +281,7 @@ svg{display:block}
       <div class="stripe"></div>
     </div>
     <div class="cast" id="cast"></div>
-    <button class="playbtn" type="button" data-go="map" aria-label="Play">
+    <button class="playbtn" type="button" id="play" aria-label="Play">
       <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4.5v15l13-7.5z" fill="currentColor"/></svg>
       Play
     </button>
@@ -276,11 +302,23 @@ svg{display:block}
       <button class="rbtn" type="button" data-go="title" aria-label="Back to the start">
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>
       </button>
+      <button class="rbtn me" type="button" id="m-who" data-go="who" hidden></button>
       <button class="rbtn" type="button" data-go="book" aria-label="Sticker book">
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l2.6 5.6 6.1.7-4.5 4.2 1.2 6L12 16.5 6.6 19.5l1.2-6L3.3 9.3l6.1-.7z" fill="currentColor"/></svg>
       </button>
     </div>
     <div class="route" id="route"></div>
+  </section>
+
+  <section id="s-who" class="screen who" hidden>
+    <div class="bar">
+      <button class="rbtn" type="button" data-go="title" aria-label="Back to the start">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </button>
+      <h2>Who's playing?</h2>
+      <span style="width:56px" aria-hidden="true"></span>
+    </div>
+    <div class="kids" id="kids"></div>
   </section>
 
   <section id="s-play" class="screen play" hidden>
@@ -338,10 +376,12 @@ svg{display:block}
       <div class="row"><b>Sound effects</b><button class="tog" type="button" id="t-sfx" aria-pressed="true">On</button></div>
       <div class="row"><b>Unlock all routes</b><button class="tog" type="button" id="t-unlock" aria-pressed="false">Off</button></div>
       <div class="row" id="share-row" hidden><b>Share play counts</b><button class="tog" type="button" id="t-share" aria-pressed="false">Off</button></div>
-      <div class="row"><b>Recorded voice clips</b><span id="clipcount">0 of 33</span></div>
+      <div class="row"><b>Recorded voice clips</b><span id="clipcount">0 of 34</span></div>
+      <div class="block"><b>Players</b><p class="hint-text">Tap a player to see their progress. Names are optional and stay on this device.</p><div id="players"></div><button class="pbtn" type="button" id="b-add">Add player</button></div>
+      <div class="block"><b id="prog-head">Progress</b><ul class="prog" id="progress"></ul></div>
       <div class="row"><b>Needs practice</b><span id="weaklist">None yet</span></div>
-      <div class="row"><b>Progress</b><button class="pbtn danger" type="button" id="b-reset">Erase</button></div>
-      <p class="note">Prototype 0.2. Voice prompts use your device's built-in speech until recorded voices are added. <span id="share-note" hidden>"Share play counts" sends only anonymous totals, such as rounds played per route, and is off unless you turn it on. </span><a href="privacy.html" target="_blank" rel="noopener">Privacy</a></p>
+      <div class="row"><b>Everyone</b><button class="pbtn danger" type="button" id="b-reset">Erase everything</button></div>
+      <p class="note">Prototype 0.3. Voice prompts use your device's built-in speech until recorded voices are added. <span id="share-note" hidden>"Share play counts" sends only anonymous totals, such as rounds played per route, and is off unless you turn it on. </span><a href="privacy.html" target="_blank" rel="noopener">Privacy</a></p>
       <button class="close" type="button" id="p-close">Done</button>
     </div>
   </div>
@@ -377,28 +417,75 @@ function art(id){ return '<svg viewBox="0 0 100 100" aria-hidden="true">' + ART[
 var STAR = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l2.6 5.6 6.1.7-4.5 4.2 1.2 6L12 16.5 6.6 19.5l1.2-6L3.3 9.3l6.1-.7z" fill="currentColor"/></svg>';
 var LOCK = '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2" fill="currentColor"/><path d="M8 11V8a4 4 0 018 0v3" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/></svg>';
 
-/* ---------- Saved progress ---------- */
-var KEY = 'animal-mail-route-v1';
-function defaults(){ return {rounds:{1:0,2:0,3:0,4:0}, stickers:[], unlockAll:false, voice:true, sfx:true, share:false, weak:{}}; }
-var S = defaults();
+/* ---------- Saved progress ----------
+   One save per device: settings shared by everyone (S) and up to 8 players. Each player has
+   their own rounds, stickers and practice letters. P is the player who is playing now.
+   Kept in its own key with a plain shape so other games could share players later. */
+var KEY = 'animal-mail-route-v2', OLD_KEY = 'animal-mail-route-v1', MAX_PLAYERS = 8, NAME_MAX = 20;
+function newPlayer(id, animal){ return {id:id, name:'', animal:animal || 'S', rounds:{1:0,2:0,3:0,4:0}, stickers:[], weak:{}}; }
+function defaults(){ return {v:2, device:{voice:true, sfx:true, share:false, unlockAll:false}, current:1, players:[newPlayer(1, 'S')]}; }
+function cleanDevice(o){
+  o = (o && typeof o === 'object') ? o : {};
+  return {voice:o.voice !== false, sfx:o.sfx !== false, share:o.share === true, unlockAll:!!o.unlockAll};
+}
+/* Strict like the old load(): anything unexpected falls back to a safe default. */
+function cleanPlayer(o, id){
+  var p = newPlayer(id, (o && BYID[o.animal]) ? o.animal : 'S');
+  if(!o || typeof o !== 'object') return p;
+  if(typeof o.name === 'string') p.name = o.name.trim().slice(0, NAME_MAX);
+  if(o.rounds && typeof o.rounds === 'object'){ for(var k in p.rounds){ p.rounds[k] = Math.max(0, Math.floor(+o.rounds[k] || 0)); } }
+  if(Array.isArray(o.stickers)){ p.stickers = o.stickers.filter(function(s){ return s && BYID[s.c]; }).map(function(s){ return {c:s.c}; }).slice(0,300); }
+  if(o.weak && typeof o.weak === 'object'){
+    for(var wid in BYID){ var w = +o.weak[wid]; if(w > 0) p.weak[wid] = Math.min(6, Math.round(w)); }
+  }
+  return p;
+}
+function cleanSave(o){
+  var d = defaults();
+  if(!o || typeof o !== 'object' || !Array.isArray(o.players)) return d;
+  d.device = cleanDevice(o.device);
+  var seen = {};
+  d.players = o.players.filter(function(x){
+    var id = x && Math.floor(+x.id);
+    if(!(id > 0) || seen[id]) return false;
+    return (seen[id] = true);
+  }).slice(0, MAX_PLAYERS).map(function(x){ return cleanPlayer(x, Math.floor(+x.id)); });
+  if(!d.players.length) d.players = [newPlayer(1, 'S')];
+  d.current = seen[+o.current] ? +o.current : d.players[0].id;
+  return d;
+}
+/* The first version kept one child's progress and the settings together; it becomes player 1. */
+function fromV1(o){
+  var d = defaults();
+  if(!o || typeof o !== 'object') return d;
+  d.device = cleanDevice(o);
+  d.players = [cleanPlayer({name:'', animal:'S', rounds:o.rounds, stickers:o.stickers, weak:o.weak}, 1)];
+  return d;
+}
+var D = defaults(), S = D.device, P = D.players[0];
+function useSave(d){
+  D = d; S = D.device;
+  P = playerById(D.current) || D.players[0];
+  D.current = P.id;
+}
+function playerById(id){ for(var i=0;i<D.players.length;i++){ if(D.players[i].id === id) return D.players[i]; } return null; }
 function load(){
+  var d = null;
   try{
     var raw = localStorage.getItem(KEY);
-    if(!raw) return;
-    var o = JSON.parse(raw);
-    if(!o || typeof o !== 'object') return;
-    if(o.rounds){ for(var k in S.rounds){ S.rounds[k] = Math.max(0, +o.rounds[k] || 0); } }
-    if(Array.isArray(o.stickers)){ S.stickers = o.stickers.filter(function(s){ return s && BYID[s.c]; }).slice(0,300); }
-    S.unlockAll = !!o.unlockAll;
-    S.voice = o.voice !== false;
-    S.sfx = o.sfx !== false;
-    S.share = o.share === true;
-    if(o.weak && typeof o.weak === 'object'){
-      for(var id in BYID){ var w = +o.weak[id]; if(w > 0) S.weak[id] = Math.min(6, Math.round(w)); }
+    if(raw) d = cleanSave(JSON.parse(raw));
+    else{
+      var old = localStorage.getItem(OLD_KEY);
+      if(old){
+        d = fromV1(JSON.parse(old));
+        localStorage.setItem(KEY, JSON.stringify(d));
+        localStorage.removeItem(OLD_KEY);
+      }
     }
-  }catch(e){}
+  }catch(e){ d = null; }
+  useSave(d || defaults());
 }
-function save(){ try{ localStorage.setItem(KEY, JSON.stringify(S)); }catch(e){} }
+function save(){ try{ localStorage.setItem(KEY, JSON.stringify(D)); }catch(e){} }
 load();
 
 /* ---------- Sound ---------- */
@@ -455,7 +542,8 @@ var CLIPS = {
   'locked':'Keep delivering to open this route!',
   'route-done':'You finished the route! Great job! You got a sticker!',
   'deliver-to':'Deliver to number',
-  'count-prompt':'Count the stars! Which number?'
+  'count-prompt':'Count the stars! Which number?',
+  'whos-playing':"Who's playing?"
 };
 var SOUNDS = {S:'sss', B:'buh', K:'kuh', C:'kuh', P:'puh'};
 var NUMWORD = ['one','two','three','four','five'];
@@ -542,7 +630,7 @@ function hush(){
    Off unless a parent turns on "Share play counts". Only totals per route are kept, with no
    identifier or timestamp, and they are sent once when the page is hidden. The setting is
    not shown at all while COUNT_URL is empty. */
-var VERSION = '0.2';
+var VERSION = '0.3';
 var COUNT_URL = '';      // the Worker, e.g. 'https://animal-mail-counts.<account>.workers.dev/v1/counts'
 var CKEY = 'animal-mail-route-counts', CAP = 200, METRICS = ['started','finished','misses'];
 function emptyCounts(){ return {opens:0, started:{}, finished:{}, misses:{}}; }
@@ -578,11 +666,11 @@ function sendCounts(){
 document.addEventListener('visibilitychange', function(){ if(document.visibilityState === 'hidden') sendCounts(); });
 
 /* ---------- Levels ---------- */
-function unlocked(l){ return l === 1 || S.unlockAll || (S.rounds[l-1] || 0) >= 2; }
+function unlocked(l, p){ return l === 1 || S.unlockAll || ((p || P).rounds[l-1] || 0) >= 2; }
 function houseCount(l){
-  if(l === 1) return Math.min(5, 2 + (S.rounds[1] || 0));
-  if(l === 2) return Math.min(5, 3 + (S.rounds[2] || 0));
-  if(l === 4) return Math.min(5, 3 + (S.rounds[4] || 0));
+  if(l === 1) return Math.min(5, 2 + (P.rounds[1] || 0));
+  if(l === 2) return Math.min(5, 3 + (P.rounds[2] || 0));
+  if(l === 4) return Math.min(5, 3 + (P.rounds[4] || 0));
   return 5;
 }
 function kindFor(l){
@@ -598,7 +686,7 @@ function shuffle(a){
 /* Adaptive practice: each wrong house adds to that letter's "weak" score (max 6).
    A correct first try lowers it by one. Weak letters are picked more often. */
 var ADAPT = true;   // switched off while building a numbers-route queue
-function weakOf(id){ return (ADAPT && S.weak && S.weak[id]) || 0; }
+function weakOf(id){ return (ADAPT && P.weak && P.weak[id]) || 0; }
 function pickWeighted(ids, avoid){
   var pool = ids.filter(function(i){ return ids.length < 2 || i !== avoid; });
   var total = 0;
@@ -630,14 +718,36 @@ function buildQueue(ids, l){
 /* ---------- Navigation ---------- */
 var R = null;           // current round
 var winTarget = 1;      // route the win card's big button starts
-var SCREENS = ['title','map','play','book'];
+var SCREENS = ['title','who','map','play','book'];
 function show(name){
   SCREENS.forEach(function(n){ $('s-'+n).hidden = (n !== name); });
   hush();
   if(name !== 'play' && R){ clearTimeout(R.timer); clearTimeout(R.idleT); R = null; }
   if(name === 'map') renderMap();
   if(name === 'book') renderBook();
+  if(name === 'who'){ renderWho(); say(['whos-playing']); }
 }
+function esc(t){ return String(t).replace(/[&<>"']/g, function(ch){ return '&#' + ch.charCodeAt(0) + ';'; }); }
+function playerLabel(p){ return p.name || BYID[p.animal].name; }
+
+/* ---------- Who's playing? (only with two or more players) ---------- */
+$('play').addEventListener('click', function(){ unlock(); show(D.players.length > 1 ? 'who' : 'map'); });
+function renderWho(){
+  $('kids').innerHTML = D.players.map(function(p){
+    return '<button type="button" class="kid" data-pid="' + p.id + '" aria-label="' + esc(playerLabel(p)) + '">' +
+      '<span class="face" style="--bg:' + BYID[p.animal].color + '">' + art(p.animal) + '</span>' +
+      (p.name ? '<span class="nm">' + esc(p.name) + '</span>' : '') + '</button>';
+  }).join('');
+}
+$('kids').addEventListener('click', function(e){
+  var b = e.target.closest('.kid');
+  if(!b) return;
+  var p = playerById(+b.getAttribute('data-pid'));
+  if(!p) return;
+  D.current = p.id; P = p; save();
+  sfx.pick();
+  show('map');
+});
 document.addEventListener('click', function(e){
   var b = e.target.closest && e.target.closest('[data-go]');
   if(!b) return;
@@ -669,7 +779,7 @@ var LEVEL_NAME = {1:'Letters', 2:'Animals', 3:'Letters and animals', 4:'Numbers'
 function renderMap(){
   var html = LEVELS.map(function(L){
     var open = unlocked(L.id);
-    var done = Math.min(3, S.rounds[L.id] || 0);
+    var done = Math.min(3, P.rounds[L.id] || 0);
     var stars = '';
     for(var i=0;i<3;i++){ stars += STAR.replace('<svg ', '<svg class="' + (i<done?'on':'') + '" '); }
     return '<button type="button" class="node' + (open?'':' locked') + '" data-level="' + L.id + '" aria-label="Route ' + L.id + ', ' + LEVEL_NAME[L.id] + (open?'':', locked') + '">' +
@@ -677,6 +787,11 @@ function renderMap(){
       '<span class="stars" aria-hidden="true">' + stars + '</span></button>';
   }).join('');
   $('route').innerHTML = html;
+  var me = $('m-who');
+  me.hidden = D.players.length < 2;
+  me.style.setProperty('--bg', BYID[P.animal].color);
+  me.innerHTML = art(P.animal);
+  me.setAttribute('aria-label', 'Playing: ' + playerLabel(P) + '. Tap to change player.');
 }
 $('route').addEventListener('click', function(e){
   var n = e.target.closest('.node');
@@ -694,12 +809,12 @@ function stickerHTML(id){
   return '<div class="sticker" style="--bg:' + BYID[id].color + '">' + art(id) + '</div>';
 }
 function renderBook(){
-  var n = S.stickers.length;
+  var n = P.stickers.length;
   $('book-count').textContent = n === 1 ? '1 sticker' : n + ' stickers';
   var total = Math.max(12, Math.ceil((n + 1) / 4) * 4);
   var out = '';
   for(var i=0;i<total;i++){
-    out += i < n ? stickerHTML(S.stickers[i].c) : '<div class="slot-empty">' + STAR + '</div>';
+    out += i < n ? stickerHTML(P.stickers[i].c) : '<div class="slot-empty">' + STAR + '</div>';
   }
   $('slots').innerHTML = out;
 }
@@ -924,7 +1039,7 @@ function fly(h){
 
 function success(h){
   R.busy = true;
-  if(R.level !== 4 && R.misses === 0 && weakOf(R.current.id) > 0){ S.weak[R.current.id] = weakOf(R.current.id) - 1; save(); }
+  if(R.level !== 4 && R.misses === 0 && weakOf(R.current.id) > 0){ P.weak[R.current.id] = weakOf(R.current.id) - 1; save(); }
   street.classList.remove('armed');
   houses().forEach(function(x){ x.classList.remove('hint'); });
   var c = BYID[R.current.id];
@@ -951,7 +1066,7 @@ function success(h){
 function wrong(h){
   R.misses++;
   count('misses', R.level);
-  if(R.level !== 4 && R.misses <= 2){ S.weak[R.current.id] = Math.min(6, weakOf(R.current.id) + 1); save(); }
+  if(R.level !== 4 && R.misses <= 2){ P.weak[R.current.id] = Math.min(6, weakOf(R.current.id) + 1); save(); }
   sfx.no();
   h.classList.remove('nope'); void h.offsetWidth; h.classList.add('nope');
   setTimeout(function(){ h.classList.remove('nope'); }, 500);
@@ -980,15 +1095,15 @@ function confetti(){
 function finishRound(){
   var level = R.level;
   var hadNext = level < LEVELS.length && unlocked(level + 1);
-  S.rounds[level] = (S.rounds[level] || 0) + 1;
+  P.rounds[level] = (P.rounds[level] || 0) + 1;
   // If this round opened the next route, the big button goes there; otherwise it replays this one.
   winTarget = (!hadNext && level < LEVELS.length && unlocked(level + 1)) ? level + 1 : level;
   var label = winTarget === level ? 'Play again' : 'Next route';
   $('win-next').setAttribute('aria-label', label);
   $('win-next-label').textContent = label;
   count('finished', level);
-  var st = {c: CH[S.stickers.length % CH.length].id};
-  S.stickers.push(st);
+  var st = {c: CH[P.stickers.length % CH.length].id};
+  P.stickers.push(st);
   save();
   mail.hidden = true;
   $('win-sticker').innerHTML = stickerHTML(st.c);
@@ -1003,7 +1118,10 @@ $('win-map').addEventListener('click', function(){ $('win').hidden = true; show(
 
 /* ---------- Parent corner ---------- */
 var gear = $('gear'), holdTimer = null;
+var sel = 1;             // player shown in the parent corner's Progress rows
 function openParent(){
+  sel = P.id;
+  renderPlayers();
   syncToggles();
   $('parent').hidden = false;
 }
@@ -1019,29 +1137,127 @@ gear.addEventListener('click', function(e){ if(e.detail === 0) openParent(); });
 gear.addEventListener('contextmenu', function(e){ e.preventDefault(); });
 
 function setTog(el, on){ el.setAttribute('aria-pressed', on ? 'true' : 'false'); el.textContent = on ? 'On' : 'Off'; }
+/* Progress lines for the parent: the same rule as unlocked(), in words. */
+function plural(n, word){ return n + ' ' + word + (n === 1 ? '' : 's'); }
+function progressLines(p){
+  var out = LEVELS.map(function(L){
+    var l = L.id, n = p.rounds[l] || 0, head = 'Route ' + l + ', ' + LEVEL_NAME[l] + ': ';
+    var earned = l === 1 || (p.rounds[l-1] || 0) >= 2;
+    if(!earned && !S.unlockAll) return head + 'locked';
+    if(!earned) return head + (n ? plural(n, 'round') : 'open') + ' (Unlock all is on)';
+    var line = head + plural(n, 'round');
+    if(l < LEVELS.length && !unlocked(l + 1, p)){
+      var left = 2 - n;
+      line += ', so ' + left + ' more ' + (left === 1 ? 'opens' : 'open') + ' Route ' + (l + 1);
+    }
+    return line;
+  });
+  out.push('Stickers: ' + p.stickers.length);
+  return out;
+}
 function syncToggles(){
   setTog($('t-voice'), S.voice); setTog($('t-sfx'), S.sfx); setTog($('t-unlock'), S.unlockAll); setTog($('t-share'), S.share);
   $('share-row').hidden = $('share-note').hidden = !COUNT_URL;
-  var weak = CH.map(function(c){ return c.id; }).filter(function(id){ return weakOf(id) >= 2; });
+  var sp = playerById(sel) || P;
+  var weak = CH.map(function(c){ return c.id; }).filter(function(id){ return (sp.weak[id] || 0) >= 2; });
+  $('prog-head').textContent = D.players.length > 1 ? 'Progress: ' + playerLabel(sp) : 'Progress';
+  $('progress').innerHTML = progressLines(sp).map(function(t){ return '<li>' + t + '</li>'; }).join('');
   $('weaklist').textContent = weak.length ? weak.join(', ') : 'None yet';
-  var b = $('b-reset'); b.textContent = 'Erase'; b.classList.remove('armed');
+  disarm($('b-reset'));
 }
+/* Two-tap erase buttons: the first tap arms, a second within 4 seconds erases. */
+var armTimer = null;
+function disarm(b){ b.classList.remove('armed'); b.textContent = b.getAttribute('data-label') || b.textContent; }
+function armed(b){
+  if(b.classList.contains('armed')) return true;
+  document.querySelectorAll('.pbtn.armed').forEach(disarm);
+  if(!b.getAttribute('data-label')) b.setAttribute('data-label', b.textContent);
+  b.classList.add('armed'); b.textContent = 'Tap again to erase';
+  clearTimeout(armTimer);
+  armTimer = setTimeout(function(){ disarm(b); }, 4000);
+  return false;
+}
+
+/* ---------- Players (parent corner) ---------- */
+function renderPlayers(){
+  $('players').innerHTML = D.players.map(function(p, i){
+    var ani = CH.map(function(c){
+      return '<button type="button" data-ani="' + c.id + '" style="--bg:' + c.color + '" aria-pressed="' + (p.animal === c.id) + '" aria-label="' + c.name + '">' + art(c.id) + '</button>';
+    }).join('');
+    return '<div class="pl' + (p.id === sel ? ' sel' : '') + '" data-pid="' + p.id + '">' +
+      '<div class="top"><input type="text" maxlength="' + NAME_MAX + '" placeholder="Player ' + (i + 1) + ' name (optional)" value="' + esc(p.name) + '" aria-label="Player ' + (i + 1) + ' name" autocomplete="off" spellcheck="false">' +
+      '<button class="pbtn danger" type="button" data-erase="1" data-label="Erase">Erase</button></div>' +
+      '<div class="ani" role="group" aria-label="Player ' + (i + 1) + ' animal">' + ani + '</div></div>';
+  }).join('');
+  $('b-add').hidden = D.players.length >= MAX_PLAYERS;
+}
+function selectPlayer(id){
+  if(sel === id) return;
+  sel = id;
+  document.querySelectorAll('#players .pl').forEach(function(el){ el.classList.toggle('sel', +el.getAttribute('data-pid') === id); });
+  syncToggles();
+}
+$('players').addEventListener('click', function(e){
+  var card = e.target.closest('.pl');
+  if(!card) return;
+  var p = playerById(+card.getAttribute('data-pid'));
+  if(!p) return;
+  selectPlayer(p.id);
+  var a = e.target.closest('[data-ani]');
+  if(a){
+    p.animal = a.getAttribute('data-ani'); save();
+    card.querySelectorAll('[data-ani]').forEach(function(x){ x.setAttribute('aria-pressed', x === a ? 'true' : 'false'); });
+    syncToggles();
+    return;
+  }
+  var er = e.target.closest('[data-erase]');
+  if(er && armed(er)) erasePlayer(p);
+});
+$('players').addEventListener('focusin', function(e){
+  var card = e.target.closest('.pl');
+  if(card) selectPlayer(+card.getAttribute('data-pid'));
+});
+$('players').addEventListener('input', function(e){
+  if(e.target.tagName !== 'INPUT') return;
+  var p = playerById(+e.target.closest('.pl').getAttribute('data-pid'));
+  if(!p) return;
+  p.name = e.target.value.trim().slice(0, NAME_MAX); save();
+  syncToggles();
+});
+/* Erasing one player removes them. The last player stays, with their progress cleared. */
+function erasePlayer(p){
+  if(D.players.length > 1){
+    D.players = D.players.filter(function(x){ return x !== p; });
+  }else{
+    var fresh = newPlayer(p.id, p.animal); fresh.name = p.name;
+    D.players = [fresh];
+  }
+  useSave(D);
+  sel = P.id;
+  save(); renderPlayers(); syncToggles();
+}
+/* A new player gets the first animal nobody has yet (or the least used one once all five are taken). */
+$('b-add').addEventListener('click', function(){
+  if(D.players.length >= MAX_PLAYERS) return;
+  var used = {};
+  D.players.forEach(function(p){ used[p.animal] = (used[p.animal] || 0) + 1; });
+  var animal = CH.slice().sort(function(a, b){ return (used[a.id] || 0) - (used[b.id] || 0); })[0].id;
+  var id = Math.max.apply(null, D.players.map(function(p){ return p.id; })) + 1;
+  D.players.push(newPlayer(id, animal));
+  sel = id;
+  save(); renderPlayers(); syncToggles();
+});
 $('t-voice').addEventListener('click', function(){ S.voice = !S.voice; if(!S.voice) hush(); save(); syncToggles(); });
 $('t-sfx').addEventListener('click', function(){ S.sfx = !S.sfx; save(); syncToggles(); if(S.sfx){ unlock(); sfx.pick(); } });
 $('t-unlock').addEventListener('click', function(){ S.unlockAll = !S.unlockAll; save(); syncToggles(); });
 $('t-share').addEventListener('click', function(){ S.share = !S.share; if(!S.share) clearCounts(); save(); syncToggles(); });
-var resetTimer = null;
+/* Erase everything: all players and the settings, back to a fresh install. */
 $('b-reset').addEventListener('click', function(){
-  var b = $('b-reset');
-  if(!b.classList.contains('armed')){
-    b.classList.add('armed'); b.textContent = 'Tap again to erase';
-    clearTimeout(resetTimer);
-    resetTimer = setTimeout(function(){ b.classList.remove('armed'); b.textContent = 'Erase'; }, 4000);
-    return;
-  }
-  var keep = {voice:S.voice, sfx:S.sfx, share:S.share};
-  S = defaults(); S.voice = keep.voice; S.sfx = keep.sfx; S.share = keep.share;
-  save(); syncToggles(); renderMap(); renderBook();
+  if(!armed($('b-reset'))) return;
+  hush();
+  clearCounts();
+  useSave(defaults());
+  save();
   $('parent').hidden = true;
 });
 $('p-close').addEventListener('click', function(){ $('parent').hidden = true; });

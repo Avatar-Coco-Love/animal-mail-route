@@ -60,4 +60,6 @@ Odd behaviour, things the child said, ideas:
 ## Parent corner (optional, after play)
 Press and hold the gear on the title screen. Copy these lines:
 - Recorded voice clips:
+- Progress (all five lines):
 - Needs practice:
+- Number of players set up, if more than one child plays:

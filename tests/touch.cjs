@@ -15,7 +15,7 @@ function check(name, ok, info) {
   console.log((ok ? 'ok   ' : 'FAIL ') + name + (info !== undefined ? '  ' + JSON.stringify(info) : ''));
 }
 
-async function newPage(browser, w, h) {
+async function newPage(browser, w, h, init) {
   const ctx = await browser.newContext({ viewport: { width: w, height: h }, hasTouch: true, isMobile: true });
   const page = await ctx.newPage();
   const cdp = await ctx.newCDPSession(page);
@@ -25,6 +25,8 @@ async function newPage(browser, w, h) {
   page.on('console', (m) => { if (m.type() === 'error') errors.push(m.text()); });
   page.on('request', (r) => hosts.add(new URL(r.url()).host));
   await page.addInitScript(() => { try { speechSynthesis.speak = () => {}; } catch (e) {} });
+  // init: {key: value} seeded into localStorage once, before the game's first load
+  if (init) await page.addInitScript((kv) => { if (!sessionStorage.seeded) { sessionStorage.seeded = 1; for (const k in kv) localStorage.setItem(k, JSON.stringify(kv[k])); } }, init);
   await page.goto(BASE, { timeout: 60000 });
   await page.waitForTimeout(600);
   const touch = (type, x, y) => cdp.send('Input.dispatchTouchEvent', { type, touchPoints: type === 'touchEnd' ? [] : [{ x, y }] });
@@ -32,6 +34,14 @@ async function newPage(browser, w, h) {
 }
 const center = (page, sel) => page.$eval(sel, (e) => { const r = e.getBoundingClientRect(); return [r.left + r.width / 2, r.top + r.height / 2]; });
 const allOnScreen = (page, sel) => page.$$eval(sel, (els) => els.every((e) => { const r = e.getBoundingClientRect(); return r.width > 0 && r.left >= -1 && r.top >= -1 && r.right <= innerWidth + 1 && r.bottom <= innerHeight + 1; }));
+const holdGear = async (page, touch) => {
+  const g = await center(page, '#gear');
+  await touch('touchStart', ...g);
+  await page.waitForTimeout(1400);
+  await touch('touchEnd');
+  await page.waitForTimeout(100);
+};
+const progressText = (page) => page.$$eval('#progress li', (li) => li.map((e) => e.textContent));
 const wanted = (page) => page.evaluate(() => document.querySelector('#caption').textContent.slice(-2, -1));
 
 (async () => {
@@ -44,6 +54,7 @@ const wanted = (page) => page.evaluate(() => document.querySelector('#caption').
     if (name === 'pixel') check('crane is Cody the Crane', !!(await page.$('.pal[aria-label="Hear Cody the Crane"]')) && !/Charlie/.test(await page.content()));
     await page.tap('.playbtn');
     await page.waitForTimeout(300);
+    if (name === 'pixel') check('one player: Play goes straight to the map, no picker or avatar', await page.$eval('#s-who', (e) => e.hidden) && await page.$eval('#m-who', (e) => e.hidden));
     check(`${name}: all 4 routes on screen`, await allOnScreen(page, '.node'));
     await page.tap('.node[data-level="1"]');
     await page.waitForTimeout(1700);
@@ -109,18 +120,129 @@ const wanted = (page) => page.evaluate(() => document.querySelector('#caption').
   // parent corner: press and hold opens it; on a sideways phone a swipe reaches Done
   {
     const { ctx, page, touch } = await newPage(browser, 740, 360);
-    const g = await center(page, '#gear');
-    await touch('touchStart', ...g);
-    await page.waitForTimeout(1400);
-    await touch('touchEnd');
+    await holdGear(page, touch);
     check('parent corner opens with press and hold', await page.$eval('#parent', (e) => !e.hidden));
     check('play counts setting hidden while COUNT_URL is empty', await page.evaluate(() => document.querySelector('#share-row').hidden || /COUNT_URL = '[^']+'/.test(document.documentElement.innerHTML)));
-    await touch('touchStart', 370, 320);
-    for (let y = 320; y >= 60; y -= 10) { await touch('touchMove', 370, y); await page.waitForTimeout(16); }
-    await touch('touchEnd');
-    await page.waitForTimeout(500);
+    // the card is long, so a parent may swipe a few times
+    for (let n = 0; n < 4 && !(await allOnScreen(page, '#p-close')); n++) {
+      await touch('touchStart', 370, 320);
+      for (let y = 320; y >= 60; y -= 10) { await touch('touchMove', 370, y); await page.waitForTimeout(16); }
+      await touch('touchEnd');
+      await page.waitForTimeout(500);
+    }
     check('parent corner Done reachable by swiping', await allOnScreen(page, '#p-close'));
     await ctx.close();
+  }
+
+  // progress row: one line per route by the unlock rule, plus stickers
+  {
+    const v1 = { rounds: { 1: 3, 2: 1, 3: 0, 4: 0 }, stickers: [{ c: 'S' }, { c: 'B' }, { c: 'K' }, { c: 'C' }], unlockAll: false, voice: true, sfx: true, share: false, weak: {} };
+    const { ctx, page, touch } = await newPage(browser, 412, 915, { 'animal-mail-route-v1': v1 });
+    await holdGear(page, touch);
+    const want = ['Route 1, Letters: 3 rounds', 'Route 2, Animals: 1 round, so 1 more opens Route 3', 'Route 3, Letters and animals: locked', 'Route 4, Numbers: locked', 'Stickers: 4'];
+    let got = await progressText(page);
+    check('progress row matches the unlock rule', JSON.stringify(got) === JSON.stringify(want), got);
+    await page.tap('#t-unlock');
+    got = await progressText(page);
+    check('progress row with Unlock all on', got[2] === 'Route 3, Letters and animals: open (Unlock all is on)' && got[1] === 'Route 2, Animals: 1 round', got);
+    await ctx.close();
+  }
+
+  // v1 save becomes player 1; the old key is removed
+  {
+    const v1 = { rounds: { 1: 2, 2: 0, 3: 0, 4: 0 }, stickers: [{ c: 'S' }, { c: 'B' }], unlockAll: false, voice: false, sfx: true, share: false, weak: { K: 4 } };
+    const { ctx, page, touch } = await newPage(browser, 412, 915, { 'animal-mail-route-v1': v1 });
+    const st = await page.evaluate(() => ({ v1: localStorage.getItem('animal-mail-route-v1'), v2: JSON.parse(localStorage.getItem('animal-mail-route-v2')) }));
+    const p1 = st.v2 && st.v2.players[0];
+    check('v1 save migrates to player 1', !st.v1 && st.v2.v === 2 && st.v2.players.length === 1 && p1.name === '' && p1.animal === 'S' && p1.rounds[1] === 2 && p1.stickers.length === 2 && p1.weak.K === 4 && st.v2.device.voice === false, st);
+    await holdGear(page, touch);
+    const got = await progressText(page);
+    check('v1 progress carries over to the progress row', got[0] === 'Route 1, Letters: 2 rounds' && got[1] === 'Route 2, Animals: 0 rounds, so 2 more open Route 3' && got[4] === 'Stickers: 2', got);
+    check('v1 practice letters carry over', (await page.$eval('#weaklist', (e) => e.textContent)) === 'K');
+    await page.tap('#p-close');
+    await page.tap('.playbtn');
+    await page.waitForTimeout(300);
+    check('v1: route 2 open on the map after migration', !(await page.$('.node[data-level="2"].locked')) && !!(await page.$('.node[data-level="3"].locked')));
+    await ctx.close();
+  }
+
+  // a second player: add in the parent corner, then "Who's playing?" with separate progress
+  {
+    const { ctx, page, touch, errors } = await newPage(browser, 412, 915);
+    await holdGear(page, touch);
+    await page.tap('#b-add');
+    const pl = await page.$$eval('#players .pl', (els) => els.map((e) => e.querySelector('[aria-pressed="true"]').getAttribute('data-ani')));
+    check('add player: second player gets the first unused animal', JSON.stringify(pl) === '["S","B"]', pl);
+    await page.fill('#players .pl:nth-child(2) input', 'Mia');
+    await page.tap('#p-close');
+    await page.tap('.playbtn');
+    await page.waitForTimeout(300);
+    check("two players: Play opens Who's playing?", await page.$eval('#s-who', (e) => !e.hidden) && (await page.$$('.kid')).length === 2);
+    check("who's playing: name under the picture", (await page.$$eval('.kid .nm', (e) => e.map((x) => x.textContent))).join() === 'Mia');
+    await page.tap('.kid[data-pid="2"]');
+    await page.waitForTimeout(300);
+    check('pick goes to the map, with that player on the top bar', await page.$eval('#s-map', (e) => !e.hidden) && /Mia/.test(await page.$eval('#m-who', (e) => e.getAttribute('aria-label'))));
+    // finish one round as Mia
+    await page.tap('.node[data-level="1"]');
+    for (let i = 0; i < 5; i++) {
+      await page.waitForTimeout(1700);
+      await page.tap('#mail');
+      await page.tap(`.house[data-id="${await wanted(page)}"]`, { force: true });
+      await page.waitForTimeout(2700);
+    }
+    await page.waitForTimeout(500);
+    await page.tap('#win-map');
+    await page.waitForTimeout(300);
+    const stars = () => page.$$eval('.node[data-level="1"] .stars .on', (x) => x.length);
+    check('Mia has 1 star on route 1', (await stars()) === 1);
+    await page.tap('#m-who');
+    await page.waitForTimeout(300);
+    check('top bar animal returns to the picker', await page.$eval('#s-who', (e) => !e.hidden));
+    await page.tap('.kid[data-pid="1"]');
+    await page.waitForTimeout(300);
+    check('progress stays separate: player 1 has no stars', (await stars()) === 0);
+    await page.tap('[data-go="title"]');
+    await holdGear(page, touch);
+    const p1 = await progressText(page);
+    await page.tap('#players .pl:nth-child(2)');
+    const p2 = await progressText(page);
+    check('progress row follows the selected player', p1[0] === 'Route 1, Letters: 0 rounds, so 2 more open Route 2' && p2[0] === 'Route 1, Letters: 1 round, so 1 more opens Route 2' && p2[4] === 'Stickers: 1' && /Mia/.test(await page.$eval('#prog-head', (e) => e.textContent)), [p1, p2]);
+    // erase player 1 (two taps); Mia stays, and with one player the picker goes away
+    await page.tap('#players .pl:nth-child(1) [data-erase]');
+    check('erase a player needs a second tap', (await page.$$('#players .pl')).length === 2);
+    await page.tap('#players .pl:nth-child(1) [data-erase]');
+    const left = await page.evaluate(() => JSON.parse(localStorage.getItem('animal-mail-route-v2')));
+    check('erasing one player leaves the other', left.players.length === 1 && left.players[0].name === 'Mia' && left.players[0].rounds[1] === 1 && left.current === 2, left);
+    await page.tap('#p-close');
+    await page.tap('.playbtn');
+    await page.waitForTimeout(300);
+    check('back to one player: no picker', await page.$eval('#s-map', (e) => !e.hidden) && (await stars()) === 1);
+    // erase everything
+    await page.tap('[data-go="title"]');
+    await holdGear(page, touch);
+    await page.tap('#b-add');
+    await page.tap('#b-reset'); await page.tap('#b-reset');
+    const all = await page.evaluate(() => JSON.parse(localStorage.getItem('animal-mail-route-v2')));
+    check('erase everything: one fresh player', all.players.length === 1 && all.players[0].rounds[1] === 0 && all.players[0].name === '', all);
+    check('players: no script or console errors', errors.length === 0, errors.length ? errors : undefined);
+    await ctx.close();
+  }
+
+  // "Who's playing?" fits every screen size, with 2 players and with the most (8)
+  for (const n of [2, 8]) {
+    const players = Array.from({ length: n }, (_, i) => ({ id: i + 1, name: i % 2 ? 'Alexandria-Rose Lee' : '', animal: 'SBKCP'[i % 5], rounds: { 1: 0, 2: 0, 3: 0, 4: 0 }, stickers: [], weak: {} }));
+    const v2 = { v: 2, device: { voice: true, sfx: true, share: false, unlockAll: false }, current: 1, players };
+    for (const [name, [w, h]] of Object.entries(SIZES)) {
+      const { ctx, page, errors } = await newPage(browser, w, h, { 'animal-mail-route-v2': v2 });
+      await page.tap('.playbtn');
+      await page.waitForTimeout(400);
+      check(`${name}, ${n} players: everyone on screen`, (await page.$$('.kid')).length === n && await allOnScreen(page, '.kid, #s-who .rbtn'));
+      await page.tap(`.kid[data-pid="${n}"]`);
+      await page.waitForTimeout(300);
+      check(`${name}, ${n} players: pick opens the map with the avatar on screen`, await allOnScreen(page, '.node, #m-who'));
+      check(`${name}, ${n} players: no errors`, errors.length === 0, errors.length ? errors : undefined);
+      await ctx.close();
+    }
   }
 
   // installable and offline: manifest, service worker, then play a delivery with the network off
