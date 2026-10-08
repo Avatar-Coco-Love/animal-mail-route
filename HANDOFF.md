@@ -246,7 +246,6 @@ Recommendation as it was:
 | --- | --- | --- | --- | --- |
 | 0.4 live, before | 79 | 100 | 100 | 100 |
 | 0.5 local, after | 99 | 100 | 100 | 100 |
-| 0.5 live, after | LIVE_SCORES |
 
 - **The one real problem:** total blocking time 960 ms, from one ~1 s task at startup. It was `new AudioContext()` in `loadClips`, which ran on every load even though `clips.json` is empty. The context is now made only when there is a clip to decode, or on the first tap (which already happened via `unlock`). Same sound behaviour; Chrome also no longer starts a suspended audio context before any tap.
 - **Left as is:** "unminified JavaScript" (3 KiB; minifying needs a build step, which this project avoids on purpose) and "cache lifetime" of the fonts (GitHub Pages sets 10 minutes and can't be changed; the service worker serves them from its cache anyway after the first visit).
