@@ -33,9 +33,22 @@ Target: Android phone and tablet, touch-first. Built as plain HTML, CSS, and Jav
 ## Audio
 Recordings go in `audio/` named like `letter-S.mp3`, `sound-S.mp3`, `name-S.mp3`, `reward-S.mp3`, `num-3.mp3`, `who-gets-the.mp3`, and so on. The full list with exact wording and delivery notes is in the "Animal Mail Route: Voice Script" doc (a private Claude doc; if it is not reachable, regenerate the list from `CLIPS`). The page loads clips with `fetch('audio/<key>.mp3')`, so it must be served over http(s), not opened from a file path.
 
-## Not verified yet
-- The game has been syntax-checked and its logic tested on samples, but it has not been played on a real phone or tablet. Check dragging, voice, layout on small and short screens, and the animations first.
-- Voice clips are not recorded yet; the built-in speech is the placeholder.
+## Testing status
+Tested on 2026-10-08 in an emulated Android Chrome with real touch input (Playwright). Sizes: small phone 360x640, Pixel 412x915, phone sideways 740x360 and 800x360, tablet 800x1280 and 1280x800. Covered: drag to deliver, tap mail then tap house, wrong house then wiggle hint, a full round to the sticker, house count growing, routes 3 and 4 with 5 houses, sticker book, parent corner by press and hold. No script errors. The only console noise is 33 expected 404s for the missing voice clips.
+
+Fixed in that pass:
+- Dragged mail disappeared as soon as it left the sky area (the mail zone clipped it), so a child could not see what they were dragging. The delivery fly-in was hidden too. Only the clouds are clipped now.
+- Phone held sideways: routes 3 and 4 were off the bottom of the map and could not be reached. The map now runs left to right on short landscape screens.
+- Phone held sideways: the parent corner's Done and Erase buttons and the win card's buttons were cut off. Overlays now scroll, and cards are more compact on short screens.
+- Phone held sideways: the success banner was clipped and the caption overlapped the road. The play screen is tighter on short screens.
+- Android Chrome: the page height used 100%, which assumes the URL bar is hidden, so the bottom of the street could sit under the browser chrome. It now uses 100dvh. Safe-area padding moved to the body (it was counted twice for the title corner buttons).
+- Gear button ignores browser touch gestures so a small finger wobble does not cancel the press and hold.
+
+Still needs a real device (emulation cannot check these):
+- The built-in voice: whether Android speaks the prompts, how it sounds, and whether a line is ever dropped when a new one interrupts it.
+- Sound effects volume, and whether audio starts after the first tap.
+- How the drag feels to a small child's finger, and the 60 to 76 px houses on a sideways phone.
+- The URL bar fix on a real Android Chrome.
 
 ## Open questions
 - Charlie the Crane: "Charlie" starts with "ch", but the letter C and "Crane" start with a hard "k" sound. Keep the wording or rename him before recording the C clips.

@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<style>:root{color-scheme:light;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0}[hidden]{display:none!important}</style>
+<style>:root{color-scheme:light}body{margin:0}[hidden]{display:none!important}</style>
 <title>Animal Mail Route</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;800&family=Nunito:wght@600;800&display=swap">
 <style>
@@ -31,7 +31,9 @@
   --font-body:'Nunito',system-ui,-apple-system,'Segoe UI',sans-serif;
   color-scheme:light;
 }
-html,body{height:100%}
+html{height:100%}
+/* 100dvh, not 100%: on Android Chrome 100% assumes the URL bar is hidden, which pushed the bottom of the street off screen */
+body{height:100%;height:100dvh;padding:env(safe-area-inset-top,0px) env(safe-area-inset-right,0px) env(safe-area-inset-bottom,0px) env(safe-area-inset-left,0px)}
 body{background:var(--sky-low);color:var(--ink);font-family:var(--font-body);font-weight:600;overflow:hidden;overscroll-behavior:none}
 *{box-sizing:border-box}
 #app{position:relative;height:100%;overflow:hidden;touch-action:manipulation;-webkit-user-select:none;user-select:none;-webkit-tap-highlight-color:transparent}
@@ -58,8 +60,9 @@ svg{display:block}
 .playbtn{display:flex;align-items:center;gap:12px;padding:12px 34px 12px 26px;border-radius:999px;border:0;background:var(--red);color:#fff;font:800 clamp(1.7rem,7vw,2.2rem)/1 var(--font-display);box-shadow:0 7px 0 var(--red-deep)}
 .playbtn svg{width:38px;height:38px}
 .playbtn:active{transform:translateY(5px);box-shadow:0 2px 0 var(--red-deep)}
-.title .corner{position:absolute;right:16px;bottom:calc(14px + env(safe-area-inset-bottom,0px));display:flex;gap:12px}
-.title .corner-l{position:absolute;left:16px;bottom:calc(14px + env(safe-area-inset-bottom,0px))}
+.title .corner{position:absolute;right:16px;bottom:14px;display:flex;gap:12px}
+.title .corner-l{position:absolute;left:16px;bottom:14px}
+.gear{touch-action:none}
 .gear::after{content:'';position:absolute;left:12px;right:12px;bottom:5px;height:5px;border-radius:3px;background:var(--red);transform:scaleX(0);transform-origin:left}
 .gear.holding::after{animation:hold 1.2s linear forwards}
 
@@ -95,9 +98,11 @@ svg{display:block}
 .pips{display:flex;gap:10px}
 .pip{width:20px;height:20px;border-radius:50%;background:rgba(255,255,255,.85);border:4px solid var(--ink);transition:background .25s,transform .25s}
 .pip.on{background:var(--sun);transform:scale(1.15)}
-.mailzone{position:relative;flex:1 1 40%;min-height:150px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;padding-bottom:22px;padding-inline:16px;overflow:hidden;background:linear-gradient(180deg,var(--sky-top),var(--sky-low))}
+.mailzone{--mw:clamp(120px,30vmin,200px);position:relative;flex:1 1 40%;min-height:150px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;padding-bottom:22px;padding-inline:16px;background:linear-gradient(180deg,var(--sky-top),var(--sky-low))}
 .mailzone::after{content:'';position:absolute;left:0;right:0;bottom:0;height:16px;background:var(--road);border-top:3px solid rgba(255,255,255,.25)}
 .mailzone::before{content:'';position:absolute;left:0;right:0;bottom:6px;height:4px;background:repeating-linear-gradient(90deg,var(--paper) 0 22px,transparent 22px 44px);z-index:1}
+/* clouds get their own clipping layer so the mail zone can stay unclipped while the mail is dragged down to the houses */
+.sky{position:absolute;inset:0;overflow:hidden;pointer-events:none}
 .cloud{position:absolute;height:24px;width:84px;border-radius:999px;background:#fff;opacity:.9;animation:drift 40s linear infinite}
 .cloud::before{content:'';position:absolute;left:14px;top:-12px;width:36px;height:36px;border-radius:50%;background:#fff}
 .cloud.c1{top:14%;left:-100px}
@@ -105,11 +110,11 @@ svg{display:block}
 .banner{position:relative;z-index:2;min-height:2.7rem;max-width:100%;padding:4px 20px;border-radius:999px;background:var(--paper);box-shadow:0 4px 0 rgba(36,48,77,.2);font:800 clamp(1.15rem,5vw,1.8rem)/1.2 var(--font-display);text-align:center;text-wrap:balance;display:flex;align-items:center}
 .banner:empty{visibility:hidden}
 .banner.pop{animation:pop .5s cubic-bezier(.3,1.6,.5,1)}
-.stage{position:relative;z-index:2;width:min(100%,420px);height:calc(clamp(120px,30vmin,200px)/1.45 + 28px);flex:0 0 auto}
+.stage{position:relative;z-index:2;width:min(100%,420px);height:calc(var(--mw)/1.45 + 28px);flex:0 0 auto}
 .caption{position:relative;z-index:2;font:800 clamp(.95rem,3.8vw,1.2rem)/1.2 var(--font-body);text-align:center;color:var(--ink);min-height:1.3em}
 .truck{position:absolute;z-index:2;left:clamp(8px,3vw,28px);bottom:12px;width:clamp(84px,22vw,140px)}
 .truck .t-blue{fill:var(--blue)}.truck .t-red{fill:var(--red)}
-.mail{position:absolute;left:50%;top:50%;width:clamp(120px,30vmin,200px);touch-action:none;cursor:grab;z-index:5;transform:translate(-50%,-50%) translate(var(--dx,0px),var(--dy,0px)) rotate(var(--rot,0deg)) scale(var(--sc,1));will-change:transform}
+.mail{position:absolute;left:50%;top:50%;width:var(--mw);touch-action:none;cursor:grab;z-index:5;transform:translate(-50%,-50%) translate(var(--dx,0px),var(--dy,0px)) rotate(var(--rot,0deg)) scale(var(--sc,1));will-change:transform}
 .mail.dragging{cursor:grabbing}
 .mail.enter{animation:mailIn .6s cubic-bezier(.2,.9,.3,1.2) backwards}
 .paper{position:relative;width:100%;aspect-ratio:1.45;background:var(--paper);border:9px solid transparent;border-image:var(--airmail) 9;display:grid;place-items:center;box-shadow:0 9px 0 rgba(36,48,77,.2);animation:float 2.4s ease-in-out infinite}
@@ -149,8 +154,8 @@ svg{display:block}
 .slot-empty svg{width:34%;height:34%}
 
 /* overlays */
-.overlay{position:absolute;inset:0;z-index:20;background:rgba(36,48,77,.58);display:grid;place-items:center;padding:16px;overflow:hidden}
-.card{position:relative;z-index:2;width:min(100%,380px);background:var(--paper);border-radius:28px;padding:24px 20px;text-align:center;box-shadow:0 10px 0 rgba(36,48,77,.25);animation:pop .5s cubic-bezier(.3,1.6,.5,1)}
+.overlay{position:absolute;inset:0;z-index:20;background:rgba(36,48,77,.58);display:flex;padding:16px;overflow-x:hidden;overflow-y:auto}
+.card{position:relative;z-index:2;margin:auto;width:min(100%,380px);background:var(--paper);border-radius:28px;padding:24px 20px;text-align:center;box-shadow:0 10px 0 rgba(36,48,77,.25);animation:pop .5s cubic-bezier(.3,1.6,.5,1)}
 .card h2{margin:0 0 6px;font:800 clamp(1.7rem,7vw,2.3rem)/1.1 var(--font-display);text-wrap:balance}
 .card p{margin:0 0 16px;font-size:1rem;line-height:1.4}
 .win .sticker{width:clamp(110px,34vw,150px);margin:6px auto 14px;animation:spinpop .8s cubic-bezier(.3,1.5,.5,1)}
@@ -192,6 +197,24 @@ svg{display:block}
 .pip.on{animation:pipPop .45s cubic-bezier(.3,1.6,.5,1)}
 .burst{position:absolute;z-index:15;width:0;height:0;pointer-events:none}
 .burst i{position:absolute;left:-8px;top:-8px;width:16px;height:16px;clip-path:polygon(50% 0,61% 35%,98% 35%,68% 57%,79% 91%,50% 70%,21% 91%,32% 57%,2% 35%,39% 35%);animation:spark .85s ease-out forwards}
+/* short screens (phones held sideways) */
+@media (max-height:500px){
+  .bar{padding-block:6px}
+  .mailzone{--mw:clamp(92px,26vmin,200px);min-height:0}
+  .banner{position:absolute;top:8px;left:0;right:0;margin-inline:auto;width:fit-content;max-width:calc(100% - 32px)}
+  .street{--hw:clamp(60px,min(27vw,19vh),148px);padding-block:10px 12px}
+  .card{padding:14px 18px}
+  .card p{margin-bottom:10px}
+  .win .sticker{width:clamp(64px,22vh,150px);margin:2px auto 8px}
+  .row{padding-block:6px}
+  .parent .note{margin:8px 0 10px}
+}
+@media (orientation:landscape) and (max-height:560px){
+  .route{flex-direction:row;justify-content:space-evenly;align-items:center;padding-block:4px 12px}
+  .route::before{left:6%;right:6%;top:50%;bottom:auto;border-left:0;border-top:7px dashed rgba(255,255,255,.9);transform:translateY(-50%)}
+  .route .node:nth-child(odd){align-self:flex-start;margin:0}
+  .route .node:nth-child(even){align-self:flex-end;margin:0}
+}
 @keyframes blink{0%,92%,100%{transform:scaleY(1)}95%{transform:scaleY(.08)}}
 @keyframes jumpy{0%{transform:translateY(0) scale(1)}35%{transform:translateY(-24px) scale(1.12,.94)}60%{transform:translateY(0) scale(.94,1.08)}80%{transform:translateY(-6px)}100%{transform:translateY(0) scale(1)}}
 @keyframes drive{from{transform:translateX(-170%)}70%{transform:translateX(5px)}to{transform:translateX(0)}}
@@ -264,7 +287,7 @@ svg{display:block}
       </button>
     </div>
     <div class="mailzone" id="mailzone">
-      <div class="cloud c1"></div><div class="cloud c2"></div>
+      <div class="sky" aria-hidden="true"><div class="cloud c1"></div><div class="cloud c2"></div></div>
       <div class="banner" id="banner" aria-live="polite"></div>
       <div class="stage" id="stage">
         <div class="mail" id="mail" role="button" tabindex="0" hidden><div class="paper" id="paper"></div></div>
@@ -307,7 +330,7 @@ svg{display:block}
       <div class="row"><b>Voice prompts</b><button class="tog" type="button" id="t-voice" aria-pressed="true">On</button></div>
       <div class="row"><b>Sound effects</b><button class="tog" type="button" id="t-sfx" aria-pressed="true">On</button></div>
       <div class="row"><b>Unlock all routes</b><button class="tog" type="button" id="t-unlock" aria-pressed="false">Off</button></div>
-      <div class="row"><b>Recorded voice clips</b><span id="clipcount">0 of 26</span></div>
+      <div class="row"><b>Recorded voice clips</b><span id="clipcount">0 of 33</span></div>
       <div class="row"><b>Needs practice</b><span id="weaklist">None yet</span></div>
       <div class="row"><b>Progress</b><button class="pbtn danger" type="button" id="b-reset">Erase</button></div>
       <p class="note">Prototype 0.1. Voice prompts use your device's built-in speech until recorded voices are added.</p>
