@@ -85,8 +85,14 @@ Still needs a real device (emulation cannot check these):
 - How the drag feels to a small child's finger, and the 60 to 76 px houses on a sideways phone.
 - The URL bar fix on a real Android Chrome.
 
+## Decisions (made October 8, 2026; the owner accepted these recommendations)
+- **Charlie the Crane becomes Cody the Crane.** "Cody", "C" (as "kuh") and "Crane" all start with the same hard k sound, which is what route 1 teaches. Not yet applied in code.
+- **Win card button:** if finishing this round unlocks the next route, the button says "Next route" and starts it. Otherwise it says "Play again" and replays the route. Not yet applied in code.
+- **Voice:** keep the built-in speech for now. Record or generate clips only after the real-device playtest, once the wording has settled.
+- **Play counts:** leave the Worker undeployed until the owner wants numbers. Deploying needs their Cloudflare login.
+- **Owner's time is limited (working a day job).** Prefer work Claude can finish alone. Batch anything that needs the owner (merging a PR, a playtest, a login) and ask for it in one short message.
+
 ## Open questions
-- Charlie the Crane: "Charlie" starts with "ch", but the letter C and "Crane" start with a hard "k" sound. Keep the wording or rename him before recording the C clips.
 - Art direction: the animals are simple placeholder SVGs.
 - Game name: "Animal Mail Route" is a placeholder.
 
@@ -96,12 +102,22 @@ Still needs a real device (emulation cannot check these):
 - Fonts served with the game, privacy page, clip list, favicon.
 - Opt-in play counts: client, Worker, tests, end-to-end check against a local Worker.
 
-## Next steps, in order
-1. **Real-device playtest** (needs a person and an Android phone or tablet). Check the "Still needs a real device" list above, and watch a 3 to 5 year old play: can they drag, do they understand the prompts, where do they get stuck. Bring the notes back as fixes.
-2. **Settle Charlie the Crane** before recording (see Open questions).
-3. **Voice clips.** Record or generate the 33 clips in `CLIPS`, put them in `audio/`, list them in `audio/clips.json`. The parent corner shows how many were found. This matters most for 3 year olds, who can't read the captions.
-4. **Deploy the play-count Worker** when you want numbers: `worker/README.md` (needs the owner's Cloudflare login). Then set `COUNT_URL` in `index.html`, which makes the parent setting appear. Run `tests/touch.cjs` afterwards; the "setting hidden" check passes either way.
-5. **Installable offline web app**: a manifest, icons and a service worker caching `index.html`, `fonts/` and `audio/`. Useful in the car, and a step toward Android packaging.
-6. **Later:** finished art, a final name, per-animal voices, Android packaging (Capacitor or a Trusted Web Activity) for Google Play. Play's Families policy then applies; `TELEMETRY.md` has the Data safety answers.
+## Next session: work that needs nothing from the owner
+Do these in order. Run `tests/touch.cjs` locally after each change to `index.html`. Open one PR at the end, then ask the owner to merge it.
+1. **Rename Charlie to Cody** everywhere: `CH`, aria labels, `CLIPS` (`name-C`, `reward-C`), docs. Check the voice script note under Audio.
+2. **Win card button** as decided above. Add a check for it in `tests/touch.cjs`.
+3. **Installable and offline:**
+   - `manifest.webmanifest` with name, colors and `display: standalone`
+   - icons at 192 and 512 px, plus a maskable one, drawn as SVG and exported to PNG
+   - a small service worker caching `index.html`, `privacy.html`, `fonts/` and `audio/`, with a version string to bump on each release
+   - test offline play in Playwright (`context.setOffline(true)` after the first load)
+   - keep it free of third-party requests
+4. **CI:** a GitHub Actions workflow on pull requests that runs `worker` tests and `tests/touch.cjs` against a local server. Install Playwright Chromium in the workflow.
+5. **Playtest sheet for the owner:** `PLAYTEST.md`, a short phone-friendly checklist for a parent watching a child play (voice heard? can drag? understood the prompts? where stuck?), with space for notes to paste back to Claude.
+6. Update this file, then open the PR and give the owner the merge link plus anything else that needs them, in one message.
 
-Small known oddity: "Next route" on the win card replays the same route (the card calls each round a "route"). Rename it to "Play again", or make it advance once the next route unlocks.
+## Later steps (need the owner)
+1. **Real-device playtest** with a 3 to 5 year old on an Android phone or tablet, using `PLAYTEST.md`. The notes become the next fixes.
+2. **Voice clips:** record or generate the 33 lines in `CLIPS`, put them in `audio/`, list them in `audio/clips.json`.
+3. **Deploy the play-count Worker** (`worker/README.md`), then set `COUNT_URL` in `index.html`.
+4. **Later:** finished art, a final name, per-animal voices, Android packaging (Capacitor or a Trusted Web Activity) for Google Play. Play's Families policy then applies; `TELEMETRY.md` has the Data safety answers.
