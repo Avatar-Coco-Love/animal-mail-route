@@ -41,6 +41,15 @@ const holdGear = async (page, touch) => {
   await touch('touchEnd');
   await page.waitForTimeout(100);
 };
+// map path: which of the 3 segments are lit, and whether each runs from one disc's centre to the next
+const segState = (page) => page.$$eval('#route .seg', (gs) => gs.map((g) => g.classList.contains('lit') ? 1 : 0).join(''));
+const segsJoinDiscs = (page) => page.evaluate(() => {
+  const route = document.querySelector('#route'), box = route.getBoundingClientRect();
+  const c = [...route.querySelectorAll('.disc')].map((d) => { const r = d.getBoundingClientRect(); return [r.left - box.left + r.width / 2, r.top - box.top + r.height / 2]; });
+  const lines = [...route.querySelectorAll('.seg .dash')];
+  const near = (a, b) => Math.abs(a - b) <= 2;
+  return lines.length === 3 && lines.every((l, i) => near(+l.getAttribute('x1'), c[i][0]) && near(+l.getAttribute('y1'), c[i][1]) && near(+l.getAttribute('x2'), c[i + 1][0]) && near(+l.getAttribute('y2'), c[i + 1][1]));
+});
 const progressText = (page) => page.$$eval('#progress li', (li) => li.map((e) => e.textContent));
 const wanted = (page) => page.evaluate(() => document.querySelector('#caption').textContent.slice(-2, -1));
 
@@ -56,6 +65,7 @@ const wanted = (page) => page.evaluate(() => document.querySelector('#caption').
     await page.waitForTimeout(300);
     if (name === 'pixel') check('one player: Play goes straight to the map, no picker or avatar', await page.$eval('#s-who', (e) => e.hidden) && await page.$eval('#m-who', (e) => e.hidden));
     check(`${name}: all 4 routes on screen`, await allOnScreen(page, '.node'));
+    check(`${name}: map path joins the 4 routes, on screen, all grey at the start`, (await segState(page)) === '000' && await segsJoinDiscs(page) && await allOnScreen(page, '#route .seg'));
     await page.tap('.node[data-level="1"]');
     await page.waitForTimeout(1700);
     check(`${name}: houses, mail and prompt on screen`, await allOnScreen(page, '.house, #mail, #caption'));
@@ -114,6 +124,10 @@ const wanted = (page) => page.evaluate(() => document.querySelector('#caption').
     await page.tap('#win-next');
     await page.waitForTimeout(300);
     check('win card: Next route starts route 2', !!(await page.$('.house.has-pal')));
+    await page.tap('[data-go="map"]');
+    await page.waitForTimeout(300);
+    check('map path: 2 rounds of route 1 light the path to route 2', (await segState(page)) === '100', await segState(page));
+    check('map path: the segment that just lit animates once', await page.$$eval('#route .seg.new', (g) => g.map((x) => x.getAttribute('data-seg')).join()) === '1');
     await ctx.close();
   }
 
@@ -139,12 +153,18 @@ const wanted = (page) => page.evaluate(() => document.querySelector('#caption').
     const v1 = { rounds: { 1: 3, 2: 1, 3: 0, 4: 0 }, stickers: [{ c: 'S' }, { c: 'B' }, { c: 'K' }, { c: 'C' }], unlockAll: false, voice: true, sfx: true, share: false, weak: {} };
     const { ctx, page, touch } = await newPage(browser, 412, 915, { 'animal-mail-route-v1': v1 });
     await holdGear(page, touch);
+    // on this screen the finger lifts over Print summary; that lift must not press it
+    check('parent corner: lifting the finger after the hold presses nothing', await page.$eval('#summary', (e) => e.hidden) && !(await page.$('.pbtn.armed')));
     const want = ['Route 1, Letters: 3 rounds', 'Route 2, Animals: 1 round, so 1 more opens Route 3', 'Route 3, Letters and animals: locked', 'Route 4, Numbers: locked', 'Stickers: 4'];
     let got = await progressText(page);
     check('progress row matches the unlock rule', JSON.stringify(got) === JSON.stringify(want), got);
     await page.tap('#t-unlock');
     got = await progressText(page);
     check('progress row with Unlock all on', got[2] === 'Route 3, Letters and animals: open (Unlock all is on)' && got[1] === 'Route 2, Animals: 1 round', got);
+    await page.tap('#p-close');
+    await page.tap('.playbtn');
+    await page.waitForTimeout(300);
+    check('map path: Unlock all lights every segment', (await segState(page)) === '111', await segState(page));
     await ctx.close();
   }
 
@@ -163,6 +183,7 @@ const wanted = (page) => page.evaluate(() => document.querySelector('#caption').
     await page.tap('.playbtn');
     await page.waitForTimeout(300);
     check('v1: route 2 open on the map after migration', !(await page.$('.node[data-level="2"].locked')) && !!(await page.$('.node[data-level="3"].locked')));
+    check('map path: lit up to the last open route, grey after', (await segState(page)) === '100' && !(await page.$('#route .seg.new')), await segState(page));
     await ctx.close();
   }
 
@@ -243,6 +264,49 @@ const wanted = (page) => page.evaluate(() => document.querySelector('#caption').
       check(`${name}, ${n} players: no errors`, errors.length === 0, errors.length ? errors : undefined);
       await ctx.close();
     }
+  }
+
+  // printable summary: the selected player's lines on a plain page, then the print dialog
+  {
+    const mk = (id, name, animal, rounds, n, weak) => ({ id, name, animal, rounds, stickers: Array.from({ length: n }, () => ({ c: 'S' })), weak });
+    const v2 = { v: 2, device: { voice: true, sfx: true, share: false, unlockAll: false }, current: 1, players: [
+      mk(1, 'Leo', 'P', { 1: 1, 2: 0, 3: 0, 4: 0 }, 1, {}),
+      mk(2, 'Mia', 'K', { 1: 3, 2: 2, 3: 1, 4: 0 }, 6, { K: 3, C: 2, B: 1 }),
+    ] };
+    const { ctx, page, touch, errors, hosts } = await newPage(browser, 740, 360, { 'animal-mail-route-v2': v2 });
+    await page.evaluate(() => { window.__printed = 0; window.print = () => { window.__printed++; }; });
+    await holdGear(page, touch);
+    await page.tap('#players .pl:nth-child(2)');
+    const lines = await progressText(page);
+    await page.$eval('#b-print', (b) => b.scrollIntoView());
+    await page.tap('#b-print');
+    await page.waitForTimeout(200);
+    const sum = await page.evaluate(() => ({
+      shown: !document.querySelector('#summary').hidden,
+      who: document.querySelector('#sum-who').textContent,
+      lines: [...document.querySelectorAll('#sum-progress li')].map((e) => e.textContent),
+      weak: document.querySelector('#sum-weak').textContent,
+      printed: window.__printed,
+      fits: document.querySelector('#summary').scrollWidth <= innerWidth,
+    }));
+    check('print summary: opens the summary and the print dialog', sum.shown && sum.printed === 1, sum);
+    check("print summary: shows the selected player's lines", sum.who === 'Player: Mia (Kelly the Kangaroo)' && JSON.stringify(sum.lines) === JSON.stringify(lines) && sum.lines[0] === 'Route 1, Letters: 3 rounds' && sum.lines[2] === 'Route 3, Letters and animals: 1 round, so 1 more opens Route 4' && sum.lines[4] === 'Stickers: 6', sum);
+    check('print summary: needs practice with names', sum.weak === 'K (Kelly the Kangaroo), C (Cody the Crane)', sum.weak);
+    check('print summary: fits the width of a sideways phone', sum.fits);
+    await page.emulateMedia({ media: 'print' });
+    const pr = await page.evaluate(() => ({ app: getComputedStyle(document.querySelector('#app')).display, acts: getComputedStyle(document.querySelector('.summary .acts')).display, sheet: document.querySelector('#summary .sheet').getBoundingClientRect().height > 0 }));
+    check('print summary: printed page has only the summary, no buttons', pr.app === 'none' && pr.acts === 'none' && pr.sheet, pr);
+    await page.emulateMedia({ media: 'screen' });
+    await page.$eval('#sum-close', (b) => b.scrollIntoView());
+    await page.tap('#sum-close');
+    check('print summary: Done goes back to the parent corner', await page.$eval('#summary', (e) => e.hidden) && await page.$eval('#parent', (e) => !e.hidden) && (await page.title()) === 'Animal Mail Route');
+    await page.tap('#players .pl:nth-child(1)');
+    await page.$eval('#b-print', (b) => b.scrollIntoView());
+    await page.tap('#b-print');
+    const leo = await page.$$eval('#sum-progress li', (li) => li.map((e) => e.textContent));
+    check('print summary: follows the selected player', leo[0] === 'Route 1, Letters: 1 round, so 1 more opens Route 2' && leo[4] === 'Stickers: 1' && (await page.$eval('#sum-weak', (e) => e.textContent)) === 'None yet', leo);
+    check('print summary: no errors, nothing sent elsewhere', errors.length === 0 && [...hosts].every((x) => x === host), { errors, hosts: [...hosts] });
+    await ctx.close();
   }
 
   // installable and offline: manifest, service worker, then play a delivery with the network off

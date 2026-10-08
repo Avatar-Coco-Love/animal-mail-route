@@ -35,6 +35,7 @@ Tick or write yes / no / unsure. A word or two of detail helps a lot.
 - [ ] Understood the animal pictures (route 2)
 - [ ] Understood numbers and stars (route 4, if reached):
 - [ ] Knew what to press on the "Route complete" card
+- [ ] Noticed the path on the map light up after a route's second round (said or pointed at it?):
 
 **Feel**
 - [ ] Enjoyed it (smiled, wanted more)
@@ -63,3 +64,4 @@ Press and hold the gear on the title screen. Copy these lines:
 - Progress (all five lines):
 - Needs practice:
 - Number of players set up, if more than one child plays:
+- Tap "Print summary": did the print screen open, and did the page look right (or save as PDF)?
