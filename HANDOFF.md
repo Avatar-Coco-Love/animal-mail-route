@@ -21,7 +21,8 @@ An older copy also exists as a Claude artifact. It predates the fixes below, so 
 - Version 0.7 (seventh session): Phase 2 of the expansion roadmap, letter sets. Each player has a set of letters, chosen in the parent corner, and routes 1 to 3 use only those. The touch test passes all 160 checks locally.
 - Version 0.8 (eighth session): Phase 3 of the expansion roadmap, more animal friends. Every letter but X has a friend, and every letter but Q, U, V, Y and X has two who take turns (46 friends in all). A player's animal can be any friend ("More" in the parent corner). The touch test passes all 174 checks locally.
 - Version 0.8.1 (owner feedback before Phase 4): the parent-corner button (bottom right of the title screen) is now a real cog, since the old icon read as a light; while it is held a red ring runs once round it from the top and the corner opens when the ring closes. "All" letters now includes Q and U. The title screen shows 5 random friends (different letters, with their own names) on every load. The touch test passes all 176 checks locally.
-- **Next:** Phase 4 of the expansion roadmap (map with tracks), then the rest under "Next sessions".
+- Version 0.9 (ninth session): Phase 4 of the expansion roadmap, map with tracks. Letters (routes 1 to 3) and Numbers (route 4) each have their own unlock chain, so numbers are open from the start. Also from owner feedback: two quick taps on the gear show a "press and hold" tip, and a shared link now shows a preview picture. The touch test passes all 195 checks locally.
+- **Next:** Phase 5 of the expansion roadmap (new kinds of questions), then the rest under "Next sessions".
 
 ## Repo map
 | Path | What |
@@ -32,9 +33,9 @@ An older copy also exists as a Claude artifact. It predates the fixes below, so 
 | `audio/` | voice clips (none yet) and `clips.json`, the list of clips that exist |
 | `TELEMETRY.md` | play counts design and rules (COPPA, Google Families) |
 | `worker/` | Cloudflare Worker + D1 for play counts, with tests and deploy steps |
-| `tests/touch.cjs` | touch smoke test (176 checks), local or live |
+| `tests/touch.cjs` | touch smoke test (195 checks), local or live |
 | `manifest.webmanifest`, `sw.js` | install and offline play; bump `VERSION` in `sw.js` on every release |
-| `icons/` | app icons: `icon.svg` and `icon-maskable.svg` are the sources, `export.cjs` makes the PNGs |
+| `icons/` | app icons: `icon.svg` and `icon-maskable.svg` are the sources, `export.cjs` makes the PNGs. `share.png` is the link preview picture, made by `share.cjs` from the title screen |
 | `.github/workflows/test.yml` | CI on pull requests: worker tests and the touch test |
 | `PLAYTEST.md` | checklist for the owner's first playtest with a child |
 
@@ -54,9 +55,12 @@ Target: Android phone and tablet, touch-first. Built as plain HTML, CSS, and Jav
 
 ## Current state (all in `index.html`)
 - Screens: title, "Who's playing?" (only with 2+ players), route map, delivery, sticker book, parent corner (press and hold the gear at the bottom right of the title screen until the red ring closes, about 1.2 seconds), printable summary (from the parent corner).
-- Map path: a dashed segment joins each route to the next. It is grey until the next route opens (2 rounds of this one, or Unlock all), then yellow on a white band. A segment that lit up since the player last saw the map plays a short animation.
+- Map tracks (0.9): two tracks, each with its own unlock chain. Letters, labelled "ABC", has routes 1 to 3; Numbers, labelled "123", has route 4. Upright they are two columns side by side; on a sideways phone, two rows. Both have the same number of slots, so the first route of each sits level. Route 4 is open from the start.
+- Gear tip (0.9): a press on the gear that lets go before the ring closes counts as a short tap. Two in a row (each within 3 seconds of the last) show a dark bubble above the gear: "Press and hold the gear to open the parent corner." It goes after 5 seconds, on the next press, or when the corner opens. Text only, not spoken.
+- Link preview (0.9): Open Graph and Twitter card tags in `index.html` show `icons/share.png` (1200×630) when the address is shared. `og:image` and `og:url` are the only full addresses in the game (previews need them); change them if the game moves.
+- Map path: a dashed segment joins each route to the next on its track. It is grey until the next route opens (2 rounds of this one, or Unlock all), then yellow on a white band. A segment that lit up since the player last saw the map plays a short animation.
 - Friends: each house is one letter's friend. With more than one friend for a letter (every letter but Q, U, V, X and Y), the player's friend for that letter is the one they met least recently, so a house changes between rounds while the letter stays the same.
-- Routes: 1 letters (2 houses, growing to 5), 2 animal pictures, 3 mixed letters and pictures, 4 numbers (numeral or stars to count, houses numbered 1 to 5). Next route unlocks after 2 finished rounds of the previous one. Parent corner can unlock all.
+- Routes: 1 letters (2 houses, growing to 5), 2 animal pictures, 3 mixed letters and pictures, 4 numbers (numeral or stars to count, houses numbered 1 to 5). The next route on a track unlocks after 2 finished rounds of the one before it; the first route of each track is always open. Parent corner can unlock all.
 - Round = 5 deliveries, then a sticker. No timers, no losing. Wrong house bounces back; after 2 misses the right house wiggles. Tap-then-tap-house works as well as dragging.
 - Adaptive practice (routes 1 to 3): wrong answers raise a letter's score, first-try correct lowers it, weak letters are picked more often. Parent corner shows "Needs practice". Not used on route 4.
 - Players: up to 8 on one device, each with an animal (any friend, may repeat; the parent corner shows the first five plus the player's own, and "More" shows all 46) and an optional name (20 characters, typed only in the parent corner). Rounds, stickers and practice letters are per player; voice, sound effects, play counts and Unlock all are per device. With one player nothing changes from before. With two or more, Play opens "Who's playing?" (one big animal button per player, name under it if set) and the map's top bar shows the current player's animal, which returns to the picker.
@@ -72,11 +76,13 @@ Target: Android phone and tablet, touch-first. Built as plain HTML, CSS, and Jav
 - Letter sets: `cleanLetters` (valid letters, once each, in `LETTERS` order, at least `MIN_LETTERS` = 2), `roundLetters(n)` (the letters for a round on routes 1 to 3), `readyForMore(p)` (the "Ready for new letters" hint), and in the parent corner `renderLetters` (called from `syncToggles`), `setLetters` (applies to everyone while `S.lettersSame`), the `#lgrid` handler, `#b-first5`, `#b-allletters`, `#t-same`.
 - `CLIPS`: every spoken line, keyed by clip name (156 total: 14 prompts and numbers, `letter-`/`sound-` for each of 25 letters, `name-`/`reward-` for each of 46 friends). Text in `CLIPS` is what the built-in voice says when a recording is missing.
 - `say([keys], fallbackText)`: plays `audio/<key>.mp3` for each key if ALL clips in the line are loaded, otherwise uses the browser's built-in speech.
+- Tracks: `TRACKS` (`{id, name, label, routes}`), `trackOf`, `prevIn(l)` and `nextIn(l)` (0 at either end of a track). `unlocked`, `finishRound` (win card target) and `progressLines` all use `prevIn`/`nextIn`, never `l - 1`/`l + 1`. To add a route: an entry in `LEVELS` and `LEVEL_NAME` with a new id (5, 6, …), and its id in a track's `routes`.
 - Levels: `unlocked`, `houseCount`, `kindFor`, `buildQueue` (adaptive weighting), `promptFor`, `paperHTML`.
 - Parent corner shows how many of the 156 clips were found.
 - Saved progress: `D` is the whole save, `S` is `D.device` (settings), `P` is the current player. `cleanSave`, `cleanPlayer`, `fromV1` validate; `load`, `save`, `useSave` near the top of the script. `unlocked(l, p)` takes an optional player.
 - Players: `renderWho` (picker), `renderPlayers` and the `#players` handlers (parent corner; `moreOpen` remembers, in memory only, which cards show every animal), `erasePlayer`, `armed`/`disarm` (the two-tap erase buttons). `progressLines(p)` builds the Progress row text, `weakIds(p)` the Needs practice letters.
-- Map path: `renderMap` adds an `<svg class="path">` after the nodes and calls `drawPath(true)`, which measures the disc centres and draws one `<g class="seg" data-seg="n">` per pair (lit when `unlocked(n+1)`). It redraws on resize and once fonts load. `litSeen` (memory only) remembers what each player last saw, for the animation.
+- Map: `renderMap` builds one `<div class="track" style="--n:…">` per track (a `.tname` label, then `nodeHTML` per route), then an `<svg class="path">`, and calls `drawPath(true)`, which measures the disc centres and draws one `<g class="seg" data-seg="from">` per pair of neighbouring routes on a track (`from` is the route it leaves; lit when the next one is unlocked). It redraws on resize and once fonts load. `litSeen` (memory only) remembers, per player, which segments were lit, for the animation.
+- Gear: `cancelHold`, the `pointerup` handler (counts short taps in `taps`/`lastTap`), `hideTip`; `#gear-tip` sits in the title's `.corner`.
 - Summary: `#summary` sits outside `#app`, so print CSS can hide the game (`body.sum-open #app`). `sheetHTML(p, date)` builds one player's `<article class="sheet">` from `progressLines` and `weakIds`; `openSummary(players, title)` fills `#sum-sheets` with one sheet per player, sets the page title, shows it and calls `printSummary()` (a guarded `window.print()`). `#b-print` passes the selected player, `#b-print-all` passes `D.players`. `renderPlayers` hides `#print-all-row` with one player.
 - Sound: the `AudioContext` is made on the first tap (`unlock`) or when `clips.json` lists a clip, never at startup: creating it cost a ~1 s main-thread task under Lighthouse's mobile throttling.
 - Parent corner ignores a click whose touch began before it opened (`openedAt`, `downAt`): lifting the finger after the press-and-hold otherwise presses whatever is under it.
@@ -111,7 +117,10 @@ It needs Playwright with Chromium; in Claude Code cloud sessions it is installed
 - a v1 save turning into player 1 (seeded with `addInitScript`; `newPage` takes an optional `{key: value}` to seed)
 - with one player, no picker; adding a second player, the picker, separate progress, the top bar animal, erasing one player, Erase everything
 - "Who's playing?" with 2 and with 8 players on all 5 screen sizes, everything on screen
-- the map path on all 5 sizes: 3 segments, each from one disc's centre to the next, on screen, grey at the start; lit after 2 rounds of route 1 (and that one animates), lit to the last open route after a v1 migration, all lit with Unlock all
+- map tracks on all 5 sizes: Letters 1 to 3 and Numbers 4, route 4 level with route 1 (beside it upright, below it sideways), route 4 open from the start, labels on screen
+- the gear tip: one tap shows nothing, a second in a row shows the tip, on screen, and holding the gear hides it
+- link preview tags: title, large card, and the image (1200×630) loads from this copy
+- the map path on all 5 sizes: 2 segments (routes 1 to 2 and 2 to 3), each from one disc's centre to the next, on screen, grey at the start; lit after 2 rounds of route 1 (and that one animates), lit to the last open route after a v1 migration, all lit with Unlock all
 - lifting the finger after the gear hold presses nothing (on the Pixel size it lands on Print summary)
 - Print summary on a sideways phone: shows the selected player's lines, Needs practice with names, opens the print dialog once (stubbed in the test), fits the width, prints only the summary (print media), Done returns to the parent corner, and switching player changes the summary
 - Friend library: a 0.5 save (no `seen`) loads unchanged (progress, practice letters, avatar, stickers, also after playing); the clip count is 156; S's two friends take turns over three rounds (Sammy, Sally, Sammy); picture mail for Sally goes to the S house and the banner says "S for Sally the Seal!"
@@ -160,6 +169,7 @@ Still needs a real device (emulation cannot check these):
 - Roadmap Phase 1, friend library, version 0.6 (sixth session).
 - Roadmap Phase 2, letter sets, version 0.7 (seventh session).
 - Roadmap Phase 3, more animal friends (A to Z), version 0.8 (eighth session).
+- Roadmap Phase 4, map with tracks, plus the gear tip and link preview, version 0.9 (ninth session).
 
 ## Decisions made by Claude (October 8, 2026, second session)
 Small calls made without the owner; change them if they're wrong.
@@ -317,6 +327,18 @@ Phase 3 of the roadmap. Small calls made without the owner; change them if they'
 - **Release 0.8:** `VERSION` and the "Prototype" note are 0.8, `sw.js` is `amr-v7`, the privacy page's example game version is 0.8. Its text is otherwise unchanged (no new data). "Last updated" stays October 9, 2026.
 - **`PLAYTEST.md`** asks about the new friends and the "More" avatars.
 
+## Decisions made by Claude (October 9, 2026, ninth session)
+Phase 4 of the roadmap, and two owner requests. Small calls made without the owner; change them if they're wrong.
+- **Two lines, no switcher:** two columns upright and two rows sideways fit at all 5 sizes, so there is no track switcher. Rows are used on short landscape screens (the same rule as before, `max-height:560px`); the tablet held sideways keeps columns, capped at 720 px wide so they don't drift to the edges.
+- **No zigzag:** each track is a straight line of discs, so the two tracks read as two separate paths.
+- **Labels:** "ABC" and "123" pills, which a child can recognise without reading; screen readers hear "Letters" and "Numbers".
+- **Slots line up:** every track has as many slots as the longest track, so a short track's discs sit level with the start of the long one. Phase 5 adds routes to both.
+- **Route 4 is open for everyone now**, including saves where it was locked; no rounds or stickers change. Route 3 no longer says "so N more opens Route 4" in Progress, and its win card says "Play again".
+- **Gear tip:** shows on the second short press within 3 seconds of the one before (a press let go early counts too, since that person also doesn't know to hold). Written, not spoken, as it is for the parent; a child tapping twice sees a bubble and nothing else happens.
+- **Link preview picture:** the title screen with the first five friends and the Play button, made from the game itself by `icons/share.cjs`, so it stays in style. Not added to the service worker's cache, as the game doesn't need it offline.
+- **Release 0.9:** `VERSION` and the "Prototype" note are 0.9, `sw.js` is `amr-v9`, the privacy page's example game version is 0.9. Its text is otherwise unchanged (no new data). "Last updated" stays October 9, 2026.
+- **`PLAYTEST.md`** asks about the two map lines, the gear tip and the link preview.
+
 ## Next sessions: expansion roadmap
 Written at the end of the fifth session, from the owner's questions about variety ("Is there a capacity to choose which letters, or randomized names that are school friendly and fit the lesson? In what ways can we expand?"). The owner asked for all of it to be built, starting in a fresh conversation. This section is the plan.
 
@@ -389,7 +411,7 @@ Draft list. The rule: the friend's name, the animal and the letter all start wit
 - **Avatars:** the player animal choice in the parent corner shows only the original 5 plus a "More" button that opens the full list, so the card doesn't get long.
 - **Tests:** every friend's art renders, every friend's name starts with its letter, every letter in the grid has a friend (except X), the parent corner fits on the sideways phone.
 
-### Phase 4: Map with tracks
+### Phase 4: Map with tracks — done in 0.9 (ninth session)
 More routes (Phase 5) won't fit in one zigzag of 4, and a parent shouldn't have to finish letters to reach numbers.
 - **Two tracks**, each with its own unlock chain and path: **Letters** (the letter routes) and **Numbers** (the number routes). The map shows both as two lines of discs (two columns upright, two rows sideways), or a track switcher at the top if that doesn't fit at the smallest size; check all 5 sizes and decide.
 - Existing route numbers keep their saved `rounds` key (1 to 4) so progress carries over; new routes get new keys (5, 6, …).

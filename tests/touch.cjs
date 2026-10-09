@@ -636,6 +636,14 @@ const wanted = (page) => page.evaluate(() => document.querySelector('#caption').
     check('manifest: standalone with 192 and 512 px icons and a maskable one', man.display === 'standalone' && ['192x192', '512x512'].every((s) => man.icons.some((i) => i.sizes === s)) && man.icons.some((i) => i.purpose === 'maskable'));
     const icons = await page.evaluate(async (list) => Promise.all(list.map(async (s) => (await fetch(s)).ok)), man.icons.map((i) => i.src));
     check('manifest: every icon loads', icons.every(Boolean), icons);
+    // link preview: the image is on the live site (full address), and the same file is in this copy
+    const og = await page.evaluate(async () => {
+      const m = (k) => (document.querySelector(`meta[property="${k}"], meta[name="${k}"]`) || {}).content;
+      const img = m('og:image'), r = await fetch(new URL(img).pathname.replace(/^\/animal-mail-route\//, ''));
+      const bmp = r.ok ? await createImageBitmap(await r.blob()) : null;
+      return { img, title: m('og:title'), card: m('twitter:card'), size: bmp && [bmp.width, bmp.height], w: m('og:image:width'), h: m('og:image:height') };
+    });
+    check('link preview: title, large card, and a 1200x630 image that loads', og.title === 'Animal Mail Route' && og.card === 'summary_large_image' && og.img === 'https://avatar-coco-love.github.io/animal-mail-route/icons/share.png' && JSON.stringify(og.size) === '[1200,630]' && og.w === '1200' && og.h === '630', og);
     const sw = await page.evaluate(() => navigator.serviceWorker.ready.then(() => new Promise((res) => {
       if (navigator.serviceWorker.controller) return res(true);
       navigator.serviceWorker.addEventListener('controllerchange', () => res(true));
