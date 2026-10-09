@@ -195,7 +195,7 @@ const wanted = (page) => page.evaluate(() => document.querySelector('#caption').
     await holdGear(page, touch);
     const got = await progressText(page);
     check('0.5 save loads unchanged: progress, practice letters, avatar', got[0] === 'Route 1, Letters: 1 round, so 1 more opens Route 2' && got[4] === 'Stickers: 3' && (await page.$eval('#weaklist', (e) => e.textContent)) === 'C' && (await page.$eval('#players [data-ani][aria-pressed="true"]', (e) => e.getAttribute('data-ani'))) === 'K', got);
-    check('clip count covers every friend and letter', (await page.$eval('#clipcount', (e) => e.textContent)) === '0 of 36');
+    check('clip count covers every friend and letter', (await page.$eval('#clipcount', (e) => e.textContent)) === '0 of 156');
     await page.tap('#p-close');
     await page.tap('.playbtn');
     await page.waitForTimeout(300);
@@ -405,7 +405,7 @@ const wanted = (page) => page.evaluate(() => document.querySelector('#caption').
     await holdGear(page, touch);
     const grid = () => page.$$eval('#lgrid button', (b) => b.map((x) => x.textContent + (x.getAttribute('aria-pressed') === 'true' ? '+' : '') + (x.disabled ? '!' : '')).join(' '));
     const g0 = await grid();
-    check('letters: A to Z, only letters with a friend can be chosen, the first five are on', (await page.$$('#lgrid button')).length === 26 && (await page.$$('#lgrid button:not([disabled])')).length === 5 && g0.split(' ').filter((x) => x.includes('+')).map((x) => x[0]).join('') === 'BCKPS', g0);
+    check('letters: A to Z, every letter but X can be chosen, the first five are on', (await page.$$('#lgrid button')).length === 26 && (await page.$$('#lgrid button:not([disabled])')).length === 25 && (await page.$eval('#lgrid button[disabled]', (b) => b.textContent)) === 'X' && g0.split(' ').filter((x) => x.includes('+')).map((x) => x[0]).join('') === 'BCKPS', g0);
     check('letters: a new player has the default set', (await progressText(page))[5] === 'Letters: S, B, K, C, P');
     // turn off K and P: S, B, C left
     await page.tap('#lgrid [data-letter="K"]');
@@ -420,7 +420,8 @@ const wanted = (page) => page.evaluate(() => document.querySelector('#caption').
     st = await page.evaluate(() => JSON.parse(localStorage.getItem('animal-mail-route-v2')).players[0]);
     check('letters: tapping one of the last two changes nothing', JSON.stringify(st.letters) === '["S","B"]', st.letters);
     await page.tap('#b-allletters');
-    check('letters: "All" turns on every letter with a friend', (await progressText(page))[5] === 'Letters: S, B, K, C, P');
+    check('letters: "All" turns on every letter with a friend but Q and U', (await progressText(page))[5] === 'Letters: S, B, K, C, P, A, D, E, F, G, H, I, J, L, M, N, O, R, T, V, W, Y, Z', (await progressText(page))[5]);
+    await page.tap('#b-first5');
     await page.tap('#lgrid [data-letter="S"]');
     await page.tap('#lgrid [data-letter="C"]');
     check('letters: S off, then C off', (await progressText(page))[5] === 'Letters: B, K, P');
@@ -462,7 +463,7 @@ const wanted = (page) => page.evaluate(() => document.querySelector('#caption').
     const v2 = { v: 2, device: { voice: true, sfx: true, share: false, unlockAll: false }, current: 1, players: [
       mk(1, 'Leo', 'P', ['S', 'B', 'C', 'P'], { 1: 1, 2: 0, 3: 0, 4: 0 }, {}),
       mk(2, 'Mia', 'K', ['B', 'K'], { 1: 3, 2: 0, 3: 0, 4: 0 }, { B: 1 }),
-      mk(3, '', 'S', ['Q', 'S', 'zz'], { 1: 0, 2: 0, 3: 0, 4: 0 }, {}),
+      mk(3, '', 'S', ['X', 'S', 'zz'], { 1: 0, 2: 0, 3: 0, 4: 0 }, {}),
     ] };
     const { ctx, page, touch, errors } = await newPage(browser, 740, 360, { 'animal-mail-route-v2': v2 });
     await page.tap('.playbtn');
@@ -514,6 +515,69 @@ const wanted = (page) => page.evaluate(() => document.querySelector('#caption').
     check('letters: turned off, a change is for the selected player only', !all.device.lettersSame && all.players[3].letters.join() === 'S,B,K' && all.players.slice(0, 3).every((p) => p.letters.join() === 'S,B,K,P') && all.players[0].rounds[1] === 1, all.players.map((p) => p.letters));
     check('letters: parent corner fits the width of a sideways phone', await page.evaluate(() => document.querySelector('#parent .card').getBoundingClientRect().right <= innerWidth && document.querySelector('#lgrid').scrollWidth <= document.querySelector('#lgrid').clientWidth));
     check('letters (players): no script or console errors', errors.length === 0, errors.length ? errors : undefined);
+    await ctx.close();
+  }
+
+  // more animal friends (A to Z): art, names, the letter grid, More avatars, a round with new letters
+  {
+    const { ctx, page, touch, errors, hosts } = await newPage(browser, 740, 360);
+    // every friend's art renders in a house-sized box, and every name starts with its letter
+    await holdGear(page, touch);
+    await page.tap('#players [data-more]');
+    const list = await page.$$eval('#players [data-ani]', (bs) => bs.map((b) => {
+      const svg = b.querySelector('svg'), r = svg.getBBox();
+      return { id: b.getAttribute('data-ani'), name: b.getAttribute('aria-label'), w: r.width, h: r.height, shapes: svg.children.length };
+    }));
+    check('friends: More shows all 46 friends', list.length === 46, list.length);
+    const badArt = list.filter((f) => !(f.shapes > 3 && f.w > 30 && f.h > 30 && f.w <= 110 && f.h <= 110));
+    check('friends: every friend\'s art renders', badArt.length === 0, badArt);
+    const badName = list.filter((f) => { const m = /^(\w)\w* the (\w)/.exec(f.name); return !m || m[1] !== f.id[0] || m[2] !== f.id[0]; });
+    check('friends: every name and animal starts with the friend\'s letter', badName.length === 0, badName.map((f) => f.name));
+    check('friends: names are unique', new Set(list.map((f) => f.name)).size === list.length);
+    check('friends: parent corner with More open fits a sideways phone', await page.evaluate(() => document.querySelector('#parent .card').getBoundingClientRect().right <= innerWidth && [...document.querySelectorAll('#players .ani')].every((a) => a.scrollWidth <= a.clientWidth)));
+    // choose a new friend as the avatar; Fewer keeps it in the short list
+    await page.$eval('#players [data-ani="O"]', (b) => b.scrollIntoView());
+    await page.tap('#players [data-ani="O"]');
+    await page.$eval('#players [data-more]', (b) => b.scrollIntoView());
+    await page.tap('#players [data-more]');
+    const short = await page.$$eval('#players [data-ani]', (bs) => bs.map((b) => b.getAttribute('data-ani') + (b.getAttribute('aria-pressed') === 'true' ? '+' : '')).join());
+    check('friends: Fewer shows the first five plus the chosen friend', short === 'S,B,K,C,P,O+', short);
+    let sv = await page.evaluate(() => JSON.parse(localStorage.getItem('animal-mail-route-v2')));
+    check('friends: a new friend as avatar is saved', sv.players[0].animal === 'O', sv.players[0].animal);
+    // a set of new letters: every house and mail is from it, with its friends
+    await page.$eval('#lgrid', (b) => b.scrollIntoView());
+    for (const l of ['A', 'M', 'Z']) await page.tap(`#lgrid [data-letter="${l}"]`);
+    for (const l of ['S', 'B', 'K', 'C', 'P']) await page.tap(`#lgrid [data-letter="${l}"]`);
+    check('friends: a set of new letters', (await progressText(page))[5] === 'Letters: A, M, Z', (await progressText(page))[5]);
+    await page.$eval('#t-unlock', (b) => b.scrollIntoView());
+    await page.tap('#t-unlock');
+    await page.$eval('#p-close', (b) => b.scrollIntoView());
+    await page.tap('#p-close');
+    await page.tap('.playbtn');
+    await page.waitForTimeout(300);
+    const met = new Set();
+    for (const level of [3, 2]) {
+      for (let round = 0; round < 2; round++) {
+        await page.tap(`.node[data-level="${level}"]`);
+        const houses = [], mails = [];
+        for (let i = 0; i < 5; i++) {
+          await page.waitForTimeout(1700);
+          if (!i) houses.push(...(await page.$$eval('.house', (h) => h.map((x) => x.getAttribute('data-id') + ':' + x.getAttribute('data-friend')))));
+          const id = await page.evaluate(() => { const c = document.querySelector('#caption').textContent; const m = /Who gets the (.)\?/.exec(c); if (m) return m[1]; const h = [...document.querySelectorAll('.house')].find((x) => c.includes(x.getAttribute('aria-label').split('home of ')[1])); return h && h.getAttribute('data-id'); });
+          mails.push(id);
+          await page.tap('#mail');
+          await page.tap(`.house[data-id="${id}"]`, { force: true });
+          await page.waitForTimeout(2700);
+        }
+        houses.forEach((h) => met.add(h));
+        check(`friends: route ${level} round ${round + 1} uses only A, M and Z`, houses.map((h) => h[0]).sort().join() === 'A,M,Z' && mails.every((m) => 'AMZ'.includes(m)), { houses, mails });
+        await page.waitForTimeout(500);
+        await page.tap('#win-map');
+        await page.waitForTimeout(300);
+      }
+    }
+    check('friends: both friends of A, M and Z take turns', [...met].sort().join() === 'A:A,A:A2,M:M,M:M2,Z:Z,Z:Z2', [...met]);
+    check('friends: no script or console errors, nothing sent elsewhere', errors.length === 0 && [...hosts].every((x) => x === new URL(BASE).host), { errors, hosts: [...hosts] });
     await ctx.close();
   }
 
