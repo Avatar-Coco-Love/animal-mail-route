@@ -69,3 +69,6 @@ Press and hold the gear on the title screen. Copy these lines:
 - With two or more players: tap "Print all players". Did each child get their own page?
 - Letters: turn a letter off, then play a round. Did the round use only the letters left on, and did the child notice the change?
 - New friends: tap "All" in Letters, or turn on a few new letters (A, M, Z…), and play a round. Did the child like the new animals, and did any name or picture confuse them? Under a player, tap "More" and pick a new animal: did it show on "Who's playing?"
+- Map: the map now has two lines, ABC (letter routes) and 123 (numbers). Could the child find the numbers route, and did the two lines make sense?
+- Gear: tap the gear twice quickly instead of holding it. Did a tip appear saying to press and hold?
+- Share link: send the game's address in a text or chat. Did the preview show the picture of the animals?
