@@ -22,6 +22,7 @@ An older copy also exists as a Claude artifact. It predates the fixes below, so 
 - Version 0.8 (eighth session): Phase 3 of the expansion roadmap, more animal friends. Every letter but X has a friend, and every letter but Q, U, V, Y and X has two who take turns (46 friends in all). A player's animal can be any friend ("More" in the parent corner). The touch test passes all 174 checks locally.
 - Version 0.8.1 (owner feedback before Phase 4): the parent-corner button (bottom right of the title screen) is now a real cog, since the old icon read as a light; while it is held a red ring runs once round it from the top and the corner opens when the ring closes. "All" letters now includes Q and U. The title screen shows 5 random friends (different letters, with their own names) on every load. The touch test passes all 176 checks locally.
 - Version 0.9 (ninth session): Phase 4 of the expansion roadmap, map with tracks. Letters (routes 1 to 3) and Numbers (route 4) each have their own unlock chain, so numbers are open from the start. Also from owner feedback: two quick taps on the gear show a "press and hold" tip, and a shared link now shows a preview picture. The touch test passes all 195 checks locally.
+- Version 1.0 (tester feedback: "star system vs next node, which way to progress?"): routes show 2 stars, matching the 2 rounds that open the next route (the 3rd star used to be a bonus that opened nothing). The player's animal sits on the map's route to play next, and a route that just opened pulses until it is played. The win card says "Next route" whenever the next route is open and not yet played, not only on the round that opened it. The parent corner and printed summary say that replays add houses and switch animals on purpose. The touch test passes all 201 checks locally.
 - **Next:** Phase 5 of the expansion roadmap (new kinds of questions), then the rest under "Next sessions".
 
 ## Repo map
@@ -33,7 +34,7 @@ An older copy also exists as a Claude artifact. It predates the fixes below, so 
 | `audio/` | voice clips (none yet) and `clips.json`, the list of clips that exist |
 | `TELEMETRY.md` | play counts design and rules (COPPA, Google Families) |
 | `worker/` | Cloudflare Worker + D1 for play counts, with tests and deploy steps |
-| `tests/touch.cjs` | touch smoke test (195 checks), local or live |
+| `tests/touch.cjs` | touch smoke test (201 checks), local or live |
 | `manifest.webmanifest`, `sw.js` | install and offline play; bump `VERSION` in `sw.js` on every release |
 | `icons/` | app icons: `icon.svg` and `icon-maskable.svg` are the sources, `export.cjs` makes the PNGs. `share.png` is the link preview picture, made by `share.cjs` from the title screen |
 | `.github/workflows/test.yml` | CI on pull requests: worker tests and the touch test |
@@ -58,6 +59,7 @@ Target: Android phone and tablet, touch-first. Built as plain HTML, CSS, and Jav
 - Map tracks (0.9): two tracks, each with its own unlock chain. Letters, labelled "ABC", has routes 1 to 3; Numbers, labelled "123", has route 4. Upright they are two columns side by side; on a sideways phone, two rows. Both have the same number of slots, so the first route of each sits level. Route 4 is open from the start.
 - Gear tip (0.9): a press on the gear that lets go before the ring closes counts as a short tap. Two in a row (each within 3 seconds of the last) show a dark bubble above the gear: "Press and hold the gear to open the parent corner." It goes after 5 seconds, on the next press, or when the corner opens. Text only, not spoken.
 - Link preview (0.9): Open Graph and Twitter card tags in `index.html` show `icons/share.png` (1200×630) when the address is shared. `og:image` and `og:url` are the only full addresses in the game (previews need them); change them if the game moves.
+- Stars and marker (1.0): each route shows `STARS` (2) stars, one per finished round; filling them opens the next route on the track. `nextUp(p)` is the route to play next: on the track of the player's last route (`p.last`), the first open route with fewer than 2 rounds, else the last open one. The player's animal (`.here`) bobs on it. An open route with a route before it and no rounds pulses (`.fresh`), except with Unlock all.
 - Map path: a dashed segment joins each route to the next on its track. It is grey until the next route opens (2 rounds of this one, or Unlock all), then yellow on a white band. A segment that lit up since the player last saw the map plays a short animation.
 - Friends: each house is one letter's friend. With more than one friend for a letter (every letter but Q, U, V, X and Y), the player's friend for that letter is the one they met least recently, so a house changes between rounds while the letter stays the same.
 - Routes: 1 letters (2 houses, growing to 5), 2 animal pictures, 3 mixed letters and pictures, 4 numbers (numeral or stars to count, houses numbered 1 to 5). The next route on a track unlocks after 2 finished rounds of the one before it; the first route of each track is always open. Parent corner can unlock all.
@@ -68,7 +70,7 @@ Target: Android phone and tablet, touch-first. Built as plain HTML, CSS, and Jav
 - Parent corner: settings, Players (name field, animal choice, Erase per player, Add player), Progress and Needs practice (with "Ready for new letters" when it applies) for the selected player, Letters (A to Z grid, "First five", "All", "Use for all players" with 2+ players), Print summary, Print all players (only with 2+ players), and Erase everything.
 - Print summary: a plain page with the selected player's name and animal, the date and game version, the Progress lines (routes and stickers), Needs practice (letter and animal name) and a short note on what they mean. It opens the print dialog at once and stays open with Print and Done buttons. When printed, only the summary is on the page. "Print all players" shows the same sheet for every player, in player order, and each one after the first starts a new printed page.
 - Animation: truck arrives and hops, animals blink, tap an animal on the title to hear its name, sparkle burst and flag on delivery, idle nudge after 10 seconds.
-- Progress saved in `localStorage` under `animal-mail-route-v2`: `{v:2, device:{voice, sfx, share, unlockAll, lettersSame}, current, players:[{id, name, animal, rounds, stickers, weak, seen, letters, setRounds}]}`. `seen` (0.6, additive) maps friend id to a running count of when the player last met them. `letters` (0.7, additive) is the player's letter set, `setRounds` the letter-route rounds finished since the set last changed, and `device.lettersSame` is "Use for all players". An old `animal-mail-route-v1` save is turned into player 1 on first load and the v1 key removed.
+- Progress saved in `localStorage` under `animal-mail-route-v2`: `{v:2, device:{voice, sfx, share, unlockAll, lettersSame}, current, players:[{id, name, animal, rounds, stickers, weak, seen, letters, setRounds, last}]}`. `last` (1.0, additive) is the route last started, for the map marker; old saves get 1. `seen` (0.6, additive) maps friend id to a running count of when the player last met them. `letters` (0.7, additive) is the player's letter set, `setRounds` the letter-route rounds finished since the set last changed, and `device.lettersSame` is "Use for all players". An old `animal-mail-route-v1` save is turned into player 1 on first load and the v1 key removed.
 
 ## Code layout (one script block)
 - `FRIENDS` array: `{id, letter, name, animal, color, roof}`, data driven (add an entry and its `ART`). The first five keep their letter as id (`S`, `B`, `K`, `C`, `P`); later ones are `S2`, …. Built from it: `BYID` (friend by id), `BYLETTER` (friends per letter, in `FRIENDS` order), `LETTERS` (letters with a friend). `STARTERS` (`S B K C P`) is the avatar choices, the sticker cycle, the numbers-route houses, and the default letter set. `ART`: inline SVG per friend id.
@@ -88,7 +90,7 @@ Target: Android phone and tablet, touch-first. Built as plain HTML, CSS, and Jav
 - Parent corner ignores a click whose touch began before it opened (`openedAt`, `downAt`): lifting the finger after the press-and-hold otherwise presses whatever is under it.
 - Play counts (`COUNT_URL`, `count`, `sendCounts`): opt-in, anonymous, see `TELEMETRY.md`. Hidden until `COUNT_URL` is set.
 - Fonts are served from `fonts/` (no Google Fonts request). `privacy.html` is the privacy page.
-- Win card: `finishRound` sets `winTarget`. If the round just unlocked the next route the big button says "Next route" and starts it; otherwise "Play again" replays the route (also with "Unlock all" on, and after route 4).
+- Win card: `finishRound` sets `winTarget`. While the next route on the track is open and has no rounds, the big button says "Next route" and starts it (also after going back to the map and replaying, and with "Unlock all" on); otherwise "Play again" replays the route (always after route 3 and route 4).
 - Service worker registration is the last thing in the script, and only over http(s).
 
 ## Install and offline
@@ -112,6 +114,7 @@ It needs Playwright with Chromium; in Claude Code cloud sessions it is installed
 - a full round with wrong tries, the hint and the win card
 - the parent corner's press-and-hold, and swiping to Done on a sideways phone
 - the crane is Cody; the win card says "Play again" after round 1 and "Next route" after the round that unlocks route 2, and each button goes where it says
+- stars and marker: 2 stars per route; after route 2 opens, the player's animal sits on route 2, which pulses and is on screen; going back to the map and replaying route 1 still offers "Next route", and the marker stays on route 2
 - the manifest and its icons, the service worker taking control, then with the network off: the game, fonts and privacy page load and a delivery works
 - the Progress row text against the unlock rule, with and without Unlock all
 - a v1 save turning into player 1 (seeded with `addInitScript`; `newPage` takes an optional `{key: value}` to seed)

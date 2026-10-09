@@ -154,6 +154,27 @@ const wanted = (page) => page.evaluate(() => document.querySelector('#caption').
     await page.waitForTimeout(300);
     check('map path: 2 rounds of route 1 light the path to route 2', (await segState(page)) === '10', await segState(page));
     check('map path: the segment that just lit animates once', await page.$$eval('#route .seg.new', (g) => g.map((x) => x.getAttribute('data-seg')).join()) === '1');
+    // stars match the unlock rule: 2 per route
+    check('map: 2 stars per route', (await page.$$eval('.node .stars', (x) => x.map((e) => e.children.length).join())) === '2,2,2,2');
+    // "you are here": the player's animal sits on the route to play next, and a new route pulses until played
+    const here = () => page.$$eval('.node .here', (x) => x.map((e) => e.closest('.node').getAttribute('data-level')).join());
+    const fresh = () => page.$$eval('.node.fresh', (x) => x.map((e) => e.getAttribute('data-level')).join());
+    check('map: the marker sits on route 2, the new route', (await here()) === '2', await here());
+    check('map: route 2 pulses until played', (await fresh()) === '2', await fresh());
+    check('map: the marker is on screen', await allOnScreen(page, '.node .here'));
+    // going back to the map instead of Next route, then replaying route 1: the button still offers route 2
+    await page.tap('.node[data-level="1"]');
+    for (let i = 0; i < 5; i++) {
+      await page.waitForTimeout(1700);
+      await page.tap('#mail');
+      await page.tap(`.house[data-id="${await wanted(page)}"]`, { force: true });
+      await page.waitForTimeout(2700);
+    }
+    await page.waitForTimeout(500);
+    check('win card: a 3rd round of route 1 still says Next route while route 2 is unplayed', (await winLabel()) === 'Next route', await winLabel());
+    await page.tap('#win-map');
+    await page.waitForTimeout(300);
+    check('map: after replaying route 1 the marker stays on route 2', (await here()) === '2', await here());
     await ctx.close();
   }
 
@@ -186,13 +207,15 @@ const wanted = (page) => page.evaluate(() => document.querySelector('#caption').
     check('parent corner opens with press and hold',await page.$eval('#parent', (e) => !e.hidden));
     check('play counts setting hidden while COUNT_URL is empty', await page.evaluate(() => document.querySelector('#share-row').hidden || /COUNT_URL = '[^']+'/.test(document.documentElement.innerHTML)));
     // the card is long, so a parent may swipe a few times
-    for (let n = 0; n < 4 && !(await allOnScreen(page, '#p-close')); n++) {
+    let swipes = 0;
+    for (let n = 0; n < 6 && !(await allOnScreen(page, '#p-close')); n++) {
+      swipes++;
       await touch('touchStart', 370, 320);
       for (let y = 320; y >= 60; y -= 10) { await touch('touchMove', 370, y); await page.waitForTimeout(16); }
       await touch('touchEnd');
       await page.waitForTimeout(500);
     }
-    check('parent corner Done reachable by swiping', await allOnScreen(page, '#p-close'));
+    check('parent corner Done reachable by swiping', await allOnScreen(page, '#p-close'), swipes);
     await ctx.close();
   }
 
