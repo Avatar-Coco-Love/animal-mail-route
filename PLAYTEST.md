@@ -62,8 +62,9 @@ Odd behaviour, things the child said, ideas:
 ## Parent corner (optional, after play)
 Press and hold the gear on the title screen. Copy these lines:
 - Recorded voice clips:
-- Progress (all five lines):
+- Progress (all six lines):
 - Needs practice:
 - Number of players set up, if more than one child plays:
 - Tap "Print summary": did the print screen open, and did the page look right (or save as PDF)?
 - With two or more players: tap "Print all players". Did each child get their own page?
+- Letters: turn a letter off, then play a round. Did the round use only the letters left on, and did the child notice the change?

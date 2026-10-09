@@ -217,6 +217,15 @@ svg{display:block}
 .pl .ani button{width:40px;height:40px;padding:0;border-radius:50%;border:3px solid transparent;background:var(--bg);display:grid;place-items:center}
 .pl .ani button svg{width:34px;height:34px}
 .pl .ani button[aria-pressed="true"]{border-color:var(--ink);box-shadow:0 0 0 3px var(--sun)}
+.lgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(38px,1fr));gap:6px;margin-top:8px}
+.lgrid button{height:40px;padding:0;border-radius:12px;border:3px solid var(--ink);background:#fff;font:800 1.15rem var(--font-display);color:var(--ink)}
+.lgrid button[aria-pressed="true"]{background:var(--sun)}
+.lgrid button.none{border:3px dashed rgba(36,48,77,.25);background:none;color:rgba(36,48,77,.3)}
+.lgrid button.keep{opacity:.65}
+.lacts{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-top:10px}
+.lacts .pbtn{padding:8px 12px}
+.lsame{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:10px;font-weight:800}
+.ready{display:block;margin-top:2px;color:var(--blue);font-size:.9rem!important}
 .row span{font-weight:800;font-size:1.05rem;font-variant-numeric:tabular-nums}
 .parent .note{margin:12px 0 14px;font-size:.85rem;line-height:1.4;opacity:.8}
 .parent .note a{color:var(--blue);font-weight:800}
@@ -409,11 +418,16 @@ svg{display:block}
       <div class="row"><b>Recorded voice clips</b><span id="clipcount">0 of 36</span></div>
       <div class="block"><b>Players</b><p class="hint-text">Tap a player to see their progress. Names are optional and stay on this device.</p><div id="players"></div><button class="pbtn" type="button" id="b-add">Add player</button></div>
       <div class="block"><b id="prog-head">Progress</b><ul class="prog" id="progress"></ul></div>
-      <div class="row"><b>Needs practice</b><span id="weaklist">None yet</span></div>
+      <div class="row"><b>Needs practice</b><span><span id="weaklist">None yet</span><span class="ready" id="ready" hidden>Ready for new letters</span></span></div>
+      <div class="block" id="letters-block"><b id="let-head">Letters</b><p class="hint-text">The letters this player's rounds use. Keep at least 2. Changing them keeps rounds and stickers.</p>
+        <div class="lgrid" id="lgrid" role="group" aria-label="Letters"></div>
+        <div class="lacts"><button class="pbtn" type="button" id="b-first5">First five</button><button class="pbtn" type="button" id="b-allletters">All</button></div>
+        <div class="lsame" id="same-row" hidden>Use for all players<button class="tog" type="button" id="t-same" aria-pressed="false">Off</button></div>
+      </div>
       <div class="row"><b>Paper copy</b><button class="pbtn" type="button" id="b-print">Print summary</button></div>
       <div class="row" id="print-all-row" hidden><b>Paper copies</b><button class="pbtn" type="button" id="b-print-all">Print all players</button></div>
       <div class="row"><b>Everyone</b><button class="pbtn danger" type="button" id="b-reset">Erase everything</button></div>
-      <p class="note">Prototype 0.6. Voice prompts use your device's built-in speech until recorded voices are added. <span id="share-note" hidden>"Share play counts" sends only anonymous totals, such as rounds played per route, and is off unless you turn it on. </span><a href="privacy.html" target="_blank" rel="noopener">Privacy</a></p>
+      <p class="note">Prototype 0.7. Voice prompts use your device's built-in speech until recorded voices are added. <span id="share-note" hidden>"Share play counts" sends only anonymous totals, such as rounds played per route, and is off unless you turn it on. </span><a href="privacy.html" target="_blank" rel="noopener">Privacy</a></p>
       <button class="close" type="button" id="p-close">Done</button>
     </div>
   </div>
@@ -453,7 +467,7 @@ FRIENDS.forEach(function(f){
   BYLETTER[f.letter].push(f);
 });
 /* The first five friends: the title screen, the avatar choices, the sticker cycle and the houses
-   on the numbers route. Also the letters every round uses for now. */
+   on the numbers route, and the default letter set (each player can choose their own). */
 var STARTERS = ['S','B','K','C','P'];
 
 var ART = {
@@ -474,11 +488,18 @@ var LOCK = '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="11" width
    their own rounds, stickers and practice letters. P is the player who is playing now.
    Kept in its own key with a plain shape so other games could share players later. */
 var KEY = 'animal-mail-route-v2', OLD_KEY = 'animal-mail-route-v1', MAX_PLAYERS = 8, NAME_MAX = 20;
-function newPlayer(id, animal){ return {id:id, name:'', animal:animal || 'S', rounds:{1:0,2:0,3:0,4:0}, stickers:[], weak:{}, seen:{}}; }
-function defaults(){ return {v:2, device:{voice:true, sfx:true, share:false, unlockAll:false}, current:1, players:[newPlayer(1, 'S')]}; }
+var MIN_LETTERS = 2;
+function newPlayer(id, animal){ return {id:id, name:'', animal:animal || 'S', rounds:{1:0,2:0,3:0,4:0}, stickers:[], weak:{}, seen:{}, letters:STARTERS.slice(), setRounds:0}; }
+function defaults(){ return {v:2, device:{voice:true, sfx:true, share:false, unlockAll:false, lettersSame:false}, current:1, players:[newPlayer(1, 'S')]}; }
 function cleanDevice(o){
   o = (o && typeof o === 'object') ? o : {};
-  return {voice:o.voice !== false, sfx:o.sfx !== false, share:o.share === true, unlockAll:!!o.unlockAll};
+  return {voice:o.voice !== false, sfx:o.sfx !== false, share:o.share === true, unlockAll:!!o.unlockAll, lettersSame:o.lettersSame === true};
+}
+/* A letter set: letters that have a friend, once each, in LETTERS order; at least MIN_LETTERS. */
+function cleanLetters(a){
+  if(!Array.isArray(a)) return null;
+  var out = LETTERS.filter(function(l){ return a.indexOf(l) >= 0; });
+  return out.length >= MIN_LETTERS ? out : null;
 }
 /* Strict like the old load(): anything unexpected falls back to a safe default. */
 function cleanPlayer(o, id){
@@ -494,6 +515,9 @@ function cleanPlayer(o, id){
   if(o.seen && typeof o.seen === 'object'){
     for(var fid in BYID){ var n = Math.floor(+o.seen[fid]); if(n > 0) p.seen[fid] = n; }
   }
+  // letters (0.7, additive): the player's letter set; setRounds: letter-route rounds since it last changed
+  p.letters = cleanLetters(o.letters) || STARTERS.slice();
+  p.setRounds = o.setRounds === undefined ? p.rounds[1] + p.rounds[2] + p.rounds[3] : Math.max(0, Math.floor(+o.setRounds || 0));
   return p;
 }
 function cleanSave(o){
@@ -688,7 +712,7 @@ function hush(){
    Off unless a parent turns on "Share play counts". Only totals per route are kept, with no
    identifier or timestamp, and they are sent once when the page is hidden. The setting is
    not shown at all while COUNT_URL is empty. */
-var VERSION = '0.6';
+var VERSION = '0.7';
 var COUNT_URL = '';      // the Worker, e.g. 'https://animal-mail-counts.<account>.workers.dev/v1/counts'
 var CKEY = 'animal-mail-route-counts', CAP = 200, METRICS = ['started','finished','misses'];
 function emptyCounts(){ return {opens:0, started:{}, finished:{}, misses:{}}; }
@@ -726,10 +750,18 @@ document.addEventListener('visibilitychange', function(){ if(document.visibility
 /* ---------- Levels ---------- */
 function unlocked(l, p){ return l === 1 || S.unlockAll || ((p || P).rounds[l-1] || 0) >= 2; }
 function houseCount(l){
-  if(l === 1) return Math.min(5, 2 + (P.rounds[1] || 0));
-  if(l === 2) return Math.min(5, 3 + (P.rounds[2] || 0));
-  if(l === 4) return Math.min(5, 3 + (P.rounds[4] || 0));
-  return 5;
+  var grow = l === 1 ? 2 + (P.rounds[1] || 0) : l === 2 ? 3 + (P.rounds[2] || 0) : l === 4 ? 3 + (P.rounds[4] || 0) : 5;
+  return Math.min(5, grow, l === 4 ? 5 : P.letters.length);
+}
+/* The letters for a round on routes 1 to 3. A set that fits on the street is used in its order,
+   so the default set plays as before (S and B first, then K, C, P as houses are added). A bigger
+   set takes its weakest letters first (score 2 or more), then the ones met least recently. */
+function roundLetters(n){
+  var set = P.letters;
+  if(set.length <= 5) return set.slice(0, n);
+  var met = function(l){ return Math.max.apply(null, BYLETTER[l].map(function(f){ return P.seen[f.id] || 0; })); };
+  var weak = function(l){ var w = P.weak[l] || 0; return w >= 2 ? w : 0; };
+  return set.slice().sort(function(a, b){ return (weak(b) - weak(a)) || (met(a) - met(b)) || (set.indexOf(a) - set.indexOf(b)); }).slice(0, n);
 }
 function kindFor(l){
   if(l === 1) return 'letter';
@@ -923,7 +955,7 @@ function houses(){ return Array.prototype.slice.call(street.querySelectorAll('.h
 function startLevel(l){
   count('started', l);
   var n = houseCount(l);
-  var ids = STARTERS.slice(0, n);
+  var ids = l === 4 ? STARTERS.slice(0, n) : roundLetters(n);
   var friend = pickFriends(ids);
   R = {level:l, ids:ids, friend:friend, queue:buildQueue(ids, l), i:0, misses:0, busy:true, current:null, selected:false, timer:null};
   R.queue.forEach(function(q){ q.f = friend[q.id]; });
@@ -1199,6 +1231,7 @@ function finishRound(){
   var level = R.level;
   var hadNext = level < LEVELS.length && unlocked(level + 1);
   P.rounds[level] = (P.rounds[level] || 0) + 1;
+  if(level !== 4) P.setRounds++;
   // If this round opened the next route, the big button goes there; otherwise it replays this one.
   winTarget = (!hadNext && level < LEVELS.length && unlocked(level + 1)) ? level + 1 : level;
   var label = winTarget === level ? 'Play again' : 'Next route';
@@ -1264,9 +1297,15 @@ function progressLines(p){
     return line;
   });
   out.push('Stickers: ' + p.stickers.length);
+  out.push('Letters: ' + p.letters.join(', '));
   return out;
 }
 function weakIds(p){ return LETTERS.filter(function(l){ return (p.weak[l] || 0) >= 2; }); }
+/* A hint, never a change: 3 letter-route rounds with this set, none of its letters needs practice,
+   and there are letters left to add. */
+function readyForMore(p){
+  return p.setRounds >= 3 && p.letters.length < LETTERS.length && !p.letters.some(function(l){ return (p.weak[l] || 0) >= 2; });
+}
 function syncToggles(){
   setTog($('t-voice'), S.voice); setTog($('t-sfx'), S.sfx); setTog($('t-unlock'), S.unlockAll); setTog($('t-share'), S.share);
   $('share-row').hidden = $('share-note').hidden = !COUNT_URL;
@@ -1275,8 +1314,53 @@ function syncToggles(){
   $('prog-head').textContent = D.players.length > 1 ? 'Progress: ' + playerLabel(sp) : 'Progress';
   $('progress').innerHTML = progressLines(sp).map(function(t){ return '<li>' + t + '</li>'; }).join('');
   $('weaklist').textContent = weak.length ? weak.join(', ') : 'None yet';
+  $('ready').hidden = !readyForMore(sp);
+  renderLetters(sp);
   disarm($('b-reset'));
 }
+
+/* ---------- Letters (parent corner) ----------
+   A to Z for the selected player; only letters with a friend can be chosen, and the last two
+   chosen can't be turned off. "Use for all players" copies this set to everyone and keeps
+   them the same until it is turned off. */
+var AZ = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
+function renderLetters(sp){
+  var set = sp.letters, few = set.length <= MIN_LETTERS;
+  $('let-head').textContent = D.players.length > 1 ? 'Letters: ' + playerLabel(sp) : 'Letters';
+  $('lgrid').innerHTML = AZ.map(function(l){
+    if(!BYLETTER[l]) return '<button type="button" class="none" disabled aria-label="' + l + ', no animal friend yet">' + l + '</button>';
+    var on = set.indexOf(l) >= 0, keep = on && few;
+    return '<button type="button" data-letter="' + l + '" aria-pressed="' + on + '"' + (keep ? ' class="keep" disabled aria-label="' + l + ', on (keep at least 2)"' : '') + '>' + l + '</button>';
+  }).join('');
+  $('same-row').hidden = D.players.length < 2;
+  setTog($('t-same'), S.lettersSame);
+}
+function sameSet(a, b){ return a.join() === b.join(); }
+/* Give a player (or everyone, while "Use for all players" is on) a new set. Rounds and stickers stay. */
+function setLetters(sp, letters){
+  letters = cleanLetters(letters);
+  if(!letters) return;
+  (S.lettersSame ? D.players : [sp]).forEach(function(p){
+    if(sameSet(p.letters, letters)) return;
+    p.letters = letters.slice();
+    p.setRounds = 0;
+  });
+  save(); syncToggles();
+}
+$('lgrid').addEventListener('click', function(e){
+  var b = e.target.closest('[data-letter]');
+  if(!b || b.disabled) return;
+  var sp = playerById(sel) || P, l = b.getAttribute('data-letter');
+  var set = sp.letters.indexOf(l) >= 0 ? sp.letters.filter(function(x){ return x !== l; }) : sp.letters.concat(l);
+  setLetters(sp, set);
+});
+$('b-first5').addEventListener('click', function(){ setLetters(playerById(sel) || P, STARTERS); });
+$('b-allletters').addEventListener('click', function(){ setLetters(playerById(sel) || P, LETTERS); });
+$('t-same').addEventListener('click', function(){
+  S.lettersSame = !S.lettersSame;
+  if(S.lettersSame) setLetters(playerById(sel) || P, (playerById(sel) || P).letters);
+  else{ save(); syncToggles(); }
+});
 /* Two-tap erase buttons: the first tap arms, a second within 4 seconds erases. */
 var armTimer = null;
 function disarm(b){ b.classList.remove('armed'); b.textContent = b.getAttribute('data-label') || b.textContent; }
@@ -1343,7 +1427,7 @@ function erasePlayer(p){
   if(D.players.length > 1){
     D.players = D.players.filter(function(x){ return x !== p; });
   }else{
-    var fresh = newPlayer(p.id, p.animal); fresh.name = p.name;
+    var fresh = newPlayer(p.id, p.animal); fresh.name = p.name; fresh.letters = p.letters.slice();
     D.players = [fresh];
   }
   useSave(D);
@@ -1357,7 +1441,9 @@ $('b-add').addEventListener('click', function(){
   D.players.forEach(function(p){ used[p.animal] = (used[p.animal] || 0) + 1; });
   var animal = STARTERS.slice().sort(function(a, b){ return (used[a] || 0) - (used[b] || 0); })[0];
   var id = Math.max.apply(null, D.players.map(function(p){ return p.id; })) + 1;
-  D.players.push(newPlayer(id, animal));
+  var np = newPlayer(id, animal);
+  if(S.lettersSame) np.letters = (playerById(sel) || P).letters.slice();
+  D.players.push(np);
   sel = id;
   save(); renderPlayers(); syncToggles();
 });
@@ -1392,7 +1478,8 @@ function sheetHTML(p, date){
     '<ul class="sum-progress">' + progressLines(p).map(function(t){ return '<li>' + esc(t) + '</li>'; }).join('') + '</ul>' +
     '<h2>Needs practice</h2>' +
     '<p class="meta sum-weak">' + (weak.length ? weak.map(function(id){ return id + ' (' + BYLETTER[id][0].name + ')'; }).join(', ') : 'None yet') + '</p>' +
-    '<p class="foot">A route opens after 2 finished rounds of the route before it. Each round is 5 deliveries and earns a sticker. "Needs practice" lists the letters this player has missed most often lately; it clears as they get them right. Made on this device; nothing was sent anywhere.</p>' +
+    (readyForMore(p) ? '<p class="meta sum-ready">Ready for new letters: none of this player\'s letters needs practice after 3 or more rounds.</p>' : '') +
+    '<p class="foot">A route opens after 2 finished rounds of the route before it. "Letters" are the letters this player\'s rounds use, chosen in the parent corner. Each round is 5 deliveries and earns a sticker. "Needs practice" lists the letters this player has missed most often lately; it clears as they get them right. Made on this device; nothing was sent anywhere.</p>' +
     '</article>';
 }
 function openSummary(players, title){

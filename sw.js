@@ -1,7 +1,7 @@
 // Service worker: lets the game install and play offline.
 // Bump VERSION on every release so phones drop the old cache and fetch the new files.
 // Only same-origin GET requests are handled; play counts (a POST to another site) pass straight through.
-var VERSION = 'amr-v5';
+var VERSION = 'amr-v6';
 var CORE = [
   './', 'index.html', 'privacy.html', 'manifest.webmanifest',
   'fonts/baloo2-latin.woff2', 'fonts/nunito-latin.woff2',

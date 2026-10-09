@@ -156,7 +156,7 @@ const wanted = (page) => page.evaluate(() => document.querySelector('#caption').
     // on this screen the finger lifts over Print summary; that lift must not press it
     check('parent corner: lifting the finger after the hold presses nothing', await page.$eval('#summary', (e) => e.hidden) && !(await page.$('.pbtn.armed')));
     check('parent corner: no Print all players with one player', await page.$eval('#print-all-row', (e) => e.hidden));
-    const want = ['Route 1, Letters: 3 rounds', 'Route 2, Animals: 1 round, so 1 more opens Route 3', 'Route 3, Letters and animals: locked', 'Route 4, Numbers: locked', 'Stickers: 4'];
+    const want = ['Route 1, Letters: 3 rounds', 'Route 2, Animals: 1 round, so 1 more opens Route 3', 'Route 3, Letters and animals: locked', 'Route 4, Numbers: locked', 'Stickers: 4', 'Letters: S, B, K, C, P'];
     let got = await progressText(page);
     check('progress row matches the unlock rule', JSON.stringify(got) === JSON.stringify(want), got);
     await page.tap('#t-unlock');
@@ -396,6 +396,124 @@ const wanted = (page) => page.evaluate(() => document.querySelector('#caption').
     await page.tap('#sum-close');
     check('print all players: Done goes back to the parent corner', await page.$eval('#summary', (e) => e.hidden) && await page.$eval('#parent', (e) => !e.hidden) && (await page.title()) === 'Animal Mail Route');
     check('print summary: no errors, nothing sent elsewhere', errors.length === 0 && [...hosts].every((x) => x === host), { errors, hosts: [...hosts] });
+    await ctx.close();
+  }
+
+  // letter sets: a grid per player in the parent corner; rounds draw only from the set
+  {
+    const { ctx, page, touch, errors } = await newPage(browser, 412, 915);
+    await holdGear(page, touch);
+    const grid = () => page.$$eval('#lgrid button', (b) => b.map((x) => x.textContent + (x.getAttribute('aria-pressed') === 'true' ? '+' : '') + (x.disabled ? '!' : '')).join(' '));
+    const g0 = await grid();
+    check('letters: A to Z, only letters with a friend can be chosen, the first five are on', (await page.$$('#lgrid button')).length === 26 && (await page.$$('#lgrid button:not([disabled])')).length === 5 && g0.split(' ').filter((x) => x.includes('+')).map((x) => x[0]).join('') === 'BCKPS', g0);
+    check('letters: a new player has the default set', (await progressText(page))[5] === 'Letters: S, B, K, C, P');
+    // turn off K and P: S, B, C left
+    await page.tap('#lgrid [data-letter="K"]');
+    await page.tap('#lgrid [data-letter="P"]');
+    let st = await page.evaluate(() => JSON.parse(localStorage.getItem('animal-mail-route-v2')).players[0]);
+    check('letters: turning letters off saves the set, rounds and stickers kept', JSON.stringify(st.letters) === '["S","B","C"]' && st.rounds[1] === 0 && (await progressText(page))[5] === 'Letters: S, B, C', st);
+    // the 2-letter minimum
+    await page.tap('#lgrid [data-letter="C"]');
+    const last2 = await page.$$eval('#lgrid [data-letter][aria-pressed="true"]', (b) => b.map((x) => x.textContent + (x.disabled ? '!' : '')).join());
+    check('letters: the last two cannot be turned off', last2 === 'B!,S!', last2);
+    await page.tap('#lgrid [data-letter="S"]', { force: true });
+    st = await page.evaluate(() => JSON.parse(localStorage.getItem('animal-mail-route-v2')).players[0]);
+    check('letters: tapping one of the last two changes nothing', JSON.stringify(st.letters) === '["S","B"]', st.letters);
+    await page.tap('#b-allletters');
+    check('letters: "All" turns on every letter with a friend', (await progressText(page))[5] === 'Letters: S, B, K, C, P');
+    await page.tap('#lgrid [data-letter="S"]');
+    await page.tap('#lgrid [data-letter="C"]');
+    check('letters: S off, then C off', (await progressText(page))[5] === 'Letters: B, K, P');
+    check('letters: Use for all players hidden with one player', await page.$eval('#same-row', (e) => e.hidden));
+    // play route 3 (Unlock all): 3 houses, every house and mail from the set
+    await page.tap('#t-unlock');
+    await page.tap('#p-close');
+    await page.tap('.playbtn');
+    await page.waitForTimeout(300);
+    await page.tap('.node[data-level="3"]');
+    const houses = [], mails = [];
+    for (let i = 0; i < 5; i++) {
+      await page.waitForTimeout(1700);
+      if (!i) houses.push(...(await page.$$eval('.house', (h) => h.map((x) => x.getAttribute('data-id')))));
+      const item = await page.evaluate(() => { const c = document.querySelector('#caption').textContent; const m = /Who gets the (.)\?/.exec(c); return m ? m[1] : c; });
+      const id = await page.evaluate((c) => { if (c.length === 1) return c; const h = [...document.querySelectorAll('.house')].find((x) => c.includes(x.getAttribute('aria-label').split('home of ')[1])); return h && h.getAttribute('data-id'); }, item);
+      mails.push(id);
+      await page.tap('#mail');
+      await page.tap(`.house[data-id="${id}"]`, { force: true });
+      await page.waitForTimeout(2700);
+    }
+    check('letters: a round on route 3 has one house per letter in the set', houses.sort().join() === 'B,K,P', houses);
+    check('letters: every mail is from the set', mails.length === 5 && mails.every((m) => 'BKP'.includes(m)), mails);
+    await page.waitForTimeout(500);
+    check('letters: the round finishes with a sticker', await page.$eval('#win', (e) => !e.hidden));
+    // route 4 keeps its five numbered houses
+    await page.tap('#win-map');
+    await page.waitForTimeout(300);
+    await page.tap('.node[data-level="4"]');
+    await page.waitForTimeout(1200);
+    check('letters: the numbers route keeps houses 1 to 3 to start', (await page.$$eval('.house .sign', (s) => s.map((x) => x.textContent).sort().join())) === '1,2,3');
+    check('letters: no script or console errors', errors.length === 0, errors.length ? errors : undefined);
+    await ctx.close();
+  }
+
+  // letter sets: route 1 grows within the set; "Use for all players"; the summary; Ready for new letters
+  {
+    const mk = (id, name, animal, letters, rounds, weak, extra) => Object.assign({ id, name, animal, rounds, stickers: [], weak, letters }, extra);
+    const v2 = { v: 2, device: { voice: true, sfx: true, share: false, unlockAll: false }, current: 1, players: [
+      mk(1, 'Leo', 'P', ['S', 'B', 'C', 'P'], { 1: 1, 2: 0, 3: 0, 4: 0 }, {}),
+      mk(2, 'Mia', 'K', ['B', 'K'], { 1: 3, 2: 0, 3: 0, 4: 0 }, { B: 1 }),
+      mk(3, '', 'S', ['Q', 'S', 'zz'], { 1: 0, 2: 0, 3: 0, 4: 0 }, {}),
+    ] };
+    const { ctx, page, touch, errors } = await newPage(browser, 740, 360, { 'animal-mail-route-v2': v2 });
+    await page.tap('.playbtn');
+    await page.waitForTimeout(300);
+    await page.tap('.kid[data-pid="1"]');
+    await page.waitForTimeout(300);
+    await page.tap('.node[data-level="1"]');
+    await page.waitForTimeout(1200);
+    const h1 = await page.$$eval('.house', (h) => h.map((x) => x.getAttribute('data-id')).sort().join());
+    check('letters: route 1 grows within the set, in its order (3 houses after 1 round)', h1 === 'B,C,S', h1);
+    await page.tap('[data-go="map"]');
+    await page.tap('[data-go="title"]');
+    await holdGear(page, touch);
+    const sv = await page.evaluate(() => JSON.parse(localStorage.getItem('animal-mail-route-v2')));
+    check('letters: a save with too few valid letters gets the default set; setRounds counted from rounds', JSON.stringify(sv.players[2].letters) === '["S","B","K","C","P"]' && sv.players[1].setRounds === 3 && sv.device.lettersSame === false, sv.players.map((p) => [p.letters, p.setRounds]));
+    check('letters: Ready for new letters hidden before 3 rounds (Leo)', await page.$eval('#ready', (e) => e.hidden));
+    await page.tap('#players .pl:nth-child(2)');
+    check('letters: Ready for new letters after 3 rounds with nothing to practise (Mia)', await page.$eval('#ready', (e) => !e.hidden) && /Mia/.test(await page.$eval('#let-head', (e) => e.textContent)));
+    // the summary shows the letters and the hint
+    await page.evaluate(() => { window.print = () => {}; });
+    await page.$eval('#b-print', (b) => b.scrollIntoView());
+    await page.tap('#b-print');
+    await page.waitForTimeout(200);
+    const sum = await page.evaluate(() => ({ lines: [...document.querySelectorAll('#summary .sum-progress li')].map((e) => e.textContent), ready: !!document.querySelector('#summary .sum-ready') }));
+    check('letters: the printed summary lists the letters and Ready for new letters', sum.lines[5] === 'Letters: B, K' && sum.ready, sum);
+    await page.$eval('#sum-close', (b) => b.scrollIntoView());
+    await page.tap('#sum-close');
+    // a change to the set starts its count again, so the hint goes away
+    await page.$eval('#lgrid [data-letter="S"]', (b) => b.scrollIntoView());
+    await page.tap('#lgrid [data-letter="S"]');
+    check('letters: changing the set clears Ready for new letters', await page.$eval('#ready', (e) => e.hidden));
+    // Use for all players copies Mia's set to everyone and keeps them together
+    check('letters: Use for all players shown with 2+ players, off', await page.$eval('#same-row', (e) => !e.hidden) && (await page.$eval('#t-same', (e) => e.getAttribute('aria-pressed'))) === 'false');
+    await page.$eval('#t-same', (b) => b.scrollIntoView());
+    await page.tap('#t-same');
+    let all = await page.evaluate(() => JSON.parse(localStorage.getItem('animal-mail-route-v2')));
+    check('letters: Use for all players copies the set to everyone', all.device.lettersSame && all.players.every((p) => p.letters.join() === 'S,B,K'), all.players.map((p) => p.letters));
+    await page.$eval('#lgrid [data-letter="P"]', (b) => b.scrollIntoView());
+    await page.tap('#lgrid [data-letter="P"]');
+    await page.$eval('#b-add', (b) => b.scrollIntoView());
+    await page.tap('#b-add');
+    all = await page.evaluate(() => JSON.parse(localStorage.getItem('animal-mail-route-v2')));
+    check('letters: while on, a change and a new player follow the shared set', all.players.length === 4 && all.players.every((p) => p.letters.join() === 'S,B,K,P'), all.players.map((p) => p.letters));
+    await page.$eval('#t-same', (b) => b.scrollIntoView());
+    await page.tap('#t-same');
+    await page.$eval('#lgrid [data-letter="P"]', (b) => b.scrollIntoView());
+    await page.tap('#lgrid [data-letter="P"]');
+    all = await page.evaluate(() => JSON.parse(localStorage.getItem('animal-mail-route-v2')));
+    check('letters: turned off, a change is for the selected player only', !all.device.lettersSame && all.players[3].letters.join() === 'S,B,K' && all.players.slice(0, 3).every((p) => p.letters.join() === 'S,B,K,P') && all.players[0].rounds[1] === 1, all.players.map((p) => p.letters));
+    check('letters: parent corner fits the width of a sideways phone', await page.evaluate(() => document.querySelector('#parent .card').getBoundingClientRect().right <= innerWidth && document.querySelector('#lgrid').scrollWidth <= document.querySelector('#lgrid').clientWidth));
+    check('letters (players): no script or console errors', errors.length === 0, errors.length ? errors : undefined);
     await ctx.close();
   }
 
