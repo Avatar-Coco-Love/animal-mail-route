@@ -6,7 +6,7 @@ Read this first, then open `index.html`. It is the whole game, as a standalone p
 
 An older copy also exists as a Claude artifact. It predates the fixes below, so treat this repo as the source of truth.
 
-## Where things stand (October 8, 2026)
+## Where things stand (October 9, 2026)
 - Playable and public. Tested in emulated Android Chrome with real touch input at 5 phone and tablet sizes, on the live site too. All checks pass.
 - Not yet played on a real device or by a child.
 - Voice is the device's built-in speech; no recordings yet.
@@ -18,7 +18,8 @@ An older copy also exists as a Claude artifact. It predates the fixes below, so 
 - Version 0.4 (fourth session): the map path lights up as routes open, and the parent corner can print a one-page summary per child. The touch test passed all 122 checks against the live site afterwards.
 - Version 0.5 (fifth session): Lighthouse pass (mobile Performance 79 → 98 on the live site, the rest 100), and "Print all players" (one page per child) in the parent corner. PR #6 merged; the touch test passed all 129 checks against the live site afterwards.
 - Version 0.6 (sixth session): Phase 1 of the expansion roadmap, the friend library. A letter can have several animal friends who take turns between rounds; Sally the Seal joins S as the first second friend.
-- **Next:** Phase 2 of the expansion roadmap (letter sets in the parent corner), then the rest under "Next sessions".
+- Version 0.7 (seventh session): Phase 2 of the expansion roadmap, letter sets. Each player has a set of letters, chosen in the parent corner, and routes 1 to 3 use only those. The touch test passes all 160 checks locally.
+- **Next:** Phase 3 of the expansion roadmap (more animal friends, A to Z), then the rest under "Next sessions". Until Phase 3, only S, B, K, C and P can be chosen, so the presets "First five" and "All" are the same set.
 
 ## Repo map
 | Path | What |
@@ -29,7 +30,7 @@ An older copy also exists as a Claude artifact. It predates the fixes below, so 
 | `audio/` | voice clips (none yet) and `clips.json`, the list of clips that exist |
 | `TELEMETRY.md` | play counts design and rules (COPPA, Google Families) |
 | `worker/` | Cloudflare Worker + D1 for play counts, with tests and deploy steps |
-| `tests/touch.cjs` | touch smoke test (135 checks), local or live |
+| `tests/touch.cjs` | touch smoke test (160 checks), local or live |
 | `manifest.webmanifest`, `sw.js` | install and offline play; bump `VERSION` in `sw.js` on every release |
 | `icons/` | app icons: `icon.svg` and `icon-maskable.svg` are the sources, `export.cjs` makes the PNGs |
 | `.github/workflows/test.yml` | CI on pull requests: worker tests and the touch test |
@@ -57,14 +58,16 @@ Target: Android phone and tablet, touch-first. Built as plain HTML, CSS, and Jav
 - Round = 5 deliveries, then a sticker. No timers, no losing. Wrong house bounces back; after 2 misses the right house wiggles. Tap-then-tap-house works as well as dragging.
 - Adaptive practice (routes 1 to 3): wrong answers raise a letter's score, first-try correct lowers it, weak letters are picked more often. Parent corner shows "Needs practice". Not used on route 4.
 - Players: up to 8 on one device, each with an animal (one of the 5, may repeat) and an optional name (20 characters, typed only in the parent corner). Rounds, stickers and practice letters are per player; voice, sound effects, play counts and Unlock all are per device. With one player nothing changes from before. With two or more, Play opens "Who's playing?" (one big animal button per player, name under it if set) and the map's top bar shows the current player's animal, which returns to the picker.
-- Parent corner: settings, Players (name field, animal choice, Erase per player, Add player), Progress and Needs practice for the selected player, Print summary, Print all players (only with 2+ players), and Erase everything.
+- Letters: each player has a letter set (default S, B, K, C, P, today's game). Routes 1 to 3 use only the set; houses per round are `min(5, set size, growth rule)`. Route 4 (numbers) always uses the five numbered houses.
+- Parent corner: settings, Players (name field, animal choice, Erase per player, Add player), Progress and Needs practice (with "Ready for new letters" when it applies) for the selected player, Letters (A to Z grid, "First five", "All", "Use for all players" with 2+ players), Print summary, Print all players (only with 2+ players), and Erase everything.
 - Print summary: a plain page with the selected player's name and animal, the date and game version, the Progress lines (routes and stickers), Needs practice (letter and animal name) and a short note on what they mean. It opens the print dialog at once and stays open with Print and Done buttons. When printed, only the summary is on the page. "Print all players" shows the same sheet for every player, in player order, and each one after the first starts a new printed page.
 - Animation: truck arrives and hops, animals blink, tap an animal on the title to hear its name, sparkle burst and flag on delivery, idle nudge after 10 seconds.
-- Progress saved in `localStorage` under `animal-mail-route-v2`: `{v:2, device:{voice, sfx, share, unlockAll}, current, players:[{id, name, animal, rounds, stickers, weak, seen}]}`. `seen` (0.6, additive) maps friend id to a running count of when the player last met them. An old `animal-mail-route-v1` save is turned into player 1 on first load and the v1 key removed.
+- Progress saved in `localStorage` under `animal-mail-route-v2`: `{v:2, device:{voice, sfx, share, unlockAll, lettersSame}, current, players:[{id, name, animal, rounds, stickers, weak, seen, letters, setRounds}]}`. `seen` (0.6, additive) maps friend id to a running count of when the player last met them. `letters` (0.7, additive) is the player's letter set, `setRounds` the letter-route rounds finished since the set last changed, and `device.lettersSame` is "Use for all players". An old `animal-mail-route-v1` save is turned into player 1 on first load and the v1 key removed.
 
 ## Code layout (one script block)
-- `FRIENDS` array: `{id, letter, name, animal, color, roof}`, data driven (add an entry and its `ART`). The first five keep their letter as id (`S`, `B`, `K`, `C`, `P`); later ones are `S2`, …. Built from it: `BYID` (friend by id), `BYLETTER` (friends per letter, in `FRIENDS` order), `LETTERS` (letters with a friend). `STARTERS` (`S B K C P`) is the title cast, the avatar choices, the sticker cycle, the numbers-route houses, and for now the letters every round uses (Phase 2 replaces that with the player's set). `ART`: inline SVG per friend id.
+- `FRIENDS` array: `{id, letter, name, animal, color, roof}`, data driven (add an entry and its `ART`). The first five keep their letter as id (`S`, `B`, `K`, `C`, `P`); later ones are `S2`, …. Built from it: `BYID` (friend by id), `BYLETTER` (friends per letter, in `FRIENDS` order), `LETTERS` (letters with a friend). `STARTERS` (`S B K C P`) is the title cast, the avatar choices, the sticker cycle, the numbers-route houses, and the default letter set. `ART`: inline SVG per friend id.
 - Letters vs friends: practice scores (`weak`), house `data-id`, mail items (`item.id`), `NUM` and the `letter-`/`sound-` clips are per letter. Art, names, `name-`/`reward-` clips, avatars and stickers are per friend. A round's `R.friend` maps letter to friend (`pickFriends`, least recently met, which also updates `P.seen`); each queue item carries its friend as `item.f`; houses have `data-friend`.
+- Letter sets: `cleanLetters` (valid letters, once each, in `LETTERS` order, at least `MIN_LETTERS` = 2), `roundLetters(n)` (the letters for a round on routes 1 to 3), `readyForMore(p)` (the "Ready for new letters" hint), and in the parent corner `renderLetters` (called from `syncToggles`), `setLetters` (applies to everyone while `S.lettersSame`), the `#lgrid` handler, `#b-first5`, `#b-allletters`, `#t-same`.
 - `CLIPS`: every spoken line, keyed by clip name (36 total: `letter-`/`sound-` per letter, `name-`/`reward-` per friend). Text in `CLIPS` is what the built-in voice says when a recording is missing.
 - `say([keys], fallbackText)`: plays `audio/<key>.mp3` for each key if ALL clips in the line are loaded, otherwise uses the browser's built-in speech.
 - Levels: `unlocked`, `houseCount`, `kindFor`, `buildQueue` (adaptive weighting), `promptFor`, `paperHTML`.
@@ -110,6 +113,7 @@ It needs Playwright with Chromium; in Claude Code cloud sessions it is installed
 - lifting the finger after the gear hold presses nothing (on the Pixel size it lands on Print summary)
 - Print summary on a sideways phone: shows the selected player's lines, Needs practice with names, opens the print dialog once (stubbed in the test), fits the width, prints only the summary (print media), Done returns to the parent corner, and switching player changes the summary
 - Friend library: a 0.5 save (no `seen`) loads unchanged (progress, practice letters, avatar, stickers, also after playing); the clip count is 36; S's two friends take turns over three rounds (Sammy, Sally, Sammy); picture mail for Sally goes to the S house and the banner says "S for Sally the Seal!"
+- Letter sets: the A to Z grid (only letters with a friend enabled, the first five on); turning letters off and on, the 2-letter minimum, "All"; a route 3 round with 3 letters has only those houses and mail; route 4 keeps its numbered houses; route 1 grows within the set in its order; a save with too few valid letters gets the default set; "Ready for new letters" shows and clears; the printed summary lists the letters; "Use for all players" copies the set, keeps new players and changes together while on, and stops when off; the parent corner fits a sideways phone
 - Print all players: hidden with one player; with two, one sheet per player in order with each player's lines, the print dialog, fits the width, the second sheet starts a new printed page, Done returns to the parent corner
 
 Worker tests: `cd worker && npm install && npm test`.
@@ -151,6 +155,7 @@ Still needs a real device (emulation cannot check these):
 - Map path that lights up as routes open, printable per-child summary, version 0.4 (fourth session).
 - Lighthouse pass and Print all players, version 0.5 (fifth session).
 - Roadmap Phase 1, friend library, version 0.6 (sixth session).
+- Roadmap Phase 2, letter sets, version 0.7 (seventh session).
 
 ## Decisions made by Claude (October 8, 2026, second session)
 Small calls made without the owner; change them if they're wrong.
@@ -280,6 +285,19 @@ Phase 1 of the roadmap. Small calls made without the owner; change them if they'
 - **Release 0.6:** `VERSION` and the "Prototype" note are 0.6, `sw.js` is `amr-v5`, the privacy page's example game version is 0.6, and its "Stored on your device" paragraph mentions which friends each player met most recently. "Last updated" stays October 8, 2026.
 - **`PLAYTEST.md`** asks whether the child noticed Sally at the S house sometimes.
 
+## Decisions made by Claude (October 9, 2026, seventh session)
+Phase 2 of the roadmap. Small calls made without the owner; change them if they're wrong.
+- **Set order:** a set is kept in `LETTERS` order (the order of `FRIENDS`), whatever order the parent taps in, and "Letters: …" lists it that way.
+- **Which letters a round uses:** a set of 5 or fewer is used in its order, so route 1 still starts with the first two and adds one per round; the default set plays exactly as before. A set bigger than 5 (possible after Phase 3) takes letters that need practice first (score 2 or more), then the ones the player met least recently, so every letter in the set comes round.
+- **Route 4 (numbers)** ignores the set and keeps houses 1 to 5 (the first five friends), since its houses are numbers, not letters.
+- **"Use for all players"** is an On/Off switch, shown with 2 or more players, stored as `device.lettersSame`. Turning it on copies the selected player's set to everyone; while it is on, a change to any player's letters applies to everyone, and a new player starts with the shared set. Turning it off keeps everyone's letters and makes changes per player again.
+- **The 2-letter minimum:** when only two letters are on, both are shown pressed but disabled (slightly faded). Letters with no friend yet are shown dashed and disabled.
+- **"Ready for new letters"** shows (under "None yet" in Needs practice, and as a line on the printed summary) when the player has finished 3 letter-route rounds with their current set, no letter in the set has a score of 2 or more, and there are letters left to add. The count (`setRounds`) restarts when the set changes. For saves from 0.6 it starts as the rounds already played on routes 1 to 3. With only five letters today, the default set never shows it.
+- **Letters line** is the last Progress line ("Letters: S, B, K, C, P"), after Stickers, so the existing lines keep their places. The summary's note says what it means.
+- **Erasing the last player** keeps their letters along with the name and animal, as it is a parent's choice rather than progress.
+- **Release 0.7:** `VERSION` and the "Prototype" note are 0.7, `sw.js` is `amr-v6`, the privacy page's example game version is 0.7, its "Stored on your device" paragraph mentions which letters each player's rounds use, and "Last updated" is October 9, 2026.
+- **`PLAYTEST.md`** asks whether choosing letters worked and whether the child noticed.
+
 ## Next sessions: expansion roadmap
 Written at the end of the fifth session, from the owner's questions about variety ("Is there a capacity to choose which letters, or randomized names that are school friendly and fit the lesson? In what ways can we expand?"). The owner asked for all of it to be built, starting in a fresh conversation. This section is the plan.
 
@@ -305,7 +323,7 @@ Split "animal friend" from "letter", so a letter can have more than one friend a
 - **Rounds** pick 2 to 5 letters from the player's letter set (Phase 2), then one friend per letter for that round (rotate: the friend this player saw least recently), so the houses vary between rounds while the lesson stays the same.
 - **Tests:** a v2 save from 0.5 loads unchanged (stickers, avatar, weak); a round with two friends for one letter rotates them; all existing checks pass.
 
-### Phase 2: Letter sets in the parent corner
+### Phase 2: Letter sets in the parent corner — done in 0.7 (seventh session)
 - **Per player**, saved as `letters:[...]` on each player (default `['S','B','K','C','P']`, which is today's game). Add it in `cleanPlayer` with that default, so the save shape stays `v:2` (additive, no migration). Also store `device.lettersSame` (default false).
 - **Parent corner:** a "Letters" block for the selected player: a grid of A to Z toggle buttons (only letters with at least one friend are enabled), presets ("First five" = today's set, "All"), and "Use for all players" (copies this player's set to everyone; one tap, no confirm, since it is easy to undo by choosing again). At least 2 letters must stay on; the last two can't be turned off.
 - **Unlocking:** a route's progress rule doesn't change. Changing letters never erases rounds or stickers.
