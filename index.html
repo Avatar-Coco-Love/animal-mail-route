@@ -973,8 +973,16 @@ document.addEventListener('click', function(e){
   show(b.getAttribute('data-go'));
 });
 
-/* ---------- Title ---------- */
-$('cast').innerHTML = STARTERS.map(function(id){
+/* ---------- Title ----------
+   Five friends picked at random on every load, each from a different letter (so never two
+   zebras side by side). Tapping one says its name. */
+function pickCast(){
+  var ls = LETTERS.slice(), out = [];
+  for(var i = ls.length - 1; i > 0; i--){ var j = Math.floor(Math.random() * (i + 1)), t = ls[i]; ls[i] = ls[j]; ls[j] = t; }
+  ls.slice(0, 5).forEach(function(l){ var fs = BYLETTER[l]; out.push(fs[Math.floor(Math.random() * fs.length)].id); });
+  return out;
+}
+$('cast').innerHTML = pickCast().map(function(id){
   var c = BYID[id];
   return '<button type="button" class="pal" data-id="' + c.id + '" aria-label="Hear ' + c.name + '">' + art(c.id) + '</button>';
 }).join('');

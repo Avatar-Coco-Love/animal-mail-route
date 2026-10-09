@@ -20,7 +20,7 @@ An older copy also exists as a Claude artifact. It predates the fixes below, so 
 - Version 0.6 (sixth session): Phase 1 of the expansion roadmap, the friend library. A letter can have several animal friends who take turns between rounds; Sally the Seal joins S as the first second friend.
 - Version 0.7 (seventh session): Phase 2 of the expansion roadmap, letter sets. Each player has a set of letters, chosen in the parent corner, and routes 1 to 3 use only those. The touch test passes all 160 checks locally.
 - Version 0.8 (eighth session): Phase 3 of the expansion roadmap, more animal friends. Every letter but X has a friend, and every letter but Q, U, V, Y and X has two who take turns (46 friends in all). A player's animal can be any friend ("More" in the parent corner). The touch test passes all 174 checks locally.
-- Version 0.8.1 (owner feedback before Phase 4): the parent-corner button (bottom right of the title screen) is now a real cog, since the old icon read as a light; while it is held a red ring runs once round it from the top and the corner opens when the ring closes. "All" letters now includes Q and U. The touch test passes all 175 checks locally.
+- Version 0.8.1 (owner feedback before Phase 4): the parent-corner button (bottom right of the title screen) is now a real cog, since the old icon read as a light; while it is held a red ring runs once round it from the top and the corner opens when the ring closes. "All" letters now includes Q and U. The title screen shows 5 random friends (different letters, with their own names) on every load. The touch test passes all 176 checks locally.
 - **Next:** Phase 4 of the expansion roadmap (map with tracks), then the rest under "Next sessions".
 
 ## Repo map
@@ -32,14 +32,14 @@ An older copy also exists as a Claude artifact. It predates the fixes below, so 
 | `audio/` | voice clips (none yet) and `clips.json`, the list of clips that exist |
 | `TELEMETRY.md` | play counts design and rules (COPPA, Google Families) |
 | `worker/` | Cloudflare Worker + D1 for play counts, with tests and deploy steps |
-| `tests/touch.cjs` | touch smoke test (175 checks), local or live |
+| `tests/touch.cjs` | touch smoke test (176 checks), local or live |
 | `manifest.webmanifest`, `sw.js` | install and offline play; bump `VERSION` in `sw.js` on every release |
 | `icons/` | app icons: `icon.svg` and `icon-maskable.svg` are the sources, `export.cjs` makes the PNGs |
 | `.github/workflows/test.yml` | CI on pull requests: worker tests and the touch test |
 | `PLAYTEST.md` | checklist for the owner's first playtest with a child |
 
 ## What it is
-A mail delivery game for preschoolers (about ages 3 to 5). The child drags mail to the matching house and learns letters, animals, and numbers. Five animal friends (idea came from a coworker), plus Sally the Seal, a second S friend added in 0.6. Since 0.8 every letter but X has a friend (the full list is `FRIENDS` in `index.html`, and the table under "Phase 3" below); these five are still the title cast and the default letters:
+A mail delivery game for preschoolers (about ages 3 to 5). The child drags mail to the matching house and learns letters, animals, and numbers. Five animal friends (idea came from a coworker), plus Sally the Seal, a second S friend added in 0.6. Since 0.8 every letter but X has a friend (the full list is `FRIENDS` in `index.html`, and the table under "Phase 3" below); these five are still the default letters (since 0.8.1 the title cast is 5 random friends on each load):
 
 | Letter | Character |
 | --- | --- |
@@ -67,7 +67,7 @@ Target: Android phone and tablet, touch-first. Built as plain HTML, CSS, and Jav
 - Progress saved in `localStorage` under `animal-mail-route-v2`: `{v:2, device:{voice, sfx, share, unlockAll, lettersSame}, current, players:[{id, name, animal, rounds, stickers, weak, seen, letters, setRounds}]}`. `seen` (0.6, additive) maps friend id to a running count of when the player last met them. `letters` (0.7, additive) is the player's letter set, `setRounds` the letter-route rounds finished since the set last changed, and `device.lettersSame` is "Use for all players". An old `animal-mail-route-v1` save is turned into player 1 on first load and the v1 key removed.
 
 ## Code layout (one script block)
-- `FRIENDS` array: `{id, letter, name, animal, color, roof}`, data driven (add an entry and its `ART`). The first five keep their letter as id (`S`, `B`, `K`, `C`, `P`); later ones are `S2`, …. Built from it: `BYID` (friend by id), `BYLETTER` (friends per letter, in `FRIENDS` order), `LETTERS` (letters with a friend). `STARTERS` (`S B K C P`) is the title cast, the avatar choices, the sticker cycle, the numbers-route houses, and the default letter set. `ART`: inline SVG per friend id.
+- `FRIENDS` array: `{id, letter, name, animal, color, roof}`, data driven (add an entry and its `ART`). The first five keep their letter as id (`S`, `B`, `K`, `C`, `P`); later ones are `S2`, …. Built from it: `BYID` (friend by id), `BYLETTER` (friends per letter, in `FRIENDS` order), `LETTERS` (letters with a friend). `STARTERS` (`S B K C P`) is the avatar choices, the sticker cycle, the numbers-route houses, and the default letter set. `ART`: inline SVG per friend id.
 - Letters vs friends: practice scores (`weak`), house `data-id`, mail items (`item.id`), `NUM` and the `letter-`/`sound-` clips are per letter. Art, names, `name-`/`reward-` clips, avatars and stickers are per friend. A round's `R.friend` maps letter to friend (`pickFriends`, least recently met, which also updates `P.seen`); each queue item carries its friend as `item.f`; houses have `data-friend`.
 - Letter sets: `cleanLetters` (valid letters, once each, in `LETTERS` order, at least `MIN_LETTERS` = 2), `roundLetters(n)` (the letters for a round on routes 1 to 3), `readyForMore(p)` (the "Ready for new letters" hint), and in the parent corner `renderLetters` (called from `syncToggles`), `setLetters` (applies to everyone while `S.lettersSame`), the `#lgrid` handler, `#b-first5`, `#b-allletters`, `#t-same`.
 - `CLIPS`: every spoken line, keyed by clip name (156 total: 14 prompts and numbers, `letter-`/`sound-` for each of 25 letters, `name-`/`reward-` for each of 46 friends). Text in `CLIPS` is what the built-in voice says when a recording is missing.
@@ -308,6 +308,7 @@ Phase 3 of the roadmap. Small calls made without the owner; change them if they'
 - **Ids:** a new letter's first friend uses the letter as its id (`A`, `D`, …), second friends add a 2 (`A2`, `B2`, …), like `S2`. `FRIENDS` lists the first six, then the new first friends A to Z, then the second friends A to Z.
 - **Letter order:** `LETTERS` is the first five, then the rest A to Z (`S B K C P A D E F G …`), so the default set and route 1 play as before. A set is kept and listed in that order ("Letters: S, B, A, M").
 - **Q and U:** can be chosen, but "All" leaves them off (`TRICKY`, `ALL_LETTERS`). "Ready for new letters" counts the letters "All" would add, so it doesn't stay on just because Q and U are off. *Changed in 0.8.1: the owner wants "All" to mean all, so `TRICKY` is gone and `ALL_LETTERS` is every letter with a friend.*
+- *0.8.1: the title cast is no longer the first five. `pickCast()` picks 5 random letters and a random friend for each on every load, so names come from `FRIENDS` and two friends of one letter (the zebras) never stand together.*
 - **Art:** placeholder SVGs in the same style (round head, big `#1b1b1b` eyes so they blink). Two zebras (Zoe, Ziggy) are told apart by Zoe's pink bow and Ziggy's spiky mane and blue scarf. Bella the Bear wears a pink bow so she doesn't read as Billy the Beaver. Each friend has a pastel `--c-<id>` house colour and a deeper roof; the letter sits on the red sign, so the wall colour doesn't affect its contrast.
 - **Sounds:** `sound-<L>` text for the new letters is a short spoken hint for whoever records it (`aa`, `eh`, `ih`, `ah` for short o, `uh`, `kwuh`, …). The built-in voice doesn't say these lines.
 - **Avatars:** each player card shows the first five, the player's own animal if it isn't one of them, and a "More" button that lists all 46 ("Fewer" closes it). Open or closed is not saved. A new player still gets one of the first five.

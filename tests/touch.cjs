@@ -60,7 +60,20 @@ const wanted = (page) => page.evaluate(() => document.querySelector('#caption').
   for (const [name, [w, h]] of Object.entries(SIZES)) {
     const { ctx, page, touch, errors, hosts } = await newPage(browser, w, h);
     check(`${name}: title buttons on screen`, await allOnScreen(page, '.playbtn, .title .rbtn'));
-    if (name === 'pixel') check('crane is Cody the Crane', !!(await page.$('.pal[aria-label="Hear Cody the Crane"]')) && !/Charlie/.test(await page.content()));
+    if (name === 'pixel') {
+      const html = await page.content();
+      check('crane is Cody the Crane', !/Charlie/.test(html) && /id:'C', +letter:'C', name:'Cody the Crane'/.test(html));
+      // id -> [letter, name] from the FRIENDS list in the page source
+      const friends = {};
+      for (const m of html.matchAll(/\{id:'(\w+)', +letter:'(\w)', name:'([^']+)'/g)) friends[m[1]] = [m[2], m[3]];
+      // the title cast: 5 friends, each a different letter, named as in FRIENDS, and a new pick on each load
+      const cast = () => page.$$eval('#cast .pal', (b) => b.map((x) => x.getAttribute('data-id')));
+      const casts = [await cast()];
+      const labels = await page.$$eval('#cast .pal', (b) => b.map((x) => [x.getAttribute('data-id'), x.getAttribute('aria-label')]));
+      const castOk = Object.keys(friends).length === 46 && labels.length === 5 && new Set(labels.map(([id]) => friends[id] && friends[id][0])).size === 5 && labels.every(([id, l]) => friends[id] && l === 'Hear ' + friends[id][1]);
+      for (let i = 0; i < 3; i++) { await page.reload(); await page.waitForTimeout(400); casts.push(await cast()); }
+      check('title cast: 5 random friends, different letters, their own names', castOk && new Set(casts.map((c) => c.join())).size > 1, casts);
+    }
     await page.tap('.playbtn');
     await page.waitForTimeout(300);
     if (name === 'pixel') check('one player: Play goes straight to the map, no picker or avatar', await page.$eval('#s-who', (e) => e.hidden) && await page.$eval('#m-who', (e) => e.hidden));
