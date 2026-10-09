@@ -68,3 +68,4 @@ Press and hold the gear on the title screen. Copy these lines:
 - Tap "Print summary": did the print screen open, and did the page look right (or save as PDF)?
 - With two or more players: tap "Print all players". Did each child get their own page?
 - Letters: turn a letter off, then play a round. Did the round use only the letters left on, and did the child notice the change?
+- New friends: tap "All" in Letters, or turn on a few new letters (A, M, Z…), and play a round. Did the child like the new animals, and did any name or picture confuse them? Under a player, tap "More" and pick a new animal: did it show on "Who's playing?"
