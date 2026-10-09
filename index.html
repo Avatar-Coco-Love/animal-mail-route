@@ -162,6 +162,11 @@ svg{display:block}
 .lock svg{width:20px;height:20px}
 .node:not(.locked) .lock{display:none}
 .node.shake .disc{animation:shake .45s}
+/* "You are here": the player's animal sits on the route to play next */
+.here{position:absolute;left:-12px;top:-12px;z-index:2;width:clamp(40px,40%,52px);aspect-ratio:1;border-radius:50%;background:var(--bg);border:4px solid var(--paper);box-shadow:0 3px 0 rgba(36,48,77,.25);display:grid;place-items:center;animation:bob 1.6s ease-in-out infinite}
+.here svg{width:84%;height:auto}
+/* a route that just opened and hasn't been played pulses until it is */
+.node.fresh .disc::after{content:"";position:absolute;inset:-7px;border-radius:50%;border:5px solid var(--sun);animation:ring 1.6s ease-out infinite;pointer-events:none}
 
 /* who's playing */
 .who{background:linear-gradient(180deg,var(--sky-top) 0%,var(--sky-low) 80%,var(--grass) 80%,var(--grass-deep) 100%)}
@@ -362,6 +367,7 @@ svg{display:block}
 @keyframes pop{0%{transform:scale(.6);opacity:0}100%{transform:scale(1);opacity:1}}
 @keyframes spinpop{0%{transform:scale(.2) rotate(-200deg)}100%{transform:scale(1) rotate(0)}}
 @keyframes wiggle{0%,100%{transform:rotate(0)}25%{transform:rotate(-5deg)}75%{transform:rotate(5deg)}}
+@keyframes ring{from{transform:scale(1);opacity:.9}to{transform:scale(1.35);opacity:0}}
 @keyframes shake{0%,100%{transform:translateX(0)}20%{transform:translateX(-9px)}40%{transform:translateX(9px)}60%{transform:translateX(-6px)}80%{transform:translateX(6px)}}
 @keyframes hop{0%,100%{transform:translateY(0) scale(1)}50%{transform:translateY(-14%) scale(1.12)}}
 @keyframes mailIn{from{transform:translate(-50%,-50%) translate(-38vw,40px) rotate(-14deg) scale(.3);opacity:0}to{transform:translate(-50%,-50%) translate(0,0) rotate(0) scale(1);opacity:1}}
@@ -478,7 +484,7 @@ svg{display:block}
       <div class="row" id="share-row" hidden><b>Share play counts</b><button class="tog" type="button" id="t-share" aria-pressed="false">Off</button></div>
       <div class="row"><b>Recorded voice clips</b><span id="clipcount">0 of 36</span></div>
       <div class="block"><b>Players</b><p class="hint-text">Tap a player to see their progress. Names are optional and stay on this device.</p><div id="players"></div><button class="pbtn" type="button" id="b-add">Add player</button></div>
-      <div class="block"><b id="prog-head">Progress</b><ul class="prog" id="progress"></ul></div>
+      <div class="block"><b id="prog-head">Progress</b><ul class="prog" id="progress"></ul><p class="hint-text">A star per round; 2 stars open the next route. Replays add houses and switch animals on purpose. Their animal on the map marks what to play next.</p></div>
       <div class="row"><b>Needs practice</b><span><span id="weaklist">None yet</span><span class="ready" id="ready" hidden>Ready for new letters</span></span></div>
       <div class="block" id="letters-block"><b id="let-head">Letters</b><p class="hint-text">The letters this player's rounds use. Keep at least 2. Changing them keeps rounds and stickers.</p>
         <div class="lgrid" id="lgrid" role="group" aria-label="Letters"></div>
@@ -488,7 +494,7 @@ svg{display:block}
       <div class="row"><b>Paper copy</b><button class="pbtn" type="button" id="b-print">Print summary</button></div>
       <div class="row" id="print-all-row" hidden><b>Paper copies</b><button class="pbtn" type="button" id="b-print-all">Print all players</button></div>
       <div class="row"><b>Everyone</b><button class="pbtn danger" type="button" id="b-reset">Erase everything</button></div>
-      <p class="note">Prototype 0.9. Voice prompts use your device's built-in speech until recorded voices are added. <span id="share-note" hidden>"Share play counts" sends only anonymous totals, such as rounds played per route, and is off unless you turn it on. </span><a href="privacy.html" target="_blank" rel="noopener">Privacy</a></p>
+      <p class="note">Prototype 1.0. Voice prompts use your device's built-in speech until recorded voices are added. <span id="share-note" hidden>"Share play counts" sends only anonymous totals, such as rounds played per route, and is off unless you turn it on. </span><a href="privacy.html" target="_blank" rel="noopener">Privacy</a></p>
       <button class="close" type="button" id="p-close">Done</button>
     </div>
   </div>
@@ -634,7 +640,7 @@ var LOCK = '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="11" width
    Kept in its own key with a plain shape so other games could share players later. */
 var KEY = 'animal-mail-route-v2', OLD_KEY = 'animal-mail-route-v1', MAX_PLAYERS = 8, NAME_MAX = 20;
 var MIN_LETTERS = 2;
-function newPlayer(id, animal){ return {id:id, name:'', animal:animal || 'S', rounds:{1:0,2:0,3:0,4:0}, stickers:[], weak:{}, seen:{}, letters:STARTERS.slice(), setRounds:0}; }
+function newPlayer(id, animal){ return {id:id, name:'', animal:animal || 'S', rounds:{1:0,2:0,3:0,4:0}, stickers:[], weak:{}, seen:{}, letters:STARTERS.slice(), setRounds:0, last:1}; }
 function defaults(){ return {v:2, device:{voice:true, sfx:true, share:false, unlockAll:false, lettersSame:false}, current:1, players:[newPlayer(1, 'S')]}; }
 function cleanDevice(o){
   o = (o && typeof o === 'object') ? o : {};
@@ -663,6 +669,8 @@ function cleanPlayer(o, id){
   // letters (0.7, additive): the player's letter set; setRounds: letter-route rounds since it last changed
   p.letters = cleanLetters(o.letters) || STARTERS.slice();
   p.setRounds = o.setRounds === undefined ? p.rounds[1] + p.rounds[2] + p.rounds[3] : Math.max(0, Math.floor(+o.setRounds || 0));
+  // last (1.0, additive): the route this player last started, so the map knows which track they are on
+  if(p.rounds[o.last] !== undefined) p.last = +o.last;
   return p;
 }
 function cleanSave(o){
@@ -858,7 +866,7 @@ function hush(){
    Off unless a parent turns on "Share play counts". Only totals per route are kept, with no
    identifier or timestamp, and they are sent once when the page is hidden. The setting is
    not shown at all while COUNT_URL is empty. */
-var VERSION = '0.9';
+var VERSION = '1.0';
 var COUNT_URL = '';      // the Worker, e.g. 'https://animal-mail-counts.<account>.workers.dev/v1/counts'
 var CKEY = 'animal-mail-route-counts', CAP = 200, METRICS = ['started','finished','misses'];
 function emptyCounts(){ return {opens:0, started:{}, finished:{}, misses:{}}; }
@@ -903,7 +911,9 @@ var TRACKS = [
 function trackOf(l){ return TRACKS.filter(function(t){ return t.routes.indexOf(l) >= 0; })[0]; }
 function prevIn(l){ var r = trackOf(l).routes; return r[r.indexOf(l) - 1] || 0; }
 function nextIn(l){ var r = trackOf(l).routes; return r[r.indexOf(l) + 1] || 0; }
-function unlocked(l, p){ var b = prevIn(l); return !b || S.unlockAll || ((p || P).rounds[b] || 0) >= 2; }
+/* A route's stars are its finished rounds; filling them all opens the next route on its track. */
+var STARS = 2;
+function unlocked(l, p){ var b = prevIn(l); return !b || S.unlockAll || ((p || P).rounds[b] || 0) >= STARS; }
 function houseCount(l){
   var grow = l === 1 ? 2 + (P.rounds[1] || 0) : l === 2 ? 3 + (P.rounds[2] || 0) : l === 4 ? 3 + (P.rounds[4] || 0) : 5;
   return Math.min(5, grow, l === 4 ? 5 : P.letters.length);
@@ -1030,13 +1040,21 @@ var LEVELS = [
   {id:4, mini:'<span class="l">3</span>', two:false}
 ];
 var LEVEL_NAME = {1:'Letters', 2:'Animals', 3:'Letters and animals', 4:'Numbers'};
+/* The route to play next: on the track the player last played, the first open route with fewer
+   than STARS rounds, or the last open one when they all have their stars. */
+function nextUp(p){
+  var open = trackOf(p.last).routes.filter(function(l){ return unlocked(l, p); });
+  return open.filter(function(l){ return (p.rounds[l] || 0) < STARS; })[0] || open[open.length - 1];
+}
 function nodeHTML(L){
-  var open = unlocked(L.id);
-  var done = Math.min(3, P.rounds[L.id] || 0);
+  var open = unlocked(L.id), here = L.id === nextUp(P);
+  var done = Math.min(STARS, P.rounds[L.id] || 0);
+  var fresh = open && prevIn(L.id) && !S.unlockAll && !done;
   var stars = '';
-  for(var i=0;i<3;i++){ stars += STAR.replace('<svg ', '<svg class="' + (i<done?'on':'') + '" '); }
-  return '<button type="button" class="node' + (open?'':' locked') + '" data-level="' + L.id + '" aria-label="Route ' + L.id + ', ' + LEVEL_NAME[L.id] + (open?'':', locked') + '">' +
-    '<span class="disc"><span class="mini' + (L.two?' two':'') + '">' + L.mini + '</span><span class="lock">' + LOCK + '</span></span>' +
+  for(var i=0;i<STARS;i++){ stars += STAR.replace('<svg ', '<svg class="' + (i<done?'on':'') + '" '); }
+  return '<button type="button" class="node' + (open?'':' locked') + (fresh?' fresh':'') + '" data-level="' + L.id + '" aria-label="Route ' + L.id + ', ' + LEVEL_NAME[L.id] + (open?'':', locked') + (here?', play next':'') + '">' +
+    '<span class="disc"><span class="mini' + (L.two?' two':'') + '">' + L.mini + '</span><span class="lock">' + LOCK + '</span>' +
+    (here ? '<span class="here" style="--bg:' + BYID[P.animal].color + '">' + art(P.animal) + '</span>' : '') + '</span>' +
     '<span class="stars" aria-hidden="true">' + stars + '</span></button>';
 }
 function renderMap(){
@@ -1126,6 +1144,7 @@ function houses(){ return Array.prototype.slice.call(street.querySelectorAll('.h
 
 function startLevel(l){
   count('started', l);
+  P.last = l;
   var n = houseCount(l);
   var ids = l === 4 ? STARTERS.slice(0, n) : roundLetters(n);
   var friend = pickFriends(ids);
@@ -1401,11 +1420,11 @@ function confetti(){
 }
 function finishRound(){
   var level = R.level;
-  var next = nextIn(level), hadNext = next && unlocked(next);
+  var next = nextIn(level);
   P.rounds[level] = (P.rounds[level] || 0) + 1;
   if(level !== 4) P.setRounds++;
-  // If this round opened the next route, the big button goes there; otherwise it replays this one.
-  winTarget = (next && !hadNext && unlocked(next)) ? next : level;
+  // While the next route is open and not yet played, the big button goes there; otherwise it replays this one.
+  winTarget = (next && unlocked(next) && !P.rounds[next]) ? next : level;
   var label = winTarget === level ? 'Play again' : 'Next route';
   $('win-next').setAttribute('aria-label', label);
   $('win-next-label').textContent = label;
@@ -1475,12 +1494,12 @@ function plural(n, word){ return n + ' ' + word + (n === 1 ? '' : 's'); }
 function progressLines(p){
   var out = LEVELS.map(function(L){
     var l = L.id, n = p.rounds[l] || 0, head = 'Route ' + l + ', ' + LEVEL_NAME[l] + ': ';
-    var b = prevIn(l), next = nextIn(l), earned = !b || (p.rounds[b] || 0) >= 2;
+    var b = prevIn(l), next = nextIn(l), earned = !b || (p.rounds[b] || 0) >= STARS;
     if(!earned && !S.unlockAll) return head + 'locked';
     if(!earned) return head + (n ? plural(n, 'round') : 'open') + ' (Unlock all is on)';
     var line = head + plural(n, 'round');
     if(next && !unlocked(next, p)){
-      var left = 2 - n;
+      var left = STARS - n;
       line += ', so ' + left + ' more ' + (left === 1 ? 'opens' : 'open') + ' Route ' + next;
     }
     return line;
@@ -1677,7 +1696,7 @@ function sheetHTML(p, date){
     '<h2>Needs practice</h2>' +
     '<p class="meta sum-weak">' + (weak.length ? weak.map(function(id){ return id + ' (' + BYLETTER[id][0].name + ')'; }).join(', ') : 'None yet') + '</p>' +
     (readyForMore(p) ? '<p class="meta sum-ready">Ready for new letters: none of this player\'s letters needs practice after 3 or more rounds.</p>' : '') +
-    '<p class="foot">A route opens after 2 finished rounds of the route before it. "Letters" are the letters this player\'s rounds use, chosen in the parent corner. Each round is 5 deliveries and earns a sticker. "Needs practice" lists the letters this player has missed most often lately; it clears as they get them right. Made on this device; nothing was sent anywhere.</p>' +
+    '<p class="foot">A route opens after 2 finished rounds (2 stars) of the route before it. Replaying a route adds houses, rotates the animals and repeats the letters that need practice. "Letters" are the letters this player\'s rounds use, chosen in the parent corner. Each round is 5 deliveries and earns a sticker. "Needs practice" lists the letters this player has missed most often lately; it clears as they get them right. Made on this device; nothing was sent anywhere.</p>' +
     '</article>';
 }
 function openSummary(players, title){
