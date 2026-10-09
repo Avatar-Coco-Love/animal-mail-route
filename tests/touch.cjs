@@ -60,7 +60,20 @@ const wanted = (page) => page.evaluate(() => document.querySelector('#caption').
   for (const [name, [w, h]] of Object.entries(SIZES)) {
     const { ctx, page, touch, errors, hosts } = await newPage(browser, w, h);
     check(`${name}: title buttons on screen`, await allOnScreen(page, '.playbtn, .title .rbtn'));
-    if (name === 'pixel') check('crane is Cody the Crane', !!(await page.$('.pal[aria-label="Hear Cody the Crane"]')) && !/Charlie/.test(await page.content()));
+    if (name === 'pixel') {
+      const html = await page.content();
+      check('crane is Cody the Crane', !/Charlie/.test(html) && /id:'C', +letter:'C', name:'Cody the Crane'/.test(html));
+      // id -> [letter, name] from the FRIENDS list in the page source
+      const friends = {};
+      for (const m of html.matchAll(/\{id:'(\w+)', +letter:'(\w)', name:'([^']+)'/g)) friends[m[1]] = [m[2], m[3]];
+      // the title cast: 5 friends, each a different letter, named as in FRIENDS, and a new pick on each load
+      const cast = () => page.$$eval('#cast .pal', (b) => b.map((x) => x.getAttribute('data-id')));
+      const casts = [await cast()];
+      const labels = await page.$$eval('#cast .pal', (b) => b.map((x) => [x.getAttribute('data-id'), x.getAttribute('aria-label')]));
+      const castOk = Object.keys(friends).length === 46 && labels.length === 5 && new Set(labels.map(([id]) => friends[id] && friends[id][0])).size === 5 && labels.every(([id, l]) => friends[id] && l === 'Hear ' + friends[id][1]);
+      for (let i = 0; i < 3; i++) { await page.reload(); await page.waitForTimeout(400); casts.push(await cast()); }
+      check('title cast: 5 random friends, different letters, their own names', castOk && new Set(casts.map((c) => c.join())).size > 1, casts);
+    }
     await page.tap('.playbtn');
     await page.waitForTimeout(300);
     if (name === 'pixel') check('one player: Play goes straight to the map, no picker or avatar', await page.$eval('#s-who', (e) => e.hidden) && await page.$eval('#m-who', (e) => e.hidden));
@@ -134,8 +147,19 @@ const wanted = (page) => page.evaluate(() => document.querySelector('#caption').
   // parent corner: press and hold opens it; on a sideways phone a swipe reaches Done
   {
     const { ctx, page, touch } = await newPage(browser, 740, 360);
+    // the ring fills while held; letting go early resets it and opens nothing
+    const g = await center(page, '#gear');
+    const ring = () => page.$eval('#gear .ring circle', (c) => { const s = getComputedStyle(c); return { off: parseFloat(s.strokeDashoffset), shown: s.opacity === '1' }; });
+    const before = await ring();
+    await touch('touchStart', ...g);
+    await page.waitForTimeout(600);
+    const mid = await ring();
+    await touch('touchEnd');
+    await page.waitForTimeout(800);
+    const after = await ring();
+    check('gear: the ring runs round while held, and resets when let go early', !before.shown && mid.shown && mid.off > 20 && mid.off < 80 && !after.shown && await page.$eval('#parent', (e) => e.hidden), { before, mid, after });
     await holdGear(page, touch);
-    check('parent corner opens with press and hold', await page.$eval('#parent', (e) => !e.hidden));
+    check('parent corner opens with press and hold',await page.$eval('#parent', (e) => !e.hidden));
     check('play counts setting hidden while COUNT_URL is empty', await page.evaluate(() => document.querySelector('#share-row').hidden || /COUNT_URL = '[^']+'/.test(document.documentElement.innerHTML)));
     // the card is long, so a parent may swipe a few times
     for (let n = 0; n < 4 && !(await allOnScreen(page, '#p-close')); n++) {
@@ -420,7 +444,7 @@ const wanted = (page) => page.evaluate(() => document.querySelector('#caption').
     st = await page.evaluate(() => JSON.parse(localStorage.getItem('animal-mail-route-v2')).players[0]);
     check('letters: tapping one of the last two changes nothing', JSON.stringify(st.letters) === '["S","B"]', st.letters);
     await page.tap('#b-allletters');
-    check('letters: "All" turns on every letter with a friend but Q and U', (await progressText(page))[5] === 'Letters: S, B, K, C, P, A, D, E, F, G, H, I, J, L, M, N, O, R, T, V, W, Y, Z', (await progressText(page))[5]);
+    check('letters: "All" turns on every letter with a friend, Q and U too', (await progressText(page))[5] === 'Letters: S, B, K, C, P, A, D, E, F, G, H, I, J, L, M, N, O, Q, R, T, U, V, W, Y, Z', (await progressText(page))[5]);
     await page.tap('#b-first5');
     await page.tap('#lgrid [data-letter="S"]');
     await page.tap('#lgrid [data-letter="C"]');
