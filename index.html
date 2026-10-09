@@ -114,10 +114,17 @@ svg{display:block}
 .gear .ring{position:absolute;inset:0;width:100%;height:100%;transform:rotate(-90deg);pointer-events:none}
 .gear .ring circle{fill:none;stroke:var(--red);stroke-width:5;stroke-linecap:round;stroke-dasharray:100 100;stroke-dashoffset:100;opacity:0}
 .gear.holding .ring circle{opacity:1;animation:hold 1.2s linear forwards}
+/* Tip after two quick taps on the gear in a row: the corner needs a press and hold. */
+.gtip{position:absolute;right:0;bottom:calc(100% + 12px);width:max-content;max-width:min(240px,calc(100vw - 32px));padding:8px 14px;border-radius:14px;background:var(--ink);color:#fff;font:700 1rem/1.3 var(--font-body);text-align:left;box-shadow:0 4px 0 rgba(36,48,77,.25);animation:pop .2s ease-out}
+.gtip::after{content:"";position:absolute;right:20px;top:100%;border:8px solid transparent;border-top-color:var(--ink)}
 
 /* map */
 .map{background:linear-gradient(180deg,var(--sky-top) 0%,var(--sky-low) 40%,var(--grass) 40%,var(--grass-deep) 100%)}
-.route{position:relative;flex:1;display:flex;flex-direction:column;justify-content:space-evenly;padding-block:8px 24px}
+.route{position:relative;flex:1;display:flex;flex-direction:row;justify-content:space-evenly;gap:8px;width:100%;max-width:720px;margin-inline:auto;padding-block:8px 24px}
+/* Two tracks, each with its own unlock chain: columns side by side upright, rows on a sideways phone.
+   Both use the same number of slots (--n, the longest track), so route 1 and route 4 sit level. */
+.track{position:relative;flex:1;display:grid;grid-template-rows:auto repeat(var(--n),1fr);justify-items:center;align-items:center;min-width:0}
+.tname{position:relative;z-index:1;padding:3px 14px;border-radius:999px;background:rgba(255,255,255,.85);font:800 clamp(1rem,4vw,1.3rem)/1.1 var(--font-display);letter-spacing:.06em;color:var(--ink)}
 /* the path between routes: drawn by drawPath() from disc centre to disc centre, lit once the route before has 2 rounds */
 .path{position:absolute;inset:0;width:100%;height:100%;overflow:visible;pointer-events:none;z-index:0}
 .seg line{fill:none;stroke-linecap:round}
@@ -128,10 +135,6 @@ svg{display:block}
 .seg.new .base{animation:segIn .9s ease-out}
 .seg.new .dash{animation:march .8s linear 3}
 .node{position:relative;z-index:1;display:flex;flex-direction:column;align-items:center;gap:8px;background:none;border:0;padding:0;width:max-content}
-.node:nth-child(1){align-self:flex-start;margin-left:10%}
-.node:nth-child(2){align-self:flex-end;margin-right:10%}
-.node:nth-child(3){align-self:flex-start;margin-left:18%}
-.node:nth-child(4){align-self:flex-end;margin-right:16%}
 .disc{position:relative;width:clamp(76px,min(26vw,14vh),128px);aspect-ratio:1;border-radius:50%;background:var(--sun);border:7px solid var(--paper);box-shadow:0 7px 0 rgba(36,48,77,.25);display:grid;place-items:center}
 .node:active .disc{transform:translateY(4px)}
 .mini{position:relative;width:62%;aspect-ratio:1.4;background:var(--paper);border:6px solid transparent;border-image:var(--airmail) 6;display:flex;align-items:center;justify-content:center;gap:2px}
@@ -324,9 +327,11 @@ svg{display:block}
   .parent .note{margin:8px 0 10px}
 }
 @media (orientation:landscape) and (max-height:560px){
-  .route{flex-direction:row;justify-content:space-evenly;align-items:center;padding-block:4px 12px}
-  .route .node:nth-child(odd){align-self:flex-start;margin:0}
-  .route .node:nth-child(even){align-self:flex-end;margin:0}
+  .route{flex-direction:column;gap:2px;padding-block:0 8px}
+  .route{max-width:none}
+  .track{grid-template-rows:none;grid-template-columns:4.4em repeat(var(--n),1fr);column-gap:8px}
+  .route .node{gap:4px}
+  .route .disc{width:clamp(64px,22vh,104px);border-width:6px}
 }
 @keyframes segIn{from{opacity:0}}
 @keyframes march{to{stroke-dashoffset:-52}}
@@ -377,6 +382,7 @@ svg{display:block}
         <svg viewBox="0 0 24 24" aria-hidden="true"><path fill-rule="evenodd" fill="currentColor" d="M9.81 4.1L9.92 1.2L14.08 1.2L14.19 4.1A8.2 8.2 0 0 1 16.04 4.87L18.17 2.89L21.11 5.83L19.13 7.96A8.2 8.2 0 0 1 19.9 9.81L22.8 9.92L22.8 14.08L19.9 14.19A8.2 8.2 0 0 1 19.13 16.04L21.11 18.17L18.17 21.11L16.04 19.13A8.2 8.2 0 0 1 14.19 19.9L14.08 22.8L9.92 22.8L9.81 19.9A8.2 8.2 0 0 1 7.96 19.13L5.83 21.11L2.89 18.17L4.87 16.04A8.2 8.2 0 0 1 4.1 14.19L1.2 14.08L1.2 9.92L4.1 9.81A8.2 8.2 0 0 1 4.87 7.96L2.89 5.83L5.83 2.89L7.96 4.87A8.2 8.2 0 0 1 9.81 4.1ZM15.4 12a3.4 3.4 0 1 0 -6.8 0a3.4 3.4 0 1 0 6.8 0Z"/></svg>
         <svg class="ring" viewBox="0 0 56 56" aria-hidden="true"><circle cx="28" cy="28" r="25" pathLength="100"/></svg>
       </button>
+      <p class="gtip" id="gear-tip" role="status" hidden>Press and hold the gear to open the parent corner.</p>
     </div>
   </section>
 
@@ -877,7 +883,16 @@ function sendCounts(){
 document.addEventListener('visibilitychange', function(){ if(document.visibilityState === 'hidden') sendCounts(); });
 
 /* ---------- Levels ---------- */
-function unlocked(l, p){ return l === 1 || S.unlockAll || ((p || P).rounds[l-1] || 0) >= 2; }
+/* Tracks: each has its own unlock chain, so numbers don't wait for letters. A route's saved
+   rounds key is its id (1 to 4 as before 0.9), whatever track it is on; new routes get new ids. */
+var TRACKS = [
+  {id:'letters', name:'ABC', label:'Letters', routes:[1, 2, 3]},
+  {id:'numbers', name:'123', label:'Numbers', routes:[4]}
+];
+function trackOf(l){ return TRACKS.filter(function(t){ return t.routes.indexOf(l) >= 0; })[0]; }
+function prevIn(l){ var r = trackOf(l).routes; return r[r.indexOf(l) - 1] || 0; }
+function nextIn(l){ var r = trackOf(l).routes; return r[r.indexOf(l) + 1] || 0; }
+function unlocked(l, p){ var b = prevIn(l); return !b || S.unlockAll || ((p || P).rounds[b] || 0) >= 2; }
 function houseCount(l){
   var grow = l === 1 ? 2 + (P.rounds[1] || 0) : l === 2 ? 3 + (P.rounds[2] || 0) : l === 4 ? 3 + (P.rounds[4] || 0) : 5;
   return Math.min(5, grow, l === 4 ? 5 : P.letters.length);
@@ -1004,15 +1019,21 @@ var LEVELS = [
   {id:4, mini:'<span class="l">3</span>', two:false}
 ];
 var LEVEL_NAME = {1:'Letters', 2:'Animals', 3:'Letters and animals', 4:'Numbers'};
+function nodeHTML(L){
+  var open = unlocked(L.id);
+  var done = Math.min(3, P.rounds[L.id] || 0);
+  var stars = '';
+  for(var i=0;i<3;i++){ stars += STAR.replace('<svg ', '<svg class="' + (i<done?'on':'') + '" '); }
+  return '<button type="button" class="node' + (open?'':' locked') + '" data-level="' + L.id + '" aria-label="Route ' + L.id + ', ' + LEVEL_NAME[L.id] + (open?'':', locked') + '">' +
+    '<span class="disc"><span class="mini' + (L.two?' two':'') + '">' + L.mini + '</span><span class="lock">' + LOCK + '</span></span>' +
+    '<span class="stars" aria-hidden="true">' + stars + '</span></button>';
+}
 function renderMap(){
-  var html = LEVELS.map(function(L){
-    var open = unlocked(L.id);
-    var done = Math.min(3, P.rounds[L.id] || 0);
-    var stars = '';
-    for(var i=0;i<3;i++){ stars += STAR.replace('<svg ', '<svg class="' + (i<done?'on':'') + '" '); }
-    return '<button type="button" class="node' + (open?'':' locked') + '" data-level="' + L.id + '" aria-label="Route ' + L.id + ', ' + LEVEL_NAME[L.id] + (open?'':', locked') + '">' +
-      '<span class="disc"><span class="mini' + (L.two?' two':'') + '">' + L.mini + '</span><span class="lock">' + LOCK + '</span></span>' +
-      '<span class="stars" aria-hidden="true">' + stars + '</span></button>';
+  var n = Math.max.apply(null, TRACKS.map(function(t){ return t.routes.length; }));
+  var html = TRACKS.map(function(t){
+    return '<div class="track" data-track="' + t.id + '" role="group" aria-label="' + t.label + '" style="--n:' + n + '">' +
+      '<span class="tname" aria-hidden="true">' + t.name + '</span>' +
+      t.routes.map(function(id){ return nodeHTML(LEVELS[id - 1]); }).join('') + '</div>';
   }).join('');
   $('route').innerHTML = html + '<svg class="path" aria-hidden="true"></svg>';
   drawPath(true);
@@ -1022,27 +1043,30 @@ function renderMap(){
   me.innerHTML = art(P.animal);
   me.setAttribute('aria-label', 'Playing: ' + playerLabel(P) + '. Tap to change player.');
 }
-/* One segment per pair of neighbouring routes, lit when the second one is open by the same rule
-   as unlocked() (2 rounds of the route before, or Unlock all). Lines run between disc centres, so
-   they follow the zigzag on tall screens and the left-to-right row on a sideways phone. A segment
-   that lit up since this player last saw the map plays a short animation. */
-var litSeen = {};        // player id -> which segments were lit last time (memory only)
+/* One segment per pair of neighbouring routes on a track, lit when the second one is open by the
+   same rule as unlocked() (2 rounds of the route before, or Unlock all). Lines run between disc
+   centres, down each column on tall screens and along each row on a sideways phone. data-seg is
+   the route the segment leaves. A segment that lit up since this player last saw the map plays a
+   short animation. */
+var litSeen = {};        // player id -> {route id: lit} last time (memory only)
 function drawPath(fresh){
   var route = $('route'), svg = route.querySelector('.path');
   if(!svg || $('s-map').hidden) return;
   var box = route.getBoundingClientRect();
-  var pts = Array.prototype.map.call(route.querySelectorAll('.disc'), function(d){
-    var r = d.getBoundingClientRect();
+  var at = function(id){
+    var r = route.querySelector('.node[data-level="' + id + '"] .disc').getBoundingClientRect();
     return [Math.round(r.left - box.left + r.width / 2), Math.round(r.top - box.top + r.height / 2)];
+  };
+  var seen = litSeen[P.id], lit = {}, out = '';
+  TRACKS.forEach(function(t){
+    for(var i=1;i<t.routes.length;i++){
+      var from = t.routes[i-1], on = unlocked(t.routes[i]), a = at(from), b = at(t.routes[i]);
+      var ends = ' x1="' + a[0] + '" y1="' + a[1] + '" x2="' + b[0] + '" y2="' + b[1] + '"/>';
+      lit[from] = on;
+      out += '<g class="seg' + (on ? ' lit' : '') + (on && fresh && seen && !seen[from] ? ' new' : '') + '" data-seg="' + from + '">' +
+        '<line class="base"' + ends + '<line class="dash"' + ends + '</g>';
+    }
   });
-  var seen = litSeen[P.id], lit = [], out = '';
-  for(var i=1;i<pts.length;i++){
-    var on = unlocked(i + 1), a = pts[i-1], b = pts[i];
-    var ends = ' x1="' + a[0] + '" y1="' + a[1] + '" x2="' + b[0] + '" y2="' + b[1] + '"/>';
-    lit.push(on);
-    out += '<g class="seg' + (on ? ' lit' : '') + (on && fresh && seen && !seen[i-1] ? ' new' : '') + '" data-seg="' + i + '">' +
-      '<line class="base"' + ends + '<line class="dash"' + ends + '</g>';
-  }
   svg.setAttribute('viewBox', '0 0 ' + Math.round(box.width) + ' ' + Math.round(box.height));
   svg.innerHTML = out;
   litSeen[P.id] = lit;
@@ -1366,11 +1390,11 @@ function confetti(){
 }
 function finishRound(){
   var level = R.level;
-  var hadNext = level < LEVELS.length && unlocked(level + 1);
+  var next = nextIn(level), hadNext = next && unlocked(next);
   P.rounds[level] = (P.rounds[level] || 0) + 1;
   if(level !== 4) P.setRounds++;
   // If this round opened the next route, the big button goes there; otherwise it replays this one.
-  winTarget = (!hadNext && level < LEVELS.length && unlocked(level + 1)) ? level + 1 : level;
+  winTarget = (next && !hadNext && unlocked(next)) ? next : level;
   var label = winTarget === level ? 'Play again' : 'Next route';
   $('win-next').setAttribute('aria-label', label);
   $('win-next-label').textContent = label;
@@ -1394,20 +1418,37 @@ var gear = $('gear'), holdTimer = null;
 var sel = 1;             // player shown in the parent corner's Progress rows
 var openedAt = 0, downAt = 0;
 function openParent(){
+  hideTip();
   openedAt = Date.now();
   sel = P.id;
   renderPlayers();
   syncToggles();
   $('parent').hidden = false;
 }
-function cancelHold(){ clearTimeout(holdTimer); gear.classList.remove('holding'); }
+function cancelHold(){ clearTimeout(holdTimer); holdTimer = null; gear.classList.remove('holding'); }
 gear.addEventListener('pointerdown', function(){
   unlock();
+  hideTip();
   gear.classList.remove('holding'); void gear.offsetWidth; gear.classList.add('holding');
   clearTimeout(holdTimer);
-  holdTimer = setTimeout(function(){ cancelHold(); openParent(); }, 1200);
+  holdTimer = setTimeout(function(){ cancelHold(); taps = 0; openParent(); }, 1200);
 });
-['pointerup','pointerleave','pointercancel'].forEach(function(t){ gear.addEventListener(t, cancelHold); });
+['pointerleave','pointercancel'].forEach(function(t){ gear.addEventListener(t, cancelHold); });
+/* A tap that lets go before the ring closes is a short tap. Two in a row (each within 3 seconds
+   of the last) show a tip that the gear needs holding; it goes after 5 seconds or the next press. */
+var taps = 0, lastTap = 0, tipTimer = null;
+function hideTip(){ clearTimeout(tipTimer); $('gear-tip').hidden = true; }
+gear.addEventListener('pointerup', function(){
+  if(!holdTimer) return;
+  cancelHold();
+  var now = Date.now();
+  taps = now - lastTap < 3000 ? taps + 1 : 1;
+  lastTap = now;
+  if(taps < 2) return;
+  taps = 0;
+  $('gear-tip').hidden = false;
+  tipTimer = setTimeout(hideTip, 5000);
+});
 gear.addEventListener('click', function(e){ if(e.detail === 0) openParent(); });   // keyboard users
 gear.addEventListener('contextmenu', function(e){ e.preventDefault(); });
 /* Lifting the finger after the hold sends a click to whatever in the corner is now under it
@@ -1423,13 +1464,13 @@ function plural(n, word){ return n + ' ' + word + (n === 1 ? '' : 's'); }
 function progressLines(p){
   var out = LEVELS.map(function(L){
     var l = L.id, n = p.rounds[l] || 0, head = 'Route ' + l + ', ' + LEVEL_NAME[l] + ': ';
-    var earned = l === 1 || (p.rounds[l-1] || 0) >= 2;
+    var b = prevIn(l), next = nextIn(l), earned = !b || (p.rounds[b] || 0) >= 2;
     if(!earned && !S.unlockAll) return head + 'locked';
     if(!earned) return head + (n ? plural(n, 'round') : 'open') + ' (Unlock all is on)';
     var line = head + plural(n, 'round');
-    if(l < LEVELS.length && !unlocked(l + 1, p)){
+    if(next && !unlocked(next, p)){
       var left = 2 - n;
-      line += ', so ' + left + ' more ' + (left === 1 ? 'opens' : 'open') + ' Route ' + (l + 1);
+      line += ', so ' + left + ' more ' + (left === 1 ? 'opens' : 'open') + ' Route ' + next;
     }
     return line;
   });

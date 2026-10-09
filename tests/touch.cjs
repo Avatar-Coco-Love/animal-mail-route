@@ -41,15 +41,18 @@ const holdGear = async (page, touch) => {
   await touch('touchEnd');
   await page.waitForTimeout(100);
 };
-// map path: which of the 3 segments are lit, and whether each runs from one disc's centre to the next
+// map path: which of the 2 segments (route 1 to 2, 2 to 3 on the Letters track) are lit, and whether
+// each runs from one disc's centre to the next route's on its track (data-seg is the route it leaves)
 const segState = (page) => page.$$eval('#route .seg', (gs) => gs.map((g) => g.classList.contains('lit') ? 1 : 0).join(''));
 const segsJoinDiscs = (page) => page.evaluate(() => {
   const route = document.querySelector('#route'), box = route.getBoundingClientRect();
-  const c = [...route.querySelectorAll('.disc')].map((d) => { const r = d.getBoundingClientRect(); return [r.left - box.left + r.width / 2, r.top - box.top + r.height / 2]; });
+  const c = (id) => { const r = route.querySelector(`.node[data-level="${id}"] .disc`).getBoundingClientRect(); return [r.left - box.left + r.width / 2, r.top - box.top + r.height / 2]; };
   const lines = [...route.querySelectorAll('.seg .dash')];
   const near = (a, b) => Math.abs(a - b) <= 2;
-  return lines.length === 3 && lines.every((l, i) => near(+l.getAttribute('x1'), c[i][0]) && near(+l.getAttribute('y1'), c[i][1]) && near(+l.getAttribute('x2'), c[i + 1][0]) && near(+l.getAttribute('y2'), c[i + 1][1]));
+  return lines.length === 2 && lines.every((l) => { const from = +l.closest('.seg').getAttribute('data-seg'), a = c(from), b = c(from + 1); return near(+l.getAttribute('x1'), a[0]) && near(+l.getAttribute('y1'), a[1]) && near(+l.getAttribute('x2'), b[0]) && near(+l.getAttribute('y2'), b[1]); });
 });
+// segments are straight lines, so one of width or height can be 0
+const segsOnScreen = (page) => page.$$eval('#route .seg', (els) => els.every((e) => { const r = e.getBoundingClientRect(); return r.width + r.height > 0 && r.left >= -1 && r.top >= -1 && r.right <= innerWidth + 1 && r.bottom <= innerHeight + 1; }));
 const progressText = (page) => page.$$eval('#progress li', (li) => li.map((e) => e.textContent));
 const wanted = (page) => page.evaluate(() => document.querySelector('#caption').textContent.slice(-2, -1));
 
@@ -78,7 +81,17 @@ const wanted = (page) => page.evaluate(() => document.querySelector('#caption').
     await page.waitForTimeout(300);
     if (name === 'pixel') check('one player: Play goes straight to the map, no picker or avatar', await page.$eval('#s-who', (e) => e.hidden) && await page.$eval('#m-who', (e) => e.hidden));
     check(`${name}: all 4 routes on screen`, await allOnScreen(page, '.node'));
-    check(`${name}: map path joins the 4 routes, on screen, all grey at the start`, (await segState(page)) === '000' && await segsJoinDiscs(page) && await allOnScreen(page, '#route .seg'));
+    check(`${name}: map path joins routes 1 to 3, on screen, all grey at the start`, (await segState(page)) === '00' && await segsJoinDiscs(page) && await segsOnScreen(page));
+    // tracks: Letters (1 to 3) and Numbers (4), side by side upright and one above the other sideways
+    const tracks = await page.evaluate(() => {
+      const t = [...document.querySelectorAll('#route .track')].map((e) => ({ id: e.getAttribute('data-track'), routes: [...e.querySelectorAll('.node')].map((n) => +n.getAttribute('data-level')) }));
+      const r = (id) => document.querySelector(`.node[data-level="${id}"] .disc`).getBoundingClientRect();
+      const a = r(1), b = r(4), side = innerWidth > innerHeight && innerHeight <= 560;
+      return { t: JSON.stringify(t), level: side ? Math.abs(a.left - b.left) <= 2 && b.top > a.bottom : Math.abs(a.top - b.top) <= 2 && b.left > a.right };
+    });
+    check(`${name}: two tracks, Letters 1 to 3 and Numbers 4, route 4 next to route 1`, tracks.t === '[{"id":"letters","routes":[1,2,3]},{"id":"numbers","routes":[4]}]' && tracks.level, tracks);
+    check(`${name}: route 4 open from the start, route 2 locked`, !(await page.$('.node[data-level="4"].locked')) && !!(await page.$('.node[data-level="2"].locked')));
+    check(`${name}: track labels on screen`, await allOnScreen(page, '#route .tname'));
     await page.tap('.node[data-level="1"]');
     await page.waitForTimeout(1700);
     check(`${name}: houses, mail and prompt on screen`, await allOnScreen(page, '.house, #mail, #caption'));
@@ -139,7 +152,7 @@ const wanted = (page) => page.evaluate(() => document.querySelector('#caption').
     check('win card: Next route starts route 2', !!(await page.$('.house.has-pal')));
     await page.tap('[data-go="map"]');
     await page.waitForTimeout(300);
-    check('map path: 2 rounds of route 1 light the path to route 2', (await segState(page)) === '100', await segState(page));
+    check('map path: 2 rounds of route 1 light the path to route 2', (await segState(page)) === '10', await segState(page));
     check('map path: the segment that just lit animates once', await page.$$eval('#route .seg.new', (g) => g.map((x) => x.getAttribute('data-seg')).join()) === '1');
     await ctx.close();
   }
@@ -158,7 +171,18 @@ const wanted = (page) => page.evaluate(() => document.querySelector('#caption').
     await page.waitForTimeout(800);
     const after = await ring();
     check('gear: the ring runs round while held, and resets when let go early', !before.shown && mid.shown && mid.off > 20 && mid.off < 80 && !after.shown && await page.$eval('#parent', (e) => e.hidden), { before, mid, after });
+    // two quick taps in a row show a tip to hold the gear; one tap doesn't, and the hold hides it
+    const tap = async () => { await touch('touchStart', ...g); await page.waitForTimeout(80); await touch('touchEnd'); await page.waitForTimeout(250); };
+    const tipShown = () => page.$eval('#gear-tip', (e) => !e.hidden);
+    await page.waitForTimeout(3200);   // the early let-go above was a short press too
+    await tap();
+    const one = await tipShown();
+    await tap();
+    const two = await tipShown();
+    check('gear: one tap shows no tip, a second tap in a row shows "press and hold"', !one && two && /hold/i.test(await page.$eval('#gear-tip', (e) => e.textContent)) && await page.$eval('#parent', (e) => e.hidden), { one, two });
+    check('gear: the tip is on screen', await allOnScreen(page, '#gear-tip'));
     await holdGear(page, touch);
+    check('gear: the tip goes when the gear is held', !(await tipShown()));
     check('parent corner opens with press and hold',await page.$eval('#parent', (e) => !e.hidden));
     check('play counts setting hidden while COUNT_URL is empty', await page.evaluate(() => document.querySelector('#share-row').hidden || /COUNT_URL = '[^']+'/.test(document.documentElement.innerHTML)));
     // the card is long, so a parent may swipe a few times
@@ -180,7 +204,7 @@ const wanted = (page) => page.evaluate(() => document.querySelector('#caption').
     // on this screen the finger lifts over Print summary; that lift must not press it
     check('parent corner: lifting the finger after the hold presses nothing', await page.$eval('#summary', (e) => e.hidden) && !(await page.$('.pbtn.armed')));
     check('parent corner: no Print all players with one player', await page.$eval('#print-all-row', (e) => e.hidden));
-    const want = ['Route 1, Letters: 3 rounds', 'Route 2, Animals: 1 round, so 1 more opens Route 3', 'Route 3, Letters and animals: locked', 'Route 4, Numbers: locked', 'Stickers: 4', 'Letters: S, B, K, C, P'];
+    const want = ['Route 1, Letters: 3 rounds', 'Route 2, Animals: 1 round, so 1 more opens Route 3', 'Route 3, Letters and animals: locked', 'Route 4, Numbers: 0 rounds', 'Stickers: 4', 'Letters: S, B, K, C, P'];
     let got = await progressText(page);
     check('progress row matches the unlock rule', JSON.stringify(got) === JSON.stringify(want), got);
     await page.tap('#t-unlock');
@@ -189,7 +213,7 @@ const wanted = (page) => page.evaluate(() => document.querySelector('#caption').
     await page.tap('#p-close');
     await page.tap('.playbtn');
     await page.waitForTimeout(300);
-    check('map path: Unlock all lights every segment', (await segState(page)) === '111', await segState(page));
+    check('map path: Unlock all lights every segment', (await segState(page)) === '11', await segState(page));
     await ctx.close();
   }
 
@@ -208,7 +232,7 @@ const wanted = (page) => page.evaluate(() => document.querySelector('#caption').
     await page.tap('.playbtn');
     await page.waitForTimeout(300);
     check('v1: route 2 open on the map after migration', !(await page.$('.node[data-level="2"].locked')) && !!(await page.$('.node[data-level="3"].locked')));
-    check('map path: lit up to the last open route, grey after', (await segState(page)) === '100' && !(await page.$('#route .seg.new')), await segState(page));
+    check('map path: lit up to the last open route, grey after', (await segState(page)) === '10' && !(await page.$('#route .seg.new')), await segState(page));
     await ctx.close();
   }
 
@@ -373,7 +397,7 @@ const wanted = (page) => page.evaluate(() => document.querySelector('#caption').
       fits: document.querySelector('#summary').scrollWidth <= innerWidth,
     }));
     check('print summary: opens the summary and the print dialog', sum.shown && sum.printed === 1, sum);
-    check("print summary: shows the selected player's lines", sum.who === 'Player: Mia (Kelly the Kangaroo)' && JSON.stringify(sum.lines) === JSON.stringify(lines) && sum.lines[0] === 'Route 1, Letters: 3 rounds' && sum.lines[2] === 'Route 3, Letters and animals: 1 round, so 1 more opens Route 4' && sum.lines[4] === 'Stickers: 6', sum);
+    check("print summary: shows the selected player's lines", sum.who === 'Player: Mia (Kelly the Kangaroo)' && JSON.stringify(sum.lines) === JSON.stringify(lines) && sum.lines[0] === 'Route 1, Letters: 3 rounds' && sum.lines[2] === 'Route 3, Letters and animals: 1 round' && sum.lines[3] === 'Route 4, Numbers: 0 rounds' && sum.lines[4] === 'Stickers: 6', sum);
     check('print summary: needs practice with names', sum.weak === 'K (Kelly the Kangaroo), C (Cody the Crane)', sum.weak);
     check('print summary: fits the width of a sideways phone', sum.fits);
     await page.emulateMedia({ media: 'print' });
