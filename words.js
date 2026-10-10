@@ -109,6 +109,8 @@ var LANGS = {
     alphabet:'ABCDEFGHIJKLMNOPQRSTUVWXYZ', audio:'audio/en/', nums:['one','two','three','four','five'],
     sounds:{S:'sss', B:'buh', K:'kuh', C:'kuh', P:'puh', A:'aa', D:'duh', E:'eh', F:'fff', G:'guh', H:'huh',
       I:'ih', J:'juh', L:'lll', M:'mmm', N:'nnn', O:'ah', Q:'kwuh', R:'rrr', T:'tuh', U:'uh', V:'vvv', W:'wuh', Y:'yuh', Z:'zzz'},
+    // letters that make the same sound: never two of a group on the street on the Letter sounds route
+    alike:[['C','K']],
     clips:{
       'who-gets-the':'Who gets the',
       'mail-for':'This mail is for',
@@ -118,7 +120,8 @@ var LANGS = {
       'route-done':'You finished the route! Great job! You got a sticker!',
       'deliver-to':'Deliver to number',
       'count-prompt':'Count the stars! Which number?',
-      'whos-playing':"Who's playing?"
+      'whos-playing':"Who's playing?",
+      'who-starts-with':'Who starts with'
     },
     t:{
       title:'Animal Mail Route', play:'Play', book:'Sticker book', switchTo:'Play in English',
@@ -128,11 +131,11 @@ var LANGS = {
       winAria:'Route complete', winHead:'Route complete!', winText:'You delivered all the mail and earned a sticker.',
       map:'Map', playAgain:'Play again', nextRoute:'Next route',
       routeAria:'Route {n}, {name}', lockedAria:', locked', nextAria:', play next',
-      trackLetters:'Letters', trackNumbers:'Numbers', levels:['Letters', 'Animals', 'Letters and animals', 'Numbers'],
+      trackLetters:'Letters', trackNumbers:'Numbers', levels:['Letters', 'Animals', 'Letters and animals', 'Numbers', 'Letter sounds'],
       playing:'Playing: {name}. Tap to change player.',
       houseLetter:'House with the letter {l}, home of {name}', houseNumber:'House number {n}, home of {name}',
-      capLetter:'Who gets the {l}?', capNumber:'Deliver to number {n}!', capCount:'Count the stars. Which number?', capPicture:'This mail is for {name}!',
-      mailLetter:'Mail with the letter {l}', mailNumber:'Mail with the number {n}', mailCount:'Mail with {n} stars', mailPicture:'Mail with a picture of {name}',
+      capLetter:'Who gets the {l}?', capNumber:'Deliver to number {n}!', capCount:'Count the stars. Which number?', capPicture:'This mail is for {name}!', capSound:'Who starts with "{s}"?',
+      mailLetter:'Mail with the letter {l}', mailNumber:'Mail with the number {n}', mailCount:'Mail with {n} stars', mailPicture:'Mail with a picture of {name}', mailSound:'Mail that says "{s}". Tap it to hear the sound again',
       mailHow:'. Drag it to the matching house, or tap it and then tap a house.',
       bannerLetter:'{l} for {name}!', bannerNumber:'{n} is {name}!', sayLetter:'{l}! {l} for {name}!', sayNumber:'{n}! {name}!', reward:'{l} for {name}!',
       parent:'Parent corner', language:'Language / Idioma', on:'On', off:'Off',
@@ -173,6 +176,8 @@ var LANGS = {
     // syllables for the sounds a voice can't say alone; H is silent, so it says only its name
     sounds:{M:'mmm', P:'pa', L:'lll', S:'sss', T:'ta', A:'a', B:'ba', C:'ca', D:'da', Ñ:'ña', Q:'que', E:'e', F:'fff', G:'ga', H:'',
       I:'i', J:'ja', K:'ka', N:'nnn', O:'o', R:'rrr', V:'va', Y:'ya', Z:'sss'},
+    // same sound in Latin American Spanish: S and Z (sss), B and V (ba), C and K (ca)
+    alike:[['S','Z'], ['B','V'], ['C','K']],
     clips:{
       'who-gets-the':'¿Quién recibe la',
       'mail-for':'Esta carta es para',
@@ -182,7 +187,8 @@ var LANGS = {
       'route-done':'¡Terminaste la ruta! ¡Muy bien! ¡Ganaste una estampa!',
       'deliver-to':'Lleva la carta al número',
       'count-prompt':'¡Cuenta las estrellas! ¿Qué número es?',
-      'whos-playing':'¿Quién va a jugar?'
+      'whos-playing':'¿Quién va a jugar?',
+      'who-starts-with':'¿Quién empieza con'
     },
     t:{
       title:'El Correo de los Animales', play:'Jugar', book:'Álbum de estampas', switchTo:'Jugar en español',
@@ -192,11 +198,11 @@ var LANGS = {
       winAria:'Ruta terminada', winHead:'¡Ruta terminada!', winText:'Entregaste todas las cartas y ganaste una estampa.',
       map:'Mapa', playAgain:'Jugar otra vez', nextRoute:'Siguiente ruta',
       routeAria:'Ruta {n}, {name}', lockedAria:', cerrada', nextAria:', sigue esta',
-      trackLetters:'Letras', trackNumbers:'Números', levels:['Letras', 'Animales', 'Letras y animales', 'Números'],
+      trackLetters:'Letras', trackNumbers:'Números', levels:['Letras', 'Animales', 'Letras y animales', 'Números', 'Sonidos de las letras'],
       playing:'Juega: {name}. Toca para cambiar de jugador.',
       houseLetter:'Casa con la letra {l}, de {name}', houseNumber:'Casa número {n}, de {name}',
-      capLetter:'¿Quién recibe la {l}?', capNumber:'¡Lleva la carta al número {n}!', capCount:'Cuenta las estrellas. ¿Qué número es?', capPicture:'¡Esta carta es para {name}!',
-      mailLetter:'Carta con la letra {l}', mailNumber:'Carta con el número {n}', mailCount:'Carta con {n} estrellas', mailPicture:'Carta con un dibujo de {name}',
+      capLetter:'¿Quién recibe la {l}?', capNumber:'¡Lleva la carta al número {n}!', capCount:'Cuenta las estrellas. ¿Qué número es?', capPicture:'¡Esta carta es para {name}!', capSound:'¿Quién empieza con «{s}»?',
+      mailLetter:'Carta con la letra {l}', mailNumber:'Carta con el número {n}', mailCount:'Carta con {n} estrellas', mailPicture:'Carta con un dibujo de {name}', mailSound:'Carta que dice «{s}». Tócala para oír el sonido otra vez',
       mailHow:'. Arrástrala a la casa correcta, o tócala y luego toca una casa.',
       bannerLetter:'¡{l} de {name}!', bannerNumber:'¡El {n} es de {name}!', sayLetter:'¡{l}! ¡{l} de {name}!', sayNumber:'¡{n}! ¡{name}!', reward:'¡{l} de {name}!',
       parent:'Rincón de papás', language:'Idioma / Language', on:'Sí', off:'No',

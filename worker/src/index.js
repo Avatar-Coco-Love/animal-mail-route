@@ -7,7 +7,7 @@
 const MAX_BODY = 1024;
 const CAP = 200;
 const METRICS = ['started', 'finished', 'misses'];
-const ROUTES = ['1', '2', '3', '4'];
+const ROUTES = ['1', '2', '3', '4', '5'];
 const KEYS = new Set(['v', 'app', 'opens', ...METRICS]);
 
 function isCount(n) {

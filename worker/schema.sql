@@ -1,5 +1,5 @@
 -- One row per UTC day, metric and route. Nothing else is stored.
--- metric: opens (route 0), started, finished, misses (routes 1 to 4)
+-- metric: opens (route 0), started, finished, misses (routes 1 to 5)
 CREATE TABLE IF NOT EXISTS counts (
   day    TEXT    NOT NULL,
   metric TEXT    NOT NULL,

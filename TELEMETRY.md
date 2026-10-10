@@ -26,7 +26,7 @@ One small message per play session, only when sharing is on:
 | `v` | message format version |
 | `app` | game version |
 | `opens` | times the game was opened |
-| `started` | rounds started, by route (1 to 4) |
+| `started` | rounds started, by route (1 to 5) |
 | `finished` | rounds finished, by route |
 | `misses` | wrong-house drops, by route |
 
@@ -43,7 +43,7 @@ The server adds these totals into daily rows: `(date, metric, route) -> count`. 
 
 ## Server (Cloudflare Worker + D1)
 - `POST /v1/counts` only. CORS allows only the GitHub Pages origin (and the future app origin).
-- Strict validation: exact keys, integers 0 to 200, routes 1 to 4, body under 1 KB. Reject everything else with 400 and keep nothing.
+- Strict validation: exact keys, integers 0 to 200, routes 1 to 5, body under 1 KB. Reject everything else with 400 and keep nothing.
 - D1 table `counts(day TEXT, metric TEXT, route INTEGER, n INTEGER, PRIMARY KEY(day, metric, route))`. Write with `INSERT ... ON CONFLICT DO UPDATE SET n = n + excluded.n` so concurrent sends add correctly (KV is not atomic, so it doesn't fit).
 - Never read the `CF-Connecting-IP` header, and don't `console.log` requests. Turn observability off in `wrangler.toml`.
 - Read the numbers with `wrangler d1 execute` (no public read endpoint).
