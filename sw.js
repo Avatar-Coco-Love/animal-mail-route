@@ -1,23 +1,27 @@
 // Service worker: lets the game install and play offline.
 // Bump VERSION on every release so phones drop the old cache and fetch the new files.
 // Only same-origin GET requests are handled; play counts (a POST to another site) pass straight through.
-var VERSION = 'amr-v10';
+var VERSION = 'amr-v11';
 var CORE = [
   './', 'index.html', 'privacy.html', 'manifest.webmanifest',
   'fonts/baloo2-latin.woff2', 'fonts/nunito-latin.woff2',
   'icons/icon-192.png', 'icons/icon-512.png', 'icons/icon-maskable-512.png', 'icons/icon.svg',
-  'audio/clips.json'
+  'audio/clips.json', 'audio/es/clips.json'
 ];
+// Each language's clips folder (English at the top of audio/)
+var AUDIO = ['audio/', 'audio/es/'];
 
 self.addEventListener('install', function(e){
   e.waitUntil(caches.open(VERSION).then(function(cache){
     return cache.addAll(CORE).then(function(){
-      // Voice clips: cache every clip clips.json lists. A missing clip is skipped, not fatal.
-      return fetch('audio/clips.json').then(function(r){ return r.json(); }).then(function(list){
-        return Promise.all((Array.isArray(list) ? list : []).map(function(k){
-          return cache.add('audio/' + k + '.mp3').catch(function(){});
-        }));
-      }).catch(function(){});
+      // Voice clips: cache every clip each clips.json lists. A missing clip is skipped, not fatal.
+      return Promise.all(AUDIO.map(function(dir){
+        return fetch(dir + 'clips.json').then(function(r){ return r.json(); }).then(function(list){
+          return Promise.all((Array.isArray(list) ? list : []).map(function(k){
+            return cache.add(dir + k + '.mp3').catch(function(){});
+          }));
+        }).catch(function(){});
+      }));
     });
   }).then(function(){ return self.skipWaiting(); }));
 });

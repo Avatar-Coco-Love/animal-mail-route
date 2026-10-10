@@ -72,3 +72,4 @@ Press and hold the gear on the title screen. Copy these lines:
 - Map: the map now has two lines, ABC (letter routes) and 123 (numbers). Could the child find the numbers route, and did the two lines make sense?
 - Gear: tap the gear twice quickly instead of holding it. Did a tip appear saying to press and hold?
 - Share link: send the game's address in a text or chat. Did the preview show the picture of the animals?
+- Spanish (draft, for a Spanish speaker to try): open the game's address with `?lang=es` at the end. Does anything sound or read wrong: words, animal names, the title, the letter sounds? The "English" button beside the gear switches back.
