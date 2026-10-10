@@ -72,13 +72,16 @@ Press and hold the gear on the title screen. Copy these lines:
 - Map: the map now has two lines, ABC (letter routes) and 123 (numbers). Could the child find the numbers route, and did the two lines make sense?
 - Gear: tap the gear twice quickly instead of holding it. Did a tip appear saying to press and hold?
 - Share link: send the game's address in a text or chat. Did the preview show the picture of the animals?
-- Spanish (draft, for a Spanish speaker to try): open https://avatar-coco-love.github.io/animal-mail-route/es/ (or the game's address with `?lang=es` at the end). Does anything sound or read wrong: words, animal names, the title, the letter sounds? The "English" button beside the gear switches back. A Spanish-speaking family can use the Spanish sheet below instead of this one.
+- Español: the "Español" button beside the gear switches the game to Spanish, and "English" switches back. Did the child tap it by accident, and was it easy to get back? Spanish progress is kept separately.
+- Spanish-speaking family: share https://avatar-coco-love.github.io/animal-mail-route/es/ and the Spanish sheet below. The Spanish is a draft nobody native has checked yet, so their corrections are the most useful part.
 
 ---
 
 # Hoja de prueba (en español)
 
 Para un papá o una mamá que mira a un niño de 3 a 5 años jugar en un teléfono o tableta Android, en español. Unos 15 minutos. Llena lo que puedas y luego pega la hoja completa de vuelta a Claude. Puedes contestar en español o en inglés.
+
+El español del juego es un borrador: todavía no lo ha revisado un hablante nativo. Tus correcciones son lo que más nos ayuda. Puedes enviar esta hoja a clements.cody.j@gmail.com.
 
 ## Antes de empezar
 - Abre https://avatar-coco-love.github.io/animal-mail-route/es/ en Chrome. El juego abre en español.

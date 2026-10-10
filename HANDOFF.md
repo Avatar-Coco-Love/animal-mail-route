@@ -26,7 +26,15 @@ An older copy also exists as a Claude artifact. It predates the fixes below, so 
 - Version 1.1 (tenth session, owner request: "add other languages, starting with Spanish"): language groundwork. Every word in the game comes from a language table, each language has its own voice, animal friends and first five letters, and each player keeps separate progress per language. A Mexican Spanish draft is complete but **not offered yet** (`ready:false`): families see no change; it can be tried at `?lang=es`. See "Languages" below. The touch test passes all checks locally.
 - Version 1.2 (eleventh session, Languages step 2 without the review): the Spanish address `es/` (Spanish link preview, and installs as "Correo Animal" / "El Correo de los Animales"), a Spanish privacy page, and a Spanish playtest sheet. Spanish is still **not offered** (`ready:false`); no Spanish review notes yet. PR #15 merged; the touch test passed all 246 checks against the live site afterwards.
 - Version 1.3 (eleventh session, second PR): new pictures for D (delfín), Ñ (ñandú) and Q (quetzal), and three Spanish friends who use them, Dani el Delfín, Ñico el Ñandú and Quique el Quetzal (36 Spanish friends; only U, W and X have none). Spanish is still hidden. PR #16 merged; the touch test passed all 251 checks against the live site afterwards.
-- **Next:** Phase 5 of the expansion roadmap (new kinds of questions), one route per PR; see "Phase 5 with two languages" under it. Finishing Languages step 2 (apply the Spanish review, `ready:true`, flip the draft checks) waits on the owner's reviewer; when notes arrive, do that in its own PR before continuing Phase 5.
+- Version 1.4 (twelfth session, owner decision): **Spanish is offered to everyone** (`ready:true`) without a native-speaker review. The title shows "Español" / "English" beside the gear, the parent corner has the language row, and a Spanish device gets Spanish on a first visit. The Spanish parent corner and `privacy-es.html` say (in Spanish) that the translation is a draft and ask for corrections. Child screens are unchanged. The touch test passes all 261 checks locally.
+- **Next:** the twelfth session's plan, in order (one PR each): feedback inside the app (parent corner), volunteer voices (voice sets, voice choice, volunteer recording page), then Phase 5 starting with Letter sounds. See "Owner decisions, October 10, 2026". If Spanish review notes or playtest notes arrive, fix those first, in their own PR.
+
+## Owner decisions, October 10, 2026
+- The owner doesn't speak Spanish and has no playtesters yet. **Spanish goes live for everyone now, without a native-speaker review.** Families who speak Spanish will help correct it through the in-app feedback.
+- **Contact address** for feedback and voice volunteers: `clements.cody.j@gmail.com`. It is visible to anyone who uses the game or reads the repo; the owner chose this.
+- **Volunteer voices:** male and female, in English and Spanish.
+- Spanish review notes: none yet. Playtest notes: none yet. If either arrives later, fix its findings first, in their own PR.
+- Work, one PR per step: 1. turn Spanish on, labelled a draft for parents (1.4); 2. feedback inside the app, parent corner only, as a prefilled email the parent sends themselves, never anything about the child; 3. volunteer voices: voice sets `audio/<lang>/<female|male>/`, a voice choice in the parent corner, and a volunteer recording page (adults only, nothing uploads); 4. Phase 5, starting with Letter sounds, in both languages.
 
 ## Repo map
 | Path | What |
@@ -38,7 +46,7 @@ An older copy also exists as a Claude artifact. It predates the fixes below, so 
 | `audio/` | English voice clips (none yet) and `clips.json`, the list of clips that exist; `audio/es/` the same for Spanish |
 | `TELEMETRY.md` | play counts design and rules (COPPA, Google Families) |
 | `worker/` | Cloudflare Worker + D1 for play counts, with tests and deploy steps |
-| `tests/touch.cjs` | touch smoke test (251 checks), local or live |
+| `tests/touch.cjs` | touch smoke test (261 checks), local or live |
 | `manifest.webmanifest`, `sw.js` | install and offline play; bump `VERSION` in `sw.js` on every release |
 | `icons/` | app icons: `icon.svg` and `icon-maskable.svg` are the sources, `export.cjs` makes the PNGs. `share.png` and `share-es.png` are the link preview pictures, made by `share.cjs` from the title screen (`node icons/share.cjs [url] es` for Spanish) |
 | `.github/workflows/test.yml` | CI on pull requests: worker tests and the touch test |
@@ -137,7 +145,7 @@ It needs Playwright with Chromium; in Claude Code cloud sessions it is installed
 - More animal friends: "More" lists all 46 friends; every friend's art renders, every name and animal starts with the friend's letter, names are unique; the parent corner with "More" open fits a sideways phone; choosing Ollie as an avatar saves, and "Fewer" shows the first five plus Ollie; a set of A, M and Z on routes 3 and 2 uses only those houses and mail, and both friends of each take turns
 - Print all players: hidden with one player; with two, one sheet per player in order with each player's lines, the print dialog, fits the width, the second sheet starts a new printed page, Done returns to the parent corner
 - Spanish address and privacy (1.2): the English page links the English manifest and privacy page; `es/` has Spanish preview tags and `share-es.png` (1200×630) loads; `es/` opens the game in Spanish with the Spanish manifest (name, short name, `es-MX`, its own id, start at `es/`, scope covering the game, icons load); the Spanish parent corner links `privacy-es.html`, which is in Spanish, fits, links back to `es/` and to the English page; offline, `es/` still opens in Spanish and both privacy pages load
-- Languages: English by default with no language button or row while Spanish is a draft, also on a Spanish device; a save from before languages stays English; at `?lang=es` on all 5 sizes, the Spanish title, Play, and an "English" button on screen that overlaps nothing; a Spanish round (caption, spoken prompt in es-MX, delivery banner and cheer); Spanish map labels and sticker book; no English words on the title, map, round, sticker book or parent corner; 36 Spanish friends with pictures and names starting with their letter; the 27-letter grid (U, W, X without a friend, M P L S T on); a Spanish round with only D, Ñ and Q (houses, pictures, the banner names each friend, the round finishes); the language row; per-language progress (Spanish starts fresh, the name carries over, the save keeps English at the top, Spanish progress under `langs.es`); switching from the parent corner and from the title button reloads in English with English progress and keeps both
+- Languages (1.4, Spanish offered): English by default with an "Español" button (on screen and overlapping nothing at all 5 sizes) and the language row, no draft note; a Spanish device gets Spanish on a first visit, and its parent corner (never the title) shows the draft note asking for corrections; `privacy-es.html` shows the draft note; a save from before languages stays English; at `?lang=es` on all 5 sizes, the Spanish title, Play, and an "English" button on screen that overlaps nothing; a Spanish round (caption, spoken prompt in es-MX, delivery banner and cheer); Spanish map labels and sticker book; no English words on the title, map, round, sticker book or parent corner; 36 Spanish friends with pictures and names starting with their letter; the 27-letter grid (U, W, X without a friend, M P L S T on); a Spanish round with only D, Ñ and Q (houses, pictures, the banner names each friend, the round finishes); the language row; per-language progress (Spanish starts fresh, the name carries over, the save keeps English at the top, Spanish progress under `langs.es`); switching from the parent corner and from the title button reloads in English with English progress and keeps both
 
 Worker tests: `cd worker && npm install && npm test`.
 
@@ -367,18 +375,17 @@ The owner asked how hard other languages would be, starting with Spanish ("Spani
 - **Release 1.1:** `VERSION` and the note are 1.1, `sw.js` is `amr-v11`.
 
 ## Languages (owner request, October 10, 2026)
-### Step 2: turn Spanish on
+### Step 2: turn Spanish on — done in 1.4 without the review (owner decision)
 - *Done in 1.2 (no review needed):* the Spanish address `es/` with its own manifest and link preview, the Spanish privacy page, and the Spanish playtest sheet in `PLAYTEST.md`.
-- **Still to do, after the review:** apply the reviewer's changes to `LANGS.es` and `ES_FRIENDS` (and to `es/index.html`, `es/manifest.webmanifest`, `privacy-es.html` and the Spanish sheet if the title or words change; rerun `node icons/share.cjs <url> es` if the title changes), then set `ready:true`. The title button, the parent-corner row and first-visit detection then work with no other change.
-- Touch test: flip the draft checks (the button shows in English, a Spanish device gets Spanish on a first visit).
-- Then give the owner the `es/` address to share with Spanish-speaking families.
+- *Done in 1.4:* `ready:true`, the draft checks flipped, and a draft note for parents (`t.draft` in `LANGS.es`, shown at the top of the parent corner; also on `privacy-es.html`). When review notes arrive: apply the reviewer's changes to `LANGS.es` and `ES_FRIENDS` (and to `es/index.html`, `es/manifest.webmanifest`, `privacy-es.html` and the Spanish sheet if the title or words change; rerun `node icons/share.cjs <url> es` if the title changes), and remove `draft` from `LANGS.es.t` and the note from `privacy-es.html` once a native speaker has checked everything.
+- The `es/` address to share with Spanish-speaking families: https://avatar-coco-love.github.io/animal-mail-route/es/
 ### Later
 - *Done in 1.3:* new pictures for D (delfín), Ñ (ñandú), Q (quetzal).
 - New pictures for a second friend for A (ajolote, very Mexican), E, F, I, J, K, L, N.
 - Spanish recordings in `audio/es/` once the wording is settled (133 lines, from `CLIPS` with `?lang=es`).
 - Another language: add a pack to `LANGS` (and friends), and its folder to `AUDIO` in `sw.js`.
 ### Needs the owner
-- **A native Spanish speaker** (ideally a Mexican-American parent or preschool teacher) to play `?lang=es` and check the wording, the animal names, the title and the letter sounds. Default: none; Spanish stays hidden until then.
+- **A native Spanish speaker** (ideally a Mexican-American parent or preschool teacher) to check the wording, the animal names, the title and the letter sounds. Since 1.4 Spanish is live anyway (owner decision); corrections come in through the in-app feedback.
 
 ## Decisions made by Claude (October 10, 2026, eleventh session)
 Languages step 2, the parts that don't depend on the Spanish review (none had arrived). Small calls made without the owner; change them if they're wrong.
@@ -397,6 +404,12 @@ Languages step 2, the parts that don't depend on the Spanish review (none had ar
 - **House colours:** pale blue-grey with a slate roof (delfín), pale sand with a grey-brown roof (ñandú), pale green with a green roof (quetzal).
 - **Order:** they sit in `ES_FRIENDS` after C, N and O, so the Spanish grid and "Letters: …" list them in alphabet order. They are off by default (the first five stay M, P, L, S, T); "Todas" now turns on 24 letters.
 - **Release 1.3:** `VERSION` and the note are 1.3, `sw.js` is `amr-v13`, and the example game version on both privacy pages is 1.3.
+
+## Decisions made by Claude (October 10, 2026, twelfth session)
+Small calls made without the owner; change them if they're wrong.
+- **Draft note (1.4):** a pale yellow box at the very top of the Spanish parent corner, in Spanish, before the language row. It is a `t` key (`draft`) that only Spanish has, so any language added later without a review can carry one; English shows nothing. Until the feedback section exists (next PR), it gives the contact address to write to. `privacy-es.html` has the same note under its first line.
+- **The title button now shows in English too** ("Español"), as planned in 1.1: a plain tap switches, and tapping "English" switches back, so a child who taps it loses nothing.
+- **Release 1.4:** `VERSION` and the note are 1.4, `sw.js` is `amr-v14`, the example game version on both privacy pages is 1.4.
 
 ## Next sessions: expansion roadmap
 Written at the end of the fifth session, from the owner's questions about variety ("Is there a capacity to choose which letters, or randomized names that are school friendly and fit the lesson? In what ways can we expand?"). The owner asked for all of it to be built, starting in a fresh conversation. This section is the plan.
