@@ -101,7 +101,7 @@ var W = {
     noMic:'The microphone could not be used. Allow microphone access for this page in your browser, then try again.',
     noRec:'This browser can\'t record. Try Chrome on Android, or Safari or Chrome on a computer.',
     quiet:'A bit quiet: move a little closer, or speak up.', loud:'Too loud (it distorts): move back a little.', okLevel:'Recorded, {s} seconds.',
-    sections:{prompts:'Prompts', nums:'Numbers', letters:'Letters and their sounds', friends:'Animal friends'},
+    sections:{prompts:'Prompts', nums:'Numbers', letters:'Letters, their sounds and words', friends:'Animal friends'},
     sendH:'Send your recordings',
     send:'<ol><li>Press <b>Save all</b>. Your browser saves one file, <code>{zip}</code>, with every line you recorded (each named as the game needs, like <code>letter-S.wav</code>) and a note with your credit name.</li><li>Email that file to <a href="{mail}">{to}</a> (the link starts the email for you). Attach the file from your Downloads.</li><li>If the email says the file is too big, use <b>Save file</b> on each line to send them in two or three emails, or share it with a Google Drive or similar link.</li></ol><p>We\'ll write back to say thanks and when your voice is in the game.</p>',
     saveAll:'Save all', mailSubj:'Animal Mail Route voice recordings: {lang}, {set}',
@@ -131,7 +131,7 @@ var W = {
     noMic:'No se pudo usar el micrófono. Permite el micrófono para esta página en tu navegador y vuelve a intentarlo.',
     noRec:'Este navegador no puede grabar. Prueba Chrome en Android, o Safari o Chrome en una computadora.',
     quiet:'Un poco bajo: acércate un poco o habla más fuerte.', loud:'Demasiado fuerte (se distorsiona): aléjate un poco.', okLevel:'Grabada, {s} segundos.',
-    sections:{prompts:'Instrucciones', nums:'Números', letters:'Letras y sus sonidos', friends:'Amigos animales'},
+    sections:{prompts:'Instrucciones', nums:'Números', letters:'Letras, sus sonidos y palabras', friends:'Amigos animales'},
     sendH:'Envía tus grabaciones',
     send:'<ol><li>Toca <b>Guardar todo</b>. Tu navegador guarda un archivo, <code>{zip}</code>, con todas las frases que grabaste (cada una con el nombre que necesita el juego, como <code>letter-S.wav</code>) y una nota con tu nombre para los créditos.</li><li>Envía ese archivo por correo a <a href="{mail}">{to}</a> (el enlace empieza el correo por ti). Adjunta el archivo desde tus Descargas.</li><li>Si el correo dice que el archivo es muy grande, usa <b>Guardar archivo</b> en cada frase para enviarlas en dos o tres correos, o compártelo con un enlace de Google Drive o algo parecido.</li></ol><p>Te contestaremos para darte las gracias y avisarte cuando tu voz esté en el juego.</p>',
     saveAll:'Guardar todo', mailSubj:'Grabaciones de voz para El Correo de los Animales: {lang}, {set}',
@@ -147,7 +147,8 @@ var T = W[LANG] || W.en;
 function tx(s, v){ return v ? s.replace(/\{(\w+)\}/g, function(m, k){ return v[k] !== undefined ? v[k] : m; }) : s; }
 
 /* Delivery notes, per line kind, in the page's language. Prompts joined to another clip in the game
-   (who-gets-the + a letter, mail-for + a name, deliver-to + a number, who-starts-with + a sound) must stop where the next clip
+   (who-gets-the + a letter, mail-for + a name, deliver-to + a number, who-starts-with + a sound,
+   starts-like + a word) must stop where the next clip
    starts. */
 var NOTES = {
   en: {
@@ -162,11 +163,13 @@ var NOTES = {
     'whos-playing':'Welcoming and a little excited.',
     'who-starts-with':'A curious question, with the voice going up a little at the end. Stop right after "with": the game adds the letter\'s sound.',
     'little-letter':'A warm, whole question, inviting a look. It plays on its own, with no letter after it.',
+    'starts-like':'A curious question, with the voice going up a little at the end. Stop right after "like": the game adds a word, such as "ball".',
     num:'Just the number, clearly, as if counting.',
     letter:'Just the letter\'s name, clearly, as in the alphabet song.',
     sound:'Just the sound the letter makes, not its name. Hold long sounds (sss, mmm, fff) about a second; keep short ones (b, k, p) short, with as little "uh" after them as you can.',
     name:'Friendly, as if introducing a friend.',
-    reward:'Cheerful, celebrating a right answer.'
+    reward:'Cheerful, celebrating a right answer.',
+    word:'Just the word, clearly and a little slowly, so the first sound is easy to hear. Don\'t stretch or repeat the first sound.'
   },
   es: {
     'who-gets-the':'Una pregunta cálida y curiosa. Para justo después de "la": el juego agrega la letra con su propia grabación.',
@@ -180,15 +183,17 @@ var NOTES = {
     'whos-playing':'Acogedora y un poco emocionada.',
     'who-starts-with':'Una pregunta curiosa. Para justo después de "con": el juego agrega el sonido de la letra.',
     'little-letter':'Una pregunta cálida y completa, invitando a mirar. Suena sola, sin letra después.',
+    'starts-like':'Una pregunta curiosa. Para justo después de "como": el juego agrega una palabra, como "pelota".',
     num:'Solo el número, claro, como al contar.',
     letter:'Solo el nombre de la letra, claro, como en el abecedario (M es "eme").',
     sound:'Solo el sonido, no el nombre de la letra. Los sonidos largos (mmm, sss, fff) dúralos como un segundo; las sílabas (pa, ta, ca) cortas y claras.',
     name:'Amable, como presentando a un amigo.',
-    reward:'Alegre, celebrando una respuesta correcta.'
+    reward:'Alegre, celebrando una respuesta correcta.',
+    word:'Solo la palabra, sin artículo ("pelota", no "la pelota"), clara y un poco despacio, para que se oiga bien el primer sonido. No alargues ni repitas el primer sonido.'
   }
 };
 var N = NOTES[LANG] || NOTES.en;
-function kindOf(k){ var m = /^(num|letter|sound|name|reward)-/.exec(k); return m ? m[1] : 'prompt'; }
+function kindOf(k){ var m = /^(num|letter|sound|word|name|reward)-/.exec(k); return m ? m[1] : 'prompt'; }
 function noteFor(k){ return N[k] || N[kindOf(k)] || ''; }
 function sayFor(k){
   var kind = kindOf(k), txt = CLIPS[k];
@@ -198,7 +203,7 @@ function sayFor(k){
 }
 function sectionOf(k){
   var kind = kindOf(k);
-  return kind === 'prompt' ? 'prompts' : kind === 'num' ? 'nums' : (kind === 'letter' || kind === 'sound') ? 'letters' : 'friends';
+  return kind === 'prompt' ? 'prompts' : kind === 'num' ? 'nums' : (kind === 'letter' || kind === 'sound' || kind === 'word') ? 'letters' : 'friends';
 }
 
 /* ---------- Settings (this page only, separate from the game's save) ---------- */
