@@ -6,7 +6,7 @@ Read this first, then open `index.html`. It is the whole game, as a standalone p
 
 An older copy also exists as a Claude artifact. It predates the fixes below, so treat this repo as the source of truth.
 
-## Where things stand (October 9, 2026)
+## Where things stand (October 10, 2026)
 - Playable and public. Tested in emulated Android Chrome with real touch input at 5 phone and tablet sizes, on the live site too. All checks pass.
 - Not yet played on a real device or by a child.
 - Voice is the device's built-in speech; no recordings yet.
@@ -24,22 +24,24 @@ An older copy also exists as a Claude artifact. It predates the fixes below, so 
 - Version 0.9 (ninth session): Phase 4 of the expansion roadmap, map with tracks. Letters (routes 1 to 3) and Numbers (route 4) each have their own unlock chain, so numbers are open from the start. Also from owner feedback: two quick taps on the gear show a "press and hold" tip, and a shared link now shows a preview picture. The touch test passes all 195 checks locally.
 - Version 1.0 (tester feedback: "star system vs next node, which way to progress?"): routes show 2 stars, matching the 2 rounds that open the next route (the 3rd star used to be a bonus that opened nothing). The player's animal sits on the map's route to play next, and a route that just opened pulses until it is played. The win card says "Next route" whenever the next route is open and not yet played, not only on the round that opened it. The parent corner and printed summary say that replays add houses and switch animals on purpose. The touch test passes all 201 checks locally.
 - Version 1.1 (tenth session, owner request: "add other languages, starting with Spanish"): language groundwork. Every word in the game comes from a language table, each language has its own voice, animal friends and first five letters, and each player keeps separate progress per language. A Mexican Spanish draft is complete but **not offered yet** (`ready:false`): families see no change; it can be tried at `?lang=es`. See "Languages" below. The touch test passes all checks locally.
-- **Next:** Languages step 2 (turn Spanish on, after a native speaker reviews the draft), then Phase 5 of the expansion roadmap (new kinds of questions) and the rest under "Next sessions".
+- Version 1.2 (eleventh session, Languages step 2 without the review): the Spanish address `es/` (Spanish link preview, and installs as "Correo Animal" / "El Correo de los Animales"), a Spanish privacy page, and a Spanish playtest sheet. Spanish is still **not offered** (`ready:false`); no Spanish review notes yet. The touch test passes all checks locally.
+- **Next:** finish Languages step 2 once the Spanish review notes arrive (apply them, `ready:true`, flip the draft checks), then Phase 5 of the expansion roadmap (new kinds of questions) and the rest under "Next sessions".
 
 ## Repo map
 | Path | What |
 | --- | --- |
 | `index.html` | the whole game (CSS + one script block) |
-| `privacy.html` | privacy page, linked from the parent corner |
+| `privacy.html`, `privacy-es.html` | privacy page in English and Spanish, linked from the parent corner (each language names its page in `t.privacyPage`) |
+| `es/` | the Spanish address: `index.html` (Spanish link preview, then opens `../?lang=es`) and `manifest.webmanifest` (the Spanish installed app) |
 | `fonts/` | Baloo 2 and Nunito (latin subsets, SIL OFL), served with the game |
 | `audio/` | English voice clips (none yet) and `clips.json`, the list of clips that exist; `audio/es/` the same for Spanish |
 | `TELEMETRY.md` | play counts design and rules (COPPA, Google Families) |
 | `worker/` | Cloudflare Worker + D1 for play counts, with tests and deploy steps |
-| `tests/touch.cjs` | touch smoke test (237 checks), local or live |
+| `tests/touch.cjs` | touch smoke test (246 checks), local or live |
 | `manifest.webmanifest`, `sw.js` | install and offline play; bump `VERSION` in `sw.js` on every release |
-| `icons/` | app icons: `icon.svg` and `icon-maskable.svg` are the sources, `export.cjs` makes the PNGs. `share.png` is the link preview picture, made by `share.cjs` from the title screen |
+| `icons/` | app icons: `icon.svg` and `icon-maskable.svg` are the sources, `export.cjs` makes the PNGs. `share.png` and `share-es.png` are the link preview pictures, made by `share.cjs` from the title screen (`node icons/share.cjs [url] es` for Spanish) |
 | `.github/workflows/test.yml` | CI on pull requests: worker tests and the touch test |
-| `PLAYTEST.md` | checklist for the owner's first playtest with a child |
+| `PLAYTEST.md` | checklist for the owner's first playtest with a child, and a Spanish sheet (Hoja de prueba) for a Spanish-speaking family |
 
 ## What it is
 A mail delivery game for preschoolers (about ages 3 to 5). The child drags mail to the matching house and learns letters, animals, and numbers. Five animal friends (idea came from a coworker), plus Sally the Seal, a second S friend added in 0.6. Since 0.8 every letter but X has a friend (the full list is `FRIENDS` in `index.html`, and the table under "Phase 3" below); these five are still the default letters (since 0.8.1 the title cast is 5 random friends on each load):
@@ -78,13 +80,14 @@ Target: Android phone and tablet, touch-first. Built as plain HTML, CSS, and Jav
 - Letters vs friends: practice scores (`weak`), house `data-id`, mail items (`item.id`), `NUM` and the `letter-`/`sound-` clips are per letter. Art, names, `name-`/`reward-` clips, avatars and stickers are per friend. A round's `R.friend` maps letter to friend (`pickFriends`, least recently met, which also updates `P.seen`); each queue item carries its friend as `item.f`; houses have `data-friend`.
 - Letter sets: `cleanLetters` (valid letters, once each, in `LETTERS` order, at least `MIN_LETTERS` = 2), `roundLetters(n)` (the letters for a round on routes 1 to 3), `readyForMore(p)` (the "Ready for new letters" hint), and in the parent corner `renderLetters` (called from `syncToggles`), `setLetters` (applies to everyone while `S.lettersSame`), the `#lgrid` handler, `#b-first5`, `#b-allletters`, `#t-same`.
 - `CLIPS`: every spoken line, keyed by clip name, built from the language's `clips`, `nums`, `sounds` and friends (English: 156 total: 14 prompts and numbers, `letter-`/`sound-` for each of 25 letters, `name-`/`reward-` for each of 46 friends; Spanish: 121, since Spanish H has no `sound-` clip). Text in `CLIPS` is what the built-in voice says when a recording is missing.
-- Languages (1.1): `EN_FRIENDS`, `ES_FRIENDS` and `LANGS` near the top of the script. A language is `{name (in itself), speech (voice and date locale, e.g. es-MX), ready, friends, starters, alphabet (the parent corner grid), audio (clips folder), nums, sounds, clips, t}`. `t(key, {x})` returns the page language's string (English if a key is missing); `tn(key, n)` picks `key1` or `keyN`. Fixed words in the HTML carry `data-t` (text) or `data-ta` (aria-label) and are filled by `applyText()` at boot; the English in the HTML is only a fallback. `pickLang()` chooses `LANG` once per page load; `FRIENDS`, `BYID`, `STARTERS`, `CLIPS` and so on are built for that language only. A non-English friend names its picture with `art:` (an `ART` id, i.e. an English friend id) and takes that picture's colours; `art(id)` takes a friend id. `cleanPlayer` checks this language's progress and keeps the others untouched in `p.other`; `stored(d)` writes the save (English at the top, others under `langs`). `setLang` saves and reloads; `renderLangs` (parent corner row) and the title button show only while `offered()` (ready languages plus the current one) has 2 or more.
+- Languages (1.1): `EN_FRIENDS`, `ES_FRIENDS` and `LANGS` near the top of the script. A language is `{name (in itself), speech (voice and date locale, e.g. es-MX), ready, manifest (optional: its install manifest, which replaces the page's manifest link at load), friends, starters, alphabet (the parent corner grid), audio (clips folder), nums, sounds, clips, t}`. `t(key, {x})` returns the page language's string (English if a key is missing); `tn(key, n)` picks `key1` or `keyN`. Fixed words in the HTML carry `data-t` (text) or `data-ta` (aria-label) and are filled by `applyText()` at boot; the English in the HTML is only a fallback. `pickLang()` chooses `LANG` once per page load; `FRIENDS`, `BYID`, `STARTERS`, `CLIPS` and so on are built for that language only. A non-English friend names its picture with `art:` (an `ART` id, i.e. an English friend id) and takes that picture's colours; `art(id)` takes a friend id. `cleanPlayer` checks this language's progress and keeps the others untouched in `p.other`; `stored(d)` writes the save (English at the top, others under `langs`). `setLang` saves and reloads; `renderLangs` (parent corner row) and the title button show only while `offered()` (ready languages plus the current one) has 2 or more.
 - `say([keys], fallbackText)`: plays `audio/<key>.mp3` for each key if ALL clips in the line are loaded, otherwise uses the browser's built-in speech.
 - Tracks: `TRACKS` (`{id, name, label, routes}`), `trackOf`, `prevIn(l)` and `nextIn(l)` (0 at either end of a track). `unlocked`, `finishRound` (win card target) and `progressLines` all use `prevIn`/`nextIn`, never `l - 1`/`l + 1`. To add a route: an entry in `LEVELS` and `LEVEL_NAME` with a new id (5, 6, …), and its id in a track's `routes`.
 - Levels: `unlocked`, `houseCount`, `kindFor`, `buildQueue` (adaptive weighting), `promptFor`, `paperHTML`.
 - Parent corner shows how many of the language's clips were found (156 in English).
 - Saved progress: `D` is the whole save, `S` is `D.device` (settings), `P` is the current player. `cleanSave`, `cleanPlayer`, `fromV1` validate; `load`, `save`, `useSave` near the top of the script. `unlocked(l, p)` takes an optional player.
 - Players: `renderWho` (picker), `renderPlayers` and the `#players` handlers (parent corner; `moreOpen` remembers, in memory only, which cards show every animal), `erasePlayer`, `armed`/`disarm` (the two-tap erase buttons). `progressLines(p)` builds the Progress row text, `weakIds(p)` the Needs practice letters.
+- Spanish address (1.2): `es/index.html` is not a copy of the game. It holds the Spanish link-preview tags and links `es/manifest.webmanifest`, then `location.replace('../?lang=es')`. Crawlers read its tags without running the script; a phone lands on the game in Spanish. The game, once in Spanish, points its manifest link at `es/manifest.webmanifest` (`id` and `start_url` are `es/`, `scope` the whole game), so installing from Spanish makes a separate app named in Spanish that opens at `es/`.
 - Map: `renderMap` builds one `<div class="track" style="--n:…">` per track (a `.tname` label, then `nodeHTML` per route), then an `<svg class="path">`, and calls `drawPath(true)`, which measures the disc centres and draws one `<g class="seg" data-seg="from">` per pair of neighbouring routes on a track (`from` is the route it leaves; lit when the next one is unlocked). It redraws on resize and once fonts load. `litSeen` (memory only) remembers, per player, which segments were lit, for the animation.
 - Gear: `cancelHold`, the `pointerup` handler (counts short taps in `taps`/`lastTap`), `hideTip`; `#gear-tip` sits in the title's `.corner`.
 - Summary: `#summary` sits outside `#app`, so print CSS can hide the game (`body.sum-open #app`). `sheetHTML(p, date)` builds one player's `<article class="sheet">` from `progressLines` and `weakIds`; `openSummary(players, title)` fills `#sum-sheets` with one sheet per player, sets the page title, shows it and calls `printSummary()` (a guarded `window.print()`). `#b-print` passes the selected player, `#b-print-all` passes `D.players`. `renderPlayers` hides `#print-all-row` with one player.
@@ -132,6 +135,7 @@ It needs Playwright with Chromium; in Claude Code cloud sessions it is installed
 - Letter sets: the A to Z grid (only letters with a friend enabled, the first five on); turning letters off and on, the 2-letter minimum, "All"; a route 3 round with 3 letters has only those houses and mail; route 4 keeps its numbered houses; route 1 grows within the set in its order; a save with too few valid letters gets the default set; "Ready for new letters" shows and clears; the printed summary lists the letters; "Use for all players" copies the set, keeps new players and changes together while on, and stops when off; the parent corner fits a sideways phone
 - More animal friends: "More" lists all 46 friends; every friend's art renders, every name and animal starts with the friend's letter, names are unique; the parent corner with "More" open fits a sideways phone; choosing Ollie as an avatar saves, and "Fewer" shows the first five plus Ollie; a set of A, M and Z on routes 3 and 2 uses only those houses and mail, and both friends of each take turns
 - Print all players: hidden with one player; with two, one sheet per player in order with each player's lines, the print dialog, fits the width, the second sheet starts a new printed page, Done returns to the parent corner
+- Spanish address and privacy (1.2): the English page links the English manifest and privacy page; `es/` has Spanish preview tags and `share-es.png` (1200×630) loads; `es/` opens the game in Spanish with the Spanish manifest (name, short name, `es-MX`, its own id, start at `es/`, scope covering the game, icons load); the Spanish parent corner links `privacy-es.html`, which is in Spanish, fits, links back to `es/` and to the English page; offline, `es/` still opens in Spanish and both privacy pages load
 - Languages: English by default with no language button or row while Spanish is a draft, also on a Spanish device; a save from before languages stays English; at `?lang=es` on all 5 sizes, the Spanish title, Play, and an "English" button on screen that overlaps nothing; a Spanish round (caption, spoken prompt in es-MX, delivery banner and cheer); Spanish map labels and sticker book; no English words on the title, map, round, sticker book or parent corner; 33 Spanish friends with pictures and names starting with their letter; the 27-letter grid (D, Ñ, Q, U, W, X without a friend, M P L S T on); the language row; per-language progress (Spanish starts fresh, the name carries over, the save keeps English at the top, Spanish progress under `langs.es`); switching from the parent corner and from the title button reloads in English with English progress and keeps both
 
 Worker tests: `cd worker && npm install && npm test`.
@@ -362,18 +366,29 @@ The owner asked how hard other languages would be, starting with Spanish ("Spani
 - **Release 1.1:** `VERSION` and the note are 1.1, `sw.js` is `amr-v11`.
 
 ## Languages (owner request, October 10, 2026)
-### Step 2: turn Spanish on (next session, after the review)
-- Apply the reviewer's changes to `LANGS.es` and `ES_FRIENDS`, then set `ready:true`. The title button, the parent-corner row and first-visit detection then work with no other change.
-- A Spanish address, `es/index.html` (a copy of the page that sets the language, or a small page that redirects to `../?lang=es`), with its own manifest (Spanish name, `start_url` pointing at Spanish) and Spanish link-preview tags, so an installed Spanish copy is named in Spanish and a shared Spanish link previews in Spanish. Check the service worker scope and offline play for it.
-- A Spanish privacy page (`privacy-es.html`), linked from the Spanish parent corner.
-- `PLAYTEST.md` in Spanish, or a Spanish section, for a Spanish-speaking family.
+### Step 2: turn Spanish on
+- *Done in 1.2 (no review needed):* the Spanish address `es/` with its own manifest and link preview, the Spanish privacy page, and the Spanish playtest sheet in `PLAYTEST.md`.
+- **Still to do, after the review:** apply the reviewer's changes to `LANGS.es` and `ES_FRIENDS` (and to `es/index.html`, `es/manifest.webmanifest`, `privacy-es.html` and the Spanish sheet if the title or words change; rerun `node icons/share.cjs <url> es` if the title changes), then set `ready:true`. The title button, the parent-corner row and first-visit detection then work with no other change.
 - Touch test: flip the draft checks (the button shows in English, a Spanish device gets Spanish on a first visit).
+- Then give the owner the `es/` address to share with Spanish-speaking families.
 ### Later
 - New pictures: D (delfín), Ñ (ñandú), Q (quetzal), and a second friend for A (ajolote, very Mexican), E, F, I, J, K, L, N.
 - Spanish recordings in `audio/es/` once the wording is settled (121 lines, from `CLIPS` with `?lang=es`).
 - Another language: add a pack to `LANGS` (and friends), and its folder to `AUDIO` in `sw.js`.
 ### Needs the owner
 - **A native Spanish speaker** (ideally a Mexican-American parent or preschool teacher) to play `?lang=es` and check the wording, the animal names, the title and the letter sounds. Default: none; Spanish stays hidden until then.
+
+## Decisions made by Claude (October 10, 2026, eleventh session)
+Languages step 2, the parts that don't depend on the Spanish review (none had arrived). Small calls made without the owner; change them if they're wrong.
+- **Spanish stays hidden** (`ready:false`): no review notes were given, as the plan says.
+- **`es/` forwards instead of copying the game.** A full copy of `index.html` would have to be kept in step with every change. The small page carries what only an address can (its link preview and its manifest) and forwards to `../?lang=es`. The address bar then shows `?lang=es`; a link copied from there previews in English, the one to share is `…/es/`.
+- **The installed Spanish app always opens in Spanish** (its start is `es/`, which forwards with `?lang=es`). "English" inside it still switches for that visit. The English app opens in the saved language, as before. Both can be installed side by side (different `id`).
+- **Install name:** "El Correo de los Animales", short name "Correo Animal" (fits under a home-screen icon). Draft, for the reviewer.
+- **The game swaps its manifest link** to the language's manifest at load (`L10N.manifest`), so installing from the game in Spanish gets the Spanish app too, not only installing from `es/`.
+- **Spanish preview picture** (`icons/share-es.png`): the Spanish title screen with the Spanish first five (Memo, Paco, Leo, Sofi, Tita). `share.cjs` now takes the first five from the page, so it works for any language; `share.png` came out identical.
+- **Privacy:** `privacy-es.html` is a translation of `privacy.html` (tú, like the game), with a line saying the English page governs if they ever differ. Each page links the other. Its "Volver al juego" goes to `es/`. The example game version in both tables is now 1.2.
+- **Spanish playtest sheet:** a separate "Hoja de prueba" at the end of `PLAYTEST.md`, shorter than the English one, with a "Palabras" block that doubles as the native-speaker review (title, letter sounds, animal names, Mexican words). The English sheet's Spanish line now gives the `es/` address.
+- **Release 1.2:** `VERSION` and the note are 1.2, `sw.js` is `amr-v12` and caches `es/`, its manifest and `privacy-es.html`.
 
 ## Next sessions: expansion roadmap
 Written at the end of the fifth session, from the owner's questions about variety ("Is there a capacity to choose which letters, or randomized names that are school friendly and fit the lesson? In what ways can we expand?"). The owner asked for all of it to be built, starting in a fresh conversation. This section is the plan.

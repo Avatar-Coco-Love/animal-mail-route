@@ -501,7 +501,7 @@ svg{display:block}
       <div class="row"><b data-t="paper">Paper copy</b><button class="pbtn" type="button" id="b-print" data-t="print">Print summary</button></div>
       <div class="row" id="print-all-row" hidden><b data-t="papers">Paper copies</b><button class="pbtn" type="button" id="b-print-all" data-t="printAll">Print all players</button></div>
       <div class="row"><b data-t="everyone">Everyone</b><button class="pbtn danger" type="button" id="b-reset" data-t="reset">Erase everything</button></div>
-      <p class="note"><span id="note">Prototype 1.1. Voice prompts use your device's built-in speech until recorded voices are added.</span> <span id="share-note" data-t="shareNote" hidden>"Share play counts" sends only anonymous totals, such as rounds played per route, and is off unless you turn it on.</span> <a href="privacy.html" target="_blank" rel="noopener" data-t="privacy">Privacy</a></p>
+      <p class="note"><span id="note">Prototype 1.2. Voice prompts use your device's built-in speech until recorded voices are added.</span> <span id="share-note" data-t="shareNote" hidden>"Share play counts" sends only anonymous totals, such as rounds played per route, and is off unless you turn it on.</span> <a id="privacy-link" href="privacy.html" target="_blank" rel="noopener" data-t="privacy">Privacy</a></p>
       <button class="close" type="button" id="p-close" data-t="done">Done</button>
     </div>
   </div>
@@ -671,7 +671,7 @@ var LANGS = {
       noFriend:'{l}, no animal friend yet', keepTwo:'{l}, on (keep at least 2)', first5:'First five', all:'All', same:'Use for all players',
       paper:'Paper copy', print:'Print summary', papers:'Paper copies', printAll:'Print all players', everyone:'Everyone', reset:'Erase everything', done:'Done',
       note:"Prototype {v}. Voice prompts use your device's built-in speech until recorded voices are added.",
-      shareNote:'"Share play counts" sends only anonymous totals, such as rounds played per route, and is off unless you turn it on.', privacy:'Privacy',
+      shareNote:'"Share play counts" sends only anonymous totals, such as rounds played per route, and is off unless you turn it on.', privacy:'Privacy', privacyPage:'privacy.html',
       summary:'Progress summary', printOne:'Print', sumTitle:'Animal Mail Route: progress', sumPlayer:'Player: {name}', sumMade:'Made {date}, game version {v}',
       sumRoutes:'Routes and stickers', sumReady:"Ready for new letters: none of this player's letters needs practice after 3 or more rounds.",
       sumFoot:'A route opens after 2 finished rounds (2 stars) of the route before it. Replaying a route adds houses, rotates the animals and repeats the letters that need practice. "Letters" are the letters this player\'s rounds use, chosen in the parent corner. Each round is 5 deliveries and earns a sticker. "Needs practice" lists the letters this player has missed most often lately; it clears as they get them right. Made on this device; nothing was sent anywhere.',
@@ -681,6 +681,7 @@ var LANGS = {
   /* Mexican Spanish (most Spanish speakers in Michigan have Mexican roots). A draft for a native
      speaker to review before ready is turned on. */
   es: {name:'Español', speech:'es-MX', ready:false, friends:ES_FRIENDS, starters:['M','P','L','S','T'],
+    manifest:'es/manifest.webmanifest',
     alphabet:'ABCDEFGHIJKLMNÑOPQRSTUVWXYZ', audio:'audio/es/', nums:['uno','dos','tres','cuatro','cinco'],
     // syllables for the sounds a voice can't say alone; H is silent, so it says only its name
     sounds:{M:'mmm', P:'pa', L:'lll', S:'sss', T:'ta', A:'a', B:'ba', C:'ca', E:'e', F:'fff', G:'ga', H:'',
@@ -724,7 +725,7 @@ var LANGS = {
       noFriend:'{l}, todavía sin amigo animal', keepTwo:'{l}, activada (deja al menos 2)', first5:'Primeras cinco', all:'Todas', same:'Usar para todos los jugadores',
       paper:'Copia en papel', print:'Imprimir resumen', papers:'Copias en papel', printAll:'Imprimir todos', everyone:'Todos', reset:'Borrar todo', done:'Listo',
       note:'Prototipo {v}. Las instrucciones habladas usan la voz de tu dispositivo hasta que se agreguen voces grabadas.',
-      shareNote:'"Compartir conteos de juego" envía solo totales anónimos, como las rondas jugadas por ruta, y está apagado a menos que lo actives.', privacy:'Privacidad',
+      shareNote:'"Compartir conteos de juego" envía solo totales anónimos, como las rondas jugadas por ruta, y está apagado a menos que lo actives.', privacy:'Privacidad', privacyPage:'privacy-es.html',
       summary:'Resumen de progreso', printOne:'Imprimir', sumTitle:'El Correo de los Animales: progreso', sumPlayer:'Jugador: {name}', sumMade:'Hecho el {date}, versión del juego {v}',
       sumRoutes:'Rutas y estampas', sumReady:'Listo para letras nuevas: ninguna de las letras de este jugador necesita práctica después de 3 rondas o más.',
       sumFoot:'Una ruta se abre después de 2 rondas terminadas (2 estrellas) de la ruta anterior. Repetir una ruta agrega casas, cambia los animales y repite las letras que necesitan práctica. "Letras" son las letras que usan las rondas de este jugador, elegidas en el rincón de papás. Cada ronda tiene 5 entregas y gana una estampa. "Necesita práctica" muestra las letras que este jugador ha fallado más últimamente; se quita cuando las acierta. Hecho en este dispositivo; no se envió nada.',
@@ -766,7 +767,10 @@ function applyText(){
   document.title = t('title');
   document.querySelectorAll('[data-t]').forEach(function(el){ el.textContent = t(el.getAttribute('data-t')); });
   document.querySelectorAll('[data-ta]').forEach(function(el){ el.setAttribute('aria-label', t(el.getAttribute('data-ta'))); });
+  $('privacy-link').setAttribute('href', t('privacyPage'));
 }
+/* Installing from a language gets that language's app name (and its own app, beside the English one). */
+if(L10N.manifest) document.querySelector('link[rel=manifest]').setAttribute('href', L10N.manifest);
 
 var EN_BYID = {};
 EN_FRIENDS.forEach(function(f){ EN_BYID[f.id] = f; });
@@ -1104,7 +1108,7 @@ function hush(){
    Off unless a parent turns on "Share play counts". Only totals per route are kept, with no
    identifier or timestamp, and they are sent once when the page is hidden. The setting is
    not shown at all while COUNT_URL is empty. */
-var VERSION = '1.1';
+var VERSION = '1.2';
 var COUNT_URL = '';      // the Worker, e.g. 'https://animal-mail-counts.<account>.workers.dev/v1/counts'
 var CKEY = 'animal-mail-route-counts', CAP = 200, METRICS = ['started','finished','misses'];
 function emptyCounts(){ return {opens:0, started:{}, finished:{}, misses:{}}; }
