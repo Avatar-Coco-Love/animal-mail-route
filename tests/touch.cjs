@@ -63,7 +63,12 @@ const wanted = (page) => page.evaluate(() => document.querySelector('#caption').
 
   for (const [name, [w, h]] of Object.entries(SIZES)) {
     const { ctx, page, touch, errors, hosts } = await newPage(browser, w, h);
-    check(`${name}: title buttons on screen`, await allOnScreen(page, '.playbtn, .title .rbtn'));
+    check(`${name}: title buttons on screen`, await allOnScreen(page, '.playbtn, .title .rbtn, #lang-btn'));
+    check(`${name}: the Español button shows and overlaps nothing`, await page.evaluate(() => {
+      const box = (s) => document.querySelector(s).getBoundingClientRect(), lb = box('#lang-btn');
+      const hit = (a, b) => a.left < b.right && b.left < a.right && a.top < b.bottom && b.top < a.bottom;
+      return !document.querySelector('#lang-btn').hidden && document.querySelector('#lang-btn').textContent === 'Español' && !['#gear', '.playbtn', '.corner-l .rbtn', '#cast', 'h1'].some((s) => hit(lb, box(s)));
+    }));
     if (name === 'pixel') {
       const html = await page.content();
       check('crane is Cody the Crane', !/Charlie/.test(html) && /id:'C', +letter:'C', name:'Cody the Crane'/.test(html));
@@ -703,19 +708,32 @@ const wanted = (page) => page.evaluate(() => document.querySelector('#caption').
   }
 
   // ---------- Languages ----------
-  // Spanish is a draft (not offered yet): reachable only at ?lang=es, with its own words, friends and progress.
+  // Spanish is offered (1.4), labelled a draft for parents: its own words, friends and progress.
   {
     const enSave = { v: 2, device: { voice: true, sfx: true, share: false, unlockAll: false, lettersSame: false }, current: 1,
       players: [{ id: 1, name: 'Ana', animal: 'K', rounds: { 1: 3, 2: 0, 3: 0, 4: 0 }, stickers: [{ c: 'S' }, { c: 'B' }, { c: 'K' }], weak: { S: 2 }, seen: {}, letters: ['S', 'B', 'K', 'C', 'P'], setRounds: 3, last: 1 }] };
-    // English: one language offered, so no language button or row; a Spanish device still gets English
+    // English device: English, with an "Español" button and the language row; no draft note in English
     {
-      const { ctx, page, touch, errors } = await newPage(browser, 412, 915, null, { locale: 'es-MX' });
-      const st = await page.evaluate(() => ({ lang: document.documentElement.lang, btn: document.querySelector('#lang-btn').hidden, title: document.title }));
+      const { ctx, page, touch, errors } = await newPage(browser, 412, 915);
+      const st = await page.evaluate(() => ({ lang: document.documentElement.lang, btn: document.querySelector('#lang-btn').hidden, label: document.querySelector('#lang-btn').textContent, title: document.title }));
       await holdGear(page, touch);
       st.row = await page.$eval('#lang-row', (e) => e.hidden);
-      check('languages: English by default, no language button or row while Spanish is a draft', st.lang === 'en' && st.btn && st.row && st.title === 'Animal Mail Route', st);
+      st.draft = await page.$eval('#draft-note', (e) => e.hidden);
+      check('languages: English by default, with an Español button and the language row, no draft note', st.lang === 'en' && !st.btn && st.label === 'Español' && !st.row && st.draft && st.title === 'Animal Mail Route', st);
       await ctx.close();
-      check('languages: no errors in English on a Spanish device', errors.length === 0, errors.length ? errors : undefined);
+      check('languages: no errors in English', errors.length === 0, errors.length ? errors : undefined);
+    }
+    // Spanish device, first visit: the game opens in Spanish, and the Spanish parent corner says the translation is a draft
+    {
+      const { ctx, page, touch, errors } = await newPage(browser, 412, 915, null, { locale: 'es-MX' });
+      const st = await page.evaluate(() => ({ lang: document.documentElement.lang, h1: document.querySelector('h1').textContent, btn: document.querySelector('#lang-btn').textContent }));
+      check('languages: a Spanish device gets Spanish on a first visit, with an English button', st.lang === 'es' && st.h1 === 'El Correo de los Animales' && st.btn === 'English', st);
+      check('languages: no draft note on the Spanish title screen', await page.$eval('#draft-note', (e) => e.offsetParent === null));
+      await holdGear(page, touch);
+      const d = await page.$eval('#draft-note', (e) => ({ hidden: e.hidden, text: e.textContent, inCorner: !!e.closest('#parent') }));
+      check('languages: the Spanish parent corner says the translation is a draft and asks for corrections', !d.hidden && d.inCorner && /borrador/.test(d.text) && /hablante nativo/.test(d.text) && /clements\.cody\.j@gmail\.com/.test(d.text), d);
+      await ctx.close();
+      check('languages: no errors on a Spanish device', errors.length === 0, errors.length ? errors : undefined);
     }
     // a save from before languages stays English, also on a Spanish device
     {
@@ -757,6 +775,7 @@ const wanted = (page) => page.evaluate(() => document.querySelector('#caption').
       await page.goto(BASE + href);
       const pr = await page.evaluate(() => ({ lang: document.documentElement.lang, h1: document.querySelector('h1').textContent, back: document.querySelector('a.back').href, en: !!document.querySelector('a[href="privacy.html"]'), w: document.documentElement.scrollWidth <= innerWidth }));
       check('Spanish privacy page: linked from the Spanish parent corner, in Spanish, back to es/, links to English, fits', href === 'privacy-es.html' && pr.lang === 'es' && pr.h1 === 'El Correo de los Animales: privacidad' && pr.back === base + 'es/' && pr.en && pr.w, pr);
+      check('Spanish privacy page: says the translation is a draft and asks for corrections', await page.evaluate(() => { const d = document.querySelector('#draft'); return !!d && /borrador/.test(d.textContent) && /hablante nativo/.test(d.textContent); }));
       await page.goto(BASE + 'privacy.html');
       check('English privacy page links to the Spanish one', await page.evaluate(() => !!document.querySelector('a[href="privacy-es.html"]')));
       check('Spanish address: no errors', errors.length === 0, errors.length ? errors : undefined);
@@ -905,8 +924,8 @@ const wanted = (page) => page.evaluate(() => document.querySelector('#caption').
       await b.page.waitForTimeout(300);
       await Promise.all([b.page.waitForNavigation(), b.page.tap('#lang-btn')]);
       await b.page.waitForTimeout(500);
-      const after = await b.page.evaluate(() => ({ lang: document.documentElement.lang, btn: document.querySelector('#lang-btn').hidden, saved: JSON.parse(localStorage.getItem('animal-mail-route-v2')) }));
-      check('per language: the title button switches to English and both languages\' progress stays', after.lang === 'en' && after.btn && JSON.stringify(after.saved.players[0].langs.es) === JSON.stringify(both.players[0].langs.es) && after.saved.players[0].stickers.length === 3, after);
+      const after = await b.page.evaluate(() => ({ lang: document.documentElement.lang, btn: document.querySelector('#lang-btn').textContent, saved: JSON.parse(localStorage.getItem('animal-mail-route-v2')) }));
+      check('per language: the title button switches to English (now offering Español) and both languages\' progress stays', after.lang === 'en' && after.btn === 'Español' && JSON.stringify(after.saved.players[0].langs.es) === JSON.stringify(both.players[0].langs.es) && after.saved.players[0].stickers.length === 3, after);
       check('per language: no errors', errors.length === 0 && b.errors.length === 0, errors.concat(b.errors));
       await b.ctx.close();
     }
