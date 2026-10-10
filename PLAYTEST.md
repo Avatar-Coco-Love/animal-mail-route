@@ -36,6 +36,7 @@ Tick or write yes / no / unsure. A word or two of detail helps a lot.
 - [ ] Understood numbers and stars (route 4, if reached):
 - [ ] Letter sounds (route 5, after route 3; or turn on "Unlock all routes" in the parent corner): understood "Who starts with *buh*?", tapped the speaker on the mail to hear it again, and the voice said the sounds clearly ("sss", "buh"):
 - [ ] Lowercase (route 6, after route 5): the mail shows a little letter ("b") and the houses big ones ("B"). Matched them without the voice saying the letter's name? Which little letters were hard (b and d, p and q come together only after 4 rounds)?:
+- [ ] Beginning sounds (route 7, after route 6): the mail shows a picture (ball, sun, kite…) and the voice asks "Who starts like *ball*?". Sent it to the right letter's house? Knew the pictures' names (olive, quilt and zipper may be new words)? Which were hard?:
 - [ ] The map shows one line of routes at a time, with two big buttons at the top, ABC (letters) and 123 (numbers). Found the 123 button on their own to reach the numbers, and came back to ABC? (A button pulses when a new route opened on the other line.):
 - [ ] Knew what to press on the "Route complete" card
 - [ ] Noticed the path on the map light up after a route's second round (said or pointed at it?):
@@ -47,6 +48,7 @@ Tick or write yes / no / unsure. A word or two of detail helps a lot.
 - [ ] Favourite animal or moment:
 
 **Screen**
+- [ ] Opened from a link in Messenger or Facebook: a yellow note on the title says the voice can't play there. "Open in Chrome" (Android) opened the game in Chrome, and the voice played there:
 - [ ] After switching language (the "Español" button by the gear, then "English" to come back), the buttons at the bottom were above the phone's Back / Home / Recent apps bar, not under it:
 
 **Offline (optional)**
@@ -118,6 +120,7 @@ Marca o escribe sí / no / no sé. Unas palabras de detalle ayudan mucho.
 - [ ] Los sonidos de las letras ("M, mmm", "P, pa", "S, sss") son como los enseñan en la escuela o en casa (¿cuáles no?):
 - [ ] La pregunta de la ruta 5, "¿Quién empieza con…?" seguida del sonido, suena natural (¿cómo la dirías?):
 - [ ] La pregunta de la ruta 6, "¿Quién recibe esta letra chiquita?", y el nombre de la ruta, "Minúsculas", suenan bien (¿dirías "letra minúscula"?):
+- [ ] Las palabras de la ruta 7 (árbol, barco, corona, dado, estrella, flor, globo, iglú, jugo, kiwi, luna, manzana, nube, ojo, pelota, queso, regalo, sol, taza, vela, yoyó, zapato), la pregunta "¿Quién empieza como…?" y el nombre "Sonido inicial" suenan bien para un niño de México:
 - [ ] Los nombres de los animales suenan bien y se entienden (Memo el Mono, Paco el Pingüino, Leo el León, Sofi la Salamandra, Tita la Tortuga…). ¿Alguno raro o confuso?:
 - [ ] Algún dibujo no parece el animal que dice su nombre:
 - [ ] Amigos nuevos: en el rincón de papás, en Letras, activa D, Ñ y Q (o toca "Todas") y juega una ronda. ¿Se reconocen Dani el Delfín, Ñico el Ñandú y Quique el Quetzal, y suenan bien sus nombres?:
@@ -137,9 +140,11 @@ Marca o escribe sí / no / no sé. Unas palabras de detalle ayudan mucho.
 - [ ] El mapa muestra una sola línea de rutas a la vez, con dos botones grandes arriba, ABC (letras) y 123 (números). ¿Encontró solo el botón 123 para llegar a los números, y volvió a ABC? (Un botón pulsa cuando se abrió una ruta nueva en la otra línea.):
 - [ ] Sonidos de las letras (ruta 5, después de la ruta 3; o activa "Abrir todas las rutas" en el rincón de papás): entendió "¿Quién empieza con *ba*?", tocó la bocina de la carta para oírlo otra vez, y la voz dijo bien los sonidos ("sss", "ba", "mmm"):
 - [ ] Minúsculas (ruta 6, después de la ruta 5): la carta muestra una letra chiquita ("b") y las casas la grande ("B"). ¿Las juntó sin que la voz dijera el nombre de la letra? ¿Cuáles costaron (b y d, p y q salen juntas solo después de 4 rondas)? ¿Se vio bien la "ñ"?:
+- [ ] Sonido inicial (ruta 7, después de la ruta 6): la carta muestra un dibujo (pelota, sol, manzana…) y la voz pregunta "¿Quién empieza como *pelota*?". ¿La llevó a la casa de la letra correcta? ¿Conocía los nombres de los dibujos? ¿Cuáles costaron?:
 - [ ] Supo qué tocar en la tarjeta de "¡Ruta terminada!"
 
 **Pantalla**
+- [ ] Abierto desde un enlace en Messenger o Facebook: una nota amarilla en el inicio dice que la voz no puede sonar ahí. "Abrir en Chrome" (Android) abrió el juego en Chrome, y ahí sí sonó la voz:
 - [ ] Después de cambiar de idioma (el botón "English" junto al engrane, y "Español" para volver), los botones de abajo quedaron arriba de la barra del teléfono (Atrás, Inicio, Apps recientes), no debajo:
 
 **Cómo le fue**

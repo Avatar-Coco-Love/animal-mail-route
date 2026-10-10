@@ -137,6 +137,7 @@ var LANGS = {
     t:{
       title:'Animal Mail Route', play:'Play', book:'Sticker book', switchTo:'Play in English',
       gear:'Parent corner. Press and hold to open.', gearTip:'Press and hold the gear to open the parent corner.',
+      noVoice:"The voice can't play in this app's browser. Open the game in Chrome or Safari to hear it.", openChrome:'Open in Chrome',
       toStart:'Back to the start', toMap:'Back to the map', who:"Who's playing?", again:'Hear it again',
       stickers:'Stickers', sticker1:'1 sticker', stickerN:'{n} stickers', hear:'Hear {name}',
       winAria:'Route complete', winHead:'Route complete!', winText:'You delivered all the mail and earned a sticker.',
@@ -214,6 +215,7 @@ var LANGS = {
     t:{
       title:'El Correo de los Animales', play:'Jugar', book:'Álbum de estampas', switchTo:'Jugar en español',
       gear:'Rincón de papás. Mantén presionado para abrir.', gearTip:'Mantén presionado el engrane para abrir el rincón de papás.',
+      noVoice:'La voz no puede sonar en el navegador de esta app. Abre el juego en Chrome o Safari para oírla.', openChrome:'Abrir en Chrome',
       toStart:'Volver al inicio', toMap:'Volver al mapa', who:'¿Quién va a jugar?', again:'Escuchar otra vez',
       stickers:'Estampas', sticker1:'1 estampa', stickerN:'{n} estampas', hear:'Escuchar a {name}',
       winAria:'Ruta terminada', winHead:'¡Ruta terminada!', winText:'Entregaste todas las cartas y ganaste una estampa.',
