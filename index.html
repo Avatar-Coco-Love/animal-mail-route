@@ -118,6 +118,8 @@ svg{display:block}
 .playbtn{display:flex;align-items:center;gap:12px;padding:12px 34px 12px 26px;border-radius:999px;border:0;background:var(--red);color:#fff;font:800 clamp(1.7rem,7vw,2.2rem)/1 var(--font-display);box-shadow:0 7px 0 var(--red-deep)}
 .playbtn svg{width:38px;height:38px}
 .playbtn:active{transform:translateY(5px);box-shadow:0 2px 0 var(--red-deep)}
+.novoice{max-width:min(440px,100%);margin:0;padding:8px 14px;border-radius:14px;background:#fff3c4;box-shadow:0 3px 0 rgba(36,48,77,.18);font:700 .95rem/1.3 var(--font-body);color:var(--ink);display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:4px 10px}
+.novoice a{padding:6px 14px;border-radius:999px;background:var(--ink);color:#fff;text-decoration:none;white-space:nowrap}
 .title .corner{position:absolute;right:16px;bottom:14px;display:flex;gap:12px}
 .title .corner-l{position:absolute;left:16px;bottom:14px}
 /* Language button beside the gear: the other language's name, so a parent who can't read this one can find theirs */
@@ -360,6 +362,10 @@ svg{display:block}
 .burst i{position:absolute;left:-8px;top:-8px;width:16px;height:16px;clip-path:polygon(50% 0,61% 35%,98% 35%,68% 57%,79% 91%,50% 70%,21% 91%,32% 57%,2% 35%,39% 35%);animation:spark .85s ease-out forwards}
 /* short screens (phones held sideways) */
 @media (max-height:500px){
+  /* the no-voice note takes the place of the row of friends, which is only decoration */
+  .title:has(#novoice:not([hidden])) .cast{display:none}
+  .novoice{padding:6px 12px;font-size:.85rem;max-width:min(620px,100%)}
+  .novoice a{padding:4px 12px}
   .bar{padding-block:6px}
   .mailzone{--mw:clamp(92px,26vmin,200px);min-height:0}
   .banner{position:absolute;top:8px;left:0;right:0;margin-inline:auto;width:fit-content;max-width:calc(100% - 32px)}
@@ -410,6 +416,7 @@ svg{display:block}
 <div id="app">
 
   <section id="s-title" class="screen title">
+    <p class="novoice" id="novoice" role="status" hidden><span data-t="noVoice">The voice can't play in this app's browser. Open the game in Chrome or Safari to hear it.</span> <a id="novoice-open" href="#" target="_blank" rel="noopener" data-t="openChrome" hidden>Open in Chrome</a></p>
     <div>
       <h1 data-t="title">Animal Mail Route</h1>
       <div class="stripe"></div>
@@ -534,7 +541,7 @@ svg{display:block}
       </div>
       <div class="block" id="vol-block"><b data-t="volunteer">Volunteer voices</b><p class="hint-text" data-t="volunteerHint"></p><a class="pbtn" id="vol-link" href="volunteer.html" target="_blank" rel="noopener" data-t="volunteerBtn">Lend your voice</a></div>
       <div class="row"><b data-t="everyone">Everyone</b><button class="pbtn danger" type="button" id="b-reset" data-t="reset">Erase everything</button></div>
-      <p class="note"><span id="note">Prototype 2.0. Voice prompts use your device's built-in speech until recorded voices are added.</span> <span id="share-note" data-t="shareNote" hidden>"Share play counts" sends only anonymous totals, such as rounds played per route, and is off unless you turn it on.</span> <a id="privacy-link" href="privacy.html" target="_blank" rel="noopener" data-t="privacy">Privacy</a></p>
+      <p class="note"><span id="note">Prototype 2.0.1. Voice prompts use your device's built-in speech until recorded voices are added.</span> <span id="share-note" data-t="shareNote" hidden>"Share play counts" sends only anonymous totals, such as rounds played per route, and is off unless you turn it on.</span> <a id="privacy-link" href="privacy.html" target="_blank" rel="noopener" data-t="privacy">Privacy</a></p>
       <button class="close" type="button" id="p-close" data-t="done">Done</button>
     </div>
   </div>
@@ -858,7 +865,24 @@ function pickVoice(){
 }
 if('speechSynthesis' in window){
   pickVoice();
-  try{ window.speechSynthesis.addEventListener('voiceschanged', pickVoice); }catch(e){}
+  try{ window.speechSynthesis.addEventListener('voiceschanged', function(){ pickVoice(); if(typeof checkVoice === 'function') checkVoice(); }); }catch(e){}
+}
+/* No voice (2.0.1, owner report): in-app browsers such as Messenger's or Facebook's often have no
+   built-in speech, and with no recordings yet the game is then silent. A note for the parent on the
+   title says so; on Android a link opens the same address in Chrome. Gone once a recorded voice
+   plays, or when the parent turned the voice off. */
+var IN_APP = /FBAN|FBAV|FB_IAB|FBIOS|Messenger|Instagram/i.test(navigator.userAgent);
+function speechMissing(){
+  if(!('speechSynthesis' in window)) return true;
+  try{ return IN_APP && !window.speechSynthesis.getVoices().length; }catch(e){ return true; }
+}
+function checkVoice(){
+  var off = !speechMissing() || !S.voice || !!chosenSet();
+  $('novoice').hidden = off;
+  if(off) return;
+  var a = $('novoice-open'), android = /Android/i.test(navigator.userAgent);
+  a.hidden = !android;
+  if(android) a.href = 'intent://' + location.host + location.pathname + location.search + '#Intent;scheme=https;package=com.android.chrome;S.browser_fallback_url=' + encodeURIComponent(location.href) + ';end';
 }
 /* Every spoken line is built from these clips. The text is what the built-in voice says
    when a recording is missing. Recordings live in audio/<language>/<female|male>/<key>.mp3. */
@@ -898,7 +922,7 @@ function loadClips(){
       .then(function(list){
         HAVE[v] = (Array.isArray(list) ? list : []).filter(function(k, i, a){ return CLIPS.hasOwnProperty(k) && a.indexOf(k) === i; });
       });
-  })).then(function(){ useSet(); renderVoiceSets(); });
+  })).then(function(){ useSet(); renderVoiceSets(); checkVoice(); });
 }
 /* Switch to the chosen set: drop the old recordings and decode the new ones. */
 function useSet(){
@@ -983,7 +1007,7 @@ function hush(){
    Off unless a parent turns on "Share play counts". Only totals per route are kept, with no
    identifier or timestamp, and they are sent once when the page is hidden. The setting is
    not shown at all while COUNT_URL is empty. */
-var VERSION = '2.0';
+var VERSION = '2.0.1';
 var COUNT_URL = '';      // the Worker, e.g. 'https://animal-mail-counts.<account>.workers.dev/v1/counts'
 var CKEY = 'animal-mail-route-counts', CAP = 200, METRICS = ['started','finished','misses'];
 function emptyCounts(){ return {opens:0, started:{}, finished:{}, misses:{}}; }
@@ -1854,7 +1878,7 @@ $('b-add').addEventListener('click', function(){
   sel = id;
   save(); renderPlayers(); syncToggles();
 });
-$('t-voice').addEventListener('click', function(){ S.voice = !S.voice; if(!S.voice) hush(); save(); syncToggles(); });
+$('t-voice').addEventListener('click', function(){ S.voice = !S.voice; if(!S.voice) hush(); save(); syncToggles(); checkVoice(); });
 $('t-sfx').addEventListener('click', function(){ S.sfx = !S.sfx; save(); syncToggles(); if(S.sfx){ unlock(); sfx.pick(); } });
 $('t-unlock').addEventListener('click', function(){ S.unlockAll = !S.unlockAll; save(); syncToggles(); });
 $('t-share').addEventListener('click', function(){ S.share = !S.share; if(!S.share) clearCounts(); save(); syncToggles(); });

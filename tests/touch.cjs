@@ -18,7 +18,7 @@ function check(name, ok, info) {
 // opts: {path} added to the address (e.g. '?lang=es'), {locale} the device's language,
 // {setup(ctx)} run before the first load (e.g. routes), {noSW} block the service worker
 async function newPage(browser, w, h, init, opts = {}) {
-  const ctx = await browser.newContext({ viewport: { width: w, height: h }, hasTouch: true, isMobile: true, locale: opts.locale || 'en-US', serviceWorkers: opts.noSW ? 'block' : 'allow' });
+  const ctx = await browser.newContext({ viewport: { width: w, height: h }, hasTouch: true, isMobile: true, locale: opts.locale || 'en-US', serviceWorkers: opts.noSW ? 'block' : 'allow', ...(opts.ua ? { userAgent: opts.ua } : {}) });
   if (opts.setup) await opts.setup(ctx);
   const page = await ctx.newPage();
   const cdp = await ctx.newCDPSession(page);
@@ -1269,6 +1269,54 @@ const wanted = (page) => page.evaluate(() => document.querySelector('#caption').
       const end = await page.evaluate(() => ({ win: !document.querySelector('#win').hidden, save: JSON.parse(localStorage.getItem('animal-mail-route-v2')).players[0] }));
       check('lowercase (es): the round finishes, saved in Spanish progress only', end.win && end.save.langs.es.rounds[6] === 3 && !end.save.rounds[6], { es: end.save.langs.es.rounds, en: end.save.rounds });
       check('lowercase (es): no errors', errors.length === 0, errors.length ? errors : undefined);
+      await ctx.close();
+    }
+  }
+
+  // ---------- No voice in an in-app browser (2.0.1, owner report: no voices in Messenger) ----------
+  // Messenger's browser has no built-in speech; with no recordings the game is silent. A note for the parent
+  // on the title says so, with "Open in Chrome" on Android. Not shown in a normal browser.
+  {
+    const ANDROID = 'Mozilla/5.0 (Linux; Android 14; Pixel 7) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/129.0 Mobile Safari/537.36 [FB_IAB/Orca-Android;FBAV/480.0.0.0;]';
+    const IOS = 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148 [FBAN/MessengerForiOS;FBAV/480.0;FBIOS]';
+    const noSpeech = (ctx) => ctx.addInitScript(() => { delete window.speechSynthesis; delete window.SpeechSynthesisUtterance; });
+    const note = (page) => page.evaluate(() => { const n = document.querySelector('#novoice'), a = document.querySelector('#novoice-open'); return { shown: !n.hidden, text: n.textContent.trim(), link: a.hidden ? '' : a.getAttribute('href') }; });
+    for (const [name, [w, h]] of Object.entries(SIZES)) {
+      const { ctx, page } = await newPage(browser, w, h, null, { noSW: true });
+      check(`no voice: no note in a normal browser (${name})`, !(await note(page)).shown);
+      await ctx.close();
+      for (const path of ['', '?lang=es']) {
+        const b = await newPage(browser, w, h, null, { noSW: true, ua: ANDROID, setup: noSpeech, path });
+        const n = await note(b.page);
+        const fits = await b.page.evaluate(() => {
+          const rs = ['#novoice', '#s-title h1', '#play', '#gear', '#lang-btn', '#s-title [data-go="book"]'].map((q) => document.querySelector(q).getBoundingClientRect());
+          const hit = (a, c) => a.left < c.right - 1 && c.left < a.right - 1 && a.top < c.bottom - 1 && c.top < a.bottom - 1;
+          return rs.every((r) => r.left >= -1 && r.top >= -1 && r.right <= innerWidth + 1 && r.bottom <= innerHeight + 1) && rs.every((a, i) => rs.every((c, j) => i >= j || !hit(a, c)));
+        });
+        check(`no voice: Messenger on Android shows the note${path ? ' in Spanish' : ''}, with Open in Chrome, on screen, overlapping nothing (${name})`, n.shown && (path ? /^La voz no puede sonar/.test(n.text) && n.text.endsWith('Abrir en Chrome') : /^The voice can't play/.test(n.text) && n.text.endsWith('Open in Chrome')) && n.link.startsWith('intent://') && n.link.includes('package=com.android.chrome') && n.link.includes('S.browser_fallback_url=' + encodeURIComponent(BASE + path)) && fits, n);
+        await b.ctx.close();
+      }
+    }
+    {
+      const { ctx, page } = await newPage(browser, 390, 844, null, { noSW: true, ua: IOS, setup: noSpeech });
+      const n = await note(page);
+      check('no voice: Messenger on an iPhone shows the note without the Chrome link', n.shown && !n.link, n);
+      await ctx.close();
+    }
+    {
+      // in-app, but with speech and voices (a newer in-app browser): no note
+      const { ctx, page } = await newPage(browser, 412, 915, null, { noSW: true, ua: ANDROID, setup: (c) => c.addInitScript(() => { speechSynthesis.getVoices = () => [{ lang: 'en-US', name: 'x' }]; }) });
+      check('no voice: an in-app browser that has voices shows no note', !(await note(page)).shown);
+      await ctx.close();
+    }
+    {
+      // the parent turned the voice off: no note
+      const { ctx, page, touch } = await newPage(browser, 412, 915, null, { noSW: true, ua: ANDROID, setup: noSpeech });
+      await holdGear(page, touch);
+      await page.tap('#t-voice');
+      await page.$eval('#p-close', (b) => b.scrollIntoView());
+      await page.tap('#p-close');
+      check('no voice: turning the voice off in the parent corner hides the note', !(await note(page)).shown);
       await ctx.close();
     }
   }
