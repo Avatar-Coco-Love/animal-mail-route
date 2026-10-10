@@ -15,9 +15,11 @@ function check(name, ok, info) {
   console.log((ok ? 'ok   ' : 'FAIL ') + name + (info !== undefined ? '  ' + JSON.stringify(info) : ''));
 }
 
-// opts: {path} added to the address (e.g. '?lang=es'), {locale} the device's language
+// opts: {path} added to the address (e.g. '?lang=es'), {locale} the device's language,
+// {setup(ctx)} run before the first load (e.g. routes), {noSW} block the service worker
 async function newPage(browser, w, h, init, opts = {}) {
-  const ctx = await browser.newContext({ viewport: { width: w, height: h }, hasTouch: true, isMobile: true, locale: opts.locale || 'en-US' });
+  const ctx = await browser.newContext({ viewport: { width: w, height: h }, hasTouch: true, isMobile: true, locale: opts.locale || 'en-US', serviceWorkers: opts.noSW ? 'block' : 'allow' });
+  if (opts.setup) await opts.setup(ctx);
   const page = await ctx.newPage();
   const cdp = await ctx.newCDPSession(page);
   const errors = [];
@@ -70,7 +72,8 @@ const wanted = (page) => page.evaluate(() => document.querySelector('#caption').
       return !document.querySelector('#lang-btn').hidden && document.querySelector('#lang-btn').textContent === 'Español' && !['#gear', '.playbtn', '.corner-l .rbtn', '#cast', 'h1'].some((s) => hit(lb, box(s)));
     }));
     if (name === 'pixel') {
-      const html = await page.content();
+      // the words and friends live in words.js (shared with the volunteer page)
+      const html = await page.evaluate(() => fetch('words.js').then((r) => r.text()));
       check('crane is Cody the Crane', !/Charlie/.test(html) && /id:'C', +letter:'C', name:'Cody the Crane'/.test(html));
       // id -> [letter, name] from the English friends list in the page source
       const friends = {};
@@ -698,6 +701,8 @@ const wanted = (page) => page.evaluate(() => document.querySelector('#caption').
     check('offline: drop delivers', (await page.$$eval('.pip.on', (x) => x.length)) === 1);
     const priv = await page.evaluate(() => Promise.all(['privacy.html', 'privacy-es.html'].map((u) => fetch(u).then((r) => r.ok, () => false))));
     check('offline: privacy pages available (English and Spanish)', priv.every(Boolean), priv);
+    const sets = await page.evaluate(() => Promise.all(['words.js', 'audio/en/female/clips.json', 'audio/en/male/clips.json', 'audio/es/female/clips.json', 'audio/es/male/clips.json'].map((u) => fetch(u).then((r) => r.ok, () => false))));
+    check('offline: words.js and every voice set\'s list available', sets.every(Boolean), sets);
     // the Spanish address works offline too: es/ opens the game in Spanish
     await page.goto(BASE + 'es/');
     await page.waitForURL(/\?lang=es/);
@@ -931,6 +936,89 @@ const wanted = (page) => page.evaluate(() => document.querySelector('#caption').
     }
   }
 
+  // ---------- Voice sets (1.6) ----------
+  // audio/<language>/<female|male>/, each with its own clips.json. Recordings are served here by routes
+  // (a short silent WAV for every clip), so the test doesn't depend on files in the repo.
+  {
+    const vm = require('vm');
+    const sandbox = { window: {} };
+    vm.runInNewContext(await (await fetch(BASE + 'words.js')).text(), sandbox);
+    const AMR = sandbox.window.AMR;
+    const keys = { en: Object.keys(AMR.clipsFor('en')), es: Object.keys(AMR.clipsFor('es')) };
+    const wav = (() => {   // 0.1 s of silence, 8 kHz mono 16-bit
+      const n = 800, b = Buffer.alloc(44 + n * 2);
+      b.write('RIFF', 0); b.writeUInt32LE(36 + n * 2, 4); b.write('WAVEfmt ', 8); b.writeUInt32LE(16, 16); b.writeUInt16LE(1, 20); b.writeUInt16LE(1, 22);
+      b.writeUInt32LE(8000, 24); b.writeUInt32LE(16000, 28); b.writeUInt16LE(2, 32); b.writeUInt16LE(16, 34); b.write('data', 36); b.writeUInt32LE(n * 2, 40);
+      return b;
+    })();
+    // sets: {'en/female': [keys]} ; any set not named keeps the repo's own (empty) list
+    const serve = (sets) => async (ctx) => {
+      for (const [dir, list] of Object.entries(sets)) {
+        await ctx.route(`**/audio/${dir}/clips.json`, (r) => r.fulfill({ contentType: 'application/json', body: JSON.stringify(list) }));
+        await ctx.route(`**/audio/${dir}/*.mp3`, (r) => r.fulfill({ contentType: 'audio/wav', body: wav }));
+      }
+    };
+    const said = (page) => page.evaluate(() => window.__said.length);
+    const listen = (page) => page.evaluate(() => { window.__said = []; speechSynthesis.speak = (u) => window.__said.push(u.text); });
+    const hear = async (page) => { await listen(page); await page.tap('#cast .pal', { force: true }); await page.waitForTimeout(300); return said(page); };
+    const vsets = (page) => page.$$eval('#vsets [data-vset]', (b) => b.map((x) => x.textContent + ':' + x.getAttribute('aria-pressed')).join());
+    check('voice sets: words.js gives the game\'s lines (156 English, 133 Spanish)', keys.en.length === 156 && keys.es.length === 133, [keys.en.length, keys.es.length]);
+    // the repo's sets are empty: no "Recorded voice" row, the built-in voice speaks, only the two English lists are asked for
+    {
+      const reqs = [];
+      const { ctx, page, touch, errors } = await newPage(browser, 412, 915, null, { noSW: true, setup: (c) => c.on('request', (r) => reqs.push(new URL(r.url()).pathname)) });
+      const asked = reqs.filter((u) => /audio\//.test(u)).map((u) => u.replace(/^.*?audio\//, 'audio/')).sort();
+      check('voice sets: the game asks only for the English female and male lists', asked.join() === 'audio/en/female/clips.json,audio/en/male/clips.json', asked);
+      check('voice sets: with no recordings, the built-in voice speaks', (await hear(page)) === 1);
+      await holdGear(page, touch);
+      check('voice sets: no "Recorded voice" row until a set has recordings', await page.$eval('#vset-row', (e) => e.hidden) && (await page.$eval('#clipcount', (e) => e.textContent)) === '0 of 156');
+      check('voice sets: no errors', errors.length === 0, errors.length ? errors : undefined);
+      await ctx.close();
+    }
+    // English: every line in the female set, two in the male set
+    {
+      const { ctx, page, touch, errors } = await newPage(browser, 412, 915, null, { noSW: true, setup: serve({ 'en/female': keys.en, 'en/male': ['letter-S', 'sound-S'] }) });
+      await page.waitForTimeout(800);
+      check('voice sets: a fully recorded line plays the recording, not the built-in voice', (await hear(page)) === 0);
+      await holdGear(page, touch);
+      check('voice sets: the row shows the sets with recordings and the device voice; the fuller set is used', (await vsets(page)) === 'Female:true,Male:false,Device voice:false' && !(await page.$eval('#vset-row', (e) => e.hidden)), await vsets(page));
+      check('voice sets: every clip of the female set loads', (await page.$eval('#clipcount', (e) => e.textContent)) === '156 of 156', await page.$eval('#clipcount', (e) => e.textContent));
+      await page.tap('#vsets [data-vset="male"]');
+      await page.waitForTimeout(500);
+      const m = await page.evaluate(() => ({ count: document.querySelector('#clipcount').textContent, saved: JSON.parse(localStorage.getItem('animal-mail-route-v2')).device.voices }));
+      check('voice sets: choosing Male uses its 2 clips and saves the choice for English', (await vsets(page)) === 'Female:false,Male:true,Device voice:false' && m.count === '2 of 156' && m.saved.en === 'male', m);
+      await page.tap('#p-close');
+      check('voice sets: a line the male set lacks falls back to the built-in voice', (await hear(page)) === 1);
+      await holdGear(page, touch);
+      await page.tap('#vsets [data-vset="device"]');
+      await page.waitForTimeout(300);
+      check('voice sets: Device voice turns the recordings off', (await page.$eval('#clipcount', (e) => e.textContent)) === '0 of 156' && (await vsets(page)) === 'Female:false,Male:false,Device voice:true');
+      await page.reload();
+      await page.waitForTimeout(800);
+      check('voice sets: Device voice is kept after a reload, and the built-in voice speaks', (await hear(page)) === 1);
+      await holdGear(page, touch);
+      check('voice sets: the choice shows after a reload', (await vsets(page)) === 'Female:false,Male:false,Device voice:true');
+      check('voice sets: the row fits the parent corner', await page.evaluate(() => { const c = document.querySelector('#parent .card'); return c.scrollWidth <= c.clientWidth + 1; }) && await allOnScreen(page, '#vsets [data-vset]'));
+      check('voice sets: no errors', errors.length === 0, errors.length ? errors : undefined);
+      await ctx.close();
+    }
+    // Spanish: its own sets and its own choice (an English choice doesn't carry over)
+    {
+      const save = { v: 2, device: { lang: 'es', voice: true, sfx: true, share: false, unlockAll: false, lettersSame: false, voices: { en: 'device' } }, current: 1,
+        players: [{ id: 1, name: '', animal: 'S', rounds: { 1: 0, 2: 0, 3: 0, 4: 0 }, stickers: [], weak: {}, seen: {}, letters: ['S', 'B', 'K', 'C', 'P'], setRounds: 0, last: 1 }] };
+      const { ctx, page, touch, errors } = await newPage(browser, 740, 360, { 'animal-mail-route-v2': save }, { noSW: true, setup: serve({ 'es/male': keys.es, 'en/female': keys.en }) });
+      await page.waitForTimeout(800);
+      check('voice sets (es): the Spanish male set is used, with every line', (await hear(page)) === 0);
+      await holdGear(page, touch);
+      check('voice sets (es): Hombre and Voz del dispositivo, Hombre chosen, 133 of 133', (await vsets(page)) === 'Hombre:true,Voz del dispositivo:false' && (await page.$eval('#clipcount', (e) => e.textContent)) === '133 de 133', await vsets(page));
+      await page.tap('#vsets [data-vset="device"]');
+      const v = await page.evaluate(() => JSON.parse(localStorage.getItem('animal-mail-route-v2')).device.voices);
+      check('voice sets (es): each language keeps its own choice', v.es === 'device' && v.en === 'device', v);
+      check('voice sets (es): no errors', errors.length === 0, errors.length ? errors : undefined);
+      await ctx.close();
+    }
+  }
+
   // ---------- Help improve the game (1.5) ----------
   // Parent corner only: three links, each a prefilled email the parent sends themselves, with the game
   // version, language and screen size, and nothing about the child.
@@ -953,8 +1041,8 @@ const wanted = (page) => page.evaluate(() => document.querySelector('#caption').
       const m = await mails(page);
       const head = await page.$eval('#fb-block b', (e) => e.textContent);
       const want = lang === 'en'
-        ? { head: 'Help improve the game', labels: ['A wrong word or translation', 'Report a problem', 'Suggest an idea'], subj: /^Animal Mail Route: (a wrong word|a problem|an idea)$/, info: ['Game version: 1.5', 'Language: en (English)', `Screen: ${w} x ${h}`] }
-        : { head: 'Ayuda a mejorar el juego', labels: ['Una palabra o traducción equivocada', 'Reportar un problema', 'Sugerir una idea'], subj: /^El Correo de los Animales: (una palabra equivocada|un problema|una idea)$/, info: ['Versión del juego: 1.5', 'Idioma: es (Español)', `Pantalla: ${w} x ${h}`] };
+        ? { head: 'Help improve the game', labels: ['A wrong word or translation', 'Report a problem', 'Suggest an idea'], subj: /^Animal Mail Route: (a wrong word|a problem|an idea)$/, info: ['Game version: 1.6', 'Language: en (English)', `Screen: ${w} x ${h}`] }
+        : { head: 'Ayuda a mejorar el juego', labels: ['Una palabra o traducción equivocada', 'Reportar un problema', 'Sugerir una idea'], subj: /^El Correo de los Animales: (una palabra equivocada|un problema|una idea)$/, info: ['Versión del juego: 1.6', 'Idioma: es (Español)', `Pantalla: ${w} x ${h}`] };
       check(`feedback (${lang}): three choices, a wrong word, a problem, an idea, in the page's language`, head === want.head && m.map((x) => x.kind).join() === 'word,problem,idea' && m.map((x) => x.label).join() === want.labels.join(), m.map((x) => x.label));
       check(`feedback (${lang}): each opens a prefilled email to the contact address`, m.every((x) => x.to === 'mailto:clements.cody.j@gmail.com' && want.subj.test(x.subject) && x.body.length > 40), m);
       check(`feedback (${lang}): the email has the game version, language and screen size`, m.every((x) => want.info.every((i) => x.body.includes(i))), m.map((x) => x.body));
