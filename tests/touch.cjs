@@ -731,7 +731,7 @@ const wanted = (page) => page.evaluate(() => document.querySelector('#caption').
       check('languages: no draft note on the Spanish title screen', await page.$eval('#draft-note', (e) => e.offsetParent === null));
       await holdGear(page, touch);
       const d = await page.$eval('#draft-note', (e) => ({ hidden: e.hidden, text: e.textContent, inCorner: !!e.closest('#parent') }));
-      check('languages: the Spanish parent corner says the translation is a draft and asks for corrections', !d.hidden && d.inCorner && /borrador/.test(d.text) && /hablante nativo/.test(d.text) && /clements\.cody\.j@gmail\.com/.test(d.text), d);
+      check('languages: the Spanish parent corner says the translation is a draft and asks for corrections', !d.hidden && d.inCorner && /borrador/.test(d.text) && /hablante nativo/.test(d.text) && /Ayuda a mejorar el juego/.test(d.text), d);
       await ctx.close();
       check('languages: no errors on a Spanish device', errors.length === 0, errors.length ? errors : undefined);
     }
@@ -928,6 +928,53 @@ const wanted = (page) => page.evaluate(() => document.querySelector('#caption').
       check('per language: the title button switches to English (now offering Español) and both languages\' progress stays', after.lang === 'en' && after.btn === 'Español' && JSON.stringify(after.saved.players[0].langs.es) === JSON.stringify(both.players[0].langs.es) && after.saved.players[0].stickers.length === 3, after);
       check('per language: no errors', errors.length === 0 && b.errors.length === 0, errors.concat(b.errors));
       await b.ctx.close();
+    }
+  }
+
+  // ---------- Help improve the game (1.5) ----------
+  // Parent corner only: three links, each a prefilled email the parent sends themselves, with the game
+  // version, language and screen size, and nothing about the child.
+  {
+    const kid = { v: 2, device: { voice: true, sfx: true, share: false, unlockAll: false, lettersSame: false }, current: 1,
+      players: [{ id: 1, name: 'Mia', animal: 'K', rounds: { 1: 3, 2: 1, 3: 0, 4: 0 }, stickers: [{ c: 'S' }, { c: 'B' }, { c: 'K' }, { c: 'C' }], weak: { S: 3, B: 2 }, seen: {}, letters: ['S', 'B', 'K', 'C', 'P'], setRounds: 3, last: 1 }] };
+    const mails = (page) => page.$$eval('#fb-block [data-fb]', (as) => as.map((a) => {
+      const u = new URL(a.getAttribute('href'));
+      return { kind: a.getAttribute('data-fb'), label: a.textContent, to: u.protocol + u.pathname, subject: u.searchParams.get('subject'), body: u.searchParams.get('body') };
+    }));
+    // nothing the child or the save could give away: name, animal, friends, progress, practice letters
+    const childFree = (b) => !/Mia|Kelly|Sammy|Billy|kangaroo|Route|Ruta|sticker|estampa|practice|práctica|Letters:|Letras:|\bS, B\b/i.test(b);
+    for (const [lang, path, w, h] of [['en', '', 412, 915], ['es', '?lang=es', 740, 360]]) {
+      const save = JSON.parse(JSON.stringify(kid));
+      if (lang === 'es') { save.device.lang = 'es'; save.players[0].langs = { es: { animal: 'L', rounds: { 1: 2, 2: 0, 3: 0, 4: 0 }, stickers: [{ c: 'M' }], weak: { M: 3 }, seen: {}, letters: ['M', 'P', 'L'], setRounds: 2, last: 1 } }; }
+      const { ctx, page, touch, errors, hosts } = await newPage(browser, w, h, { 'animal-mail-route-v2': save }, { path });
+      const outside = await page.evaluate(() => [...document.querySelectorAll('a[href^="mailto:"], [data-fb]')].filter((a) => !a.closest('#parent')).length);
+      check(`feedback (${lang}): only in the parent corner`, outside === 0 && await page.$eval('#fb-block', (e) => !!e.closest('#parent')));
+      await holdGear(page, touch);
+      const m = await mails(page);
+      const head = await page.$eval('#fb-block b', (e) => e.textContent);
+      const want = lang === 'en'
+        ? { head: 'Help improve the game', labels: ['A wrong word or translation', 'Report a problem', 'Suggest an idea'], subj: /^Animal Mail Route: (a wrong word|a problem|an idea)$/, info: ['Game version: 1.5', 'Language: en (English)', `Screen: ${w} x ${h}`] }
+        : { head: 'Ayuda a mejorar el juego', labels: ['Una palabra o traducción equivocada', 'Reportar un problema', 'Sugerir una idea'], subj: /^El Correo de los Animales: (una palabra equivocada|un problema|una idea)$/, info: ['Versión del juego: 1.5', 'Idioma: es (Español)', `Pantalla: ${w} x ${h}`] };
+      check(`feedback (${lang}): three choices, a wrong word, a problem, an idea, in the page's language`, head === want.head && m.map((x) => x.kind).join() === 'word,problem,idea' && m.map((x) => x.label).join() === want.labels.join(), m.map((x) => x.label));
+      check(`feedback (${lang}): each opens a prefilled email to the contact address`, m.every((x) => x.to === 'mailto:clements.cody.j@gmail.com' && want.subj.test(x.subject) && x.body.length > 40), m);
+      check(`feedback (${lang}): the email has the game version, language and screen size`, m.every((x) => want.info.every((i) => x.body.includes(i))), m.map((x) => x.body));
+      check(`feedback (${lang}): the email has nothing about the child`, m.every((x) => childFree(x.body)), m.map((x) => x.body));
+      check(`feedback (${lang}): the parent corner fits the width`, await page.evaluate(() => { const c = document.querySelector('#parent .card'); return c.scrollWidth <= c.clientWidth + 1; }));
+      check(`feedback (${lang}): the links are on screen when scrolled to`, await page.evaluate(() => { document.querySelector('#fb-idea').scrollIntoView({ block: 'center' }); return true; }) && await allOnScreen(page, '#fb-block [data-fb]'));
+      // turning the screen: the size in the email follows it when a link is pressed (the email app itself is not opened here)
+      await page.setViewportSize({ width: h, height: w });
+      await page.evaluate(() => { window.addEventListener('click', (e) => e.preventDefault()); document.querySelector('#fb-problem').click(); });
+      const turned = (await mails(page)).find((x) => x.kind === 'problem');
+      check(`feedback (${lang}): pressing a link uses the current screen size`, turned.body.includes(`${h} x ${w}`), turned.body);
+      check(`feedback (${lang}): nothing was sent, no other sites, no errors`, [...hosts].every((x) => x === host) && errors.length === 0, { hosts: [...hosts], errors });
+      await ctx.close();
+    }
+    // the privacy pages describe it
+    {
+      const { ctx, page } = await newPage(browser, 412, 915);
+      const pr = await page.evaluate(() => Promise.all(['privacy.html', 'privacy-es.html'].map((u) => fetch(u).then((r) => r.text()))));
+      check('feedback: both privacy pages describe the feedback emails', /Help improve the game/.test(pr[0]) && /never includes anything about a child/.test(pr[0]) && /Ayuda a mejorar el juego/.test(pr[1]) && /Nunca incluye nada sobre un niño/.test(pr[1]) && pr.every((x) => x.includes('mailto:clements.cody.j@gmail.com')));
+      await ctx.close();
     }
   }
 

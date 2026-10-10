@@ -73,6 +73,7 @@ Press and hold the gear on the title screen. Copy these lines:
 - Gear: tap the gear twice quickly instead of holding it. Did a tip appear saying to press and hold?
 - Share link: send the game's address in a text or chat. Did the preview show the picture of the animals?
 - Español: the "Español" button beside the gear switches the game to Spanish, and "English" switches back. Did the child tap it by accident, and was it easy to get back? Spanish progress is kept separately.
+- Help improve the game (near the bottom of the parent corner): tap "Report a problem". Did your email app open with a message ready to send? You can send this sheet that way too.
 - Spanish-speaking family: share https://avatar-coco-love.github.io/animal-mail-route/es/ and the Spanish sheet below. The Spanish is a draft nobody native has checked yet, so their corrections are the most useful part.
 
 ---
@@ -145,4 +146,5 @@ Mantén presionado el engrane en la pantalla de inicio. Copia estas líneas:
 - Progreso (todas las líneas):
 - Necesita práctica:
 - Toca "Privacidad" al final: ¿se abrió la página en español?
+- Toca «Una palabra o traducción equivocada» (en «Ayuda a mejorar el juego»): ¿se abrió tu app de correo con un mensaje listo? Puedes usarla para mandar cada palabra que esté mal.
 - Toca "English" (junto al engrane): ¿cambió a inglés? Para volver, toca "Español" si aparece, o abre otra vez la dirección de arriba. ¿El progreso en español se quedó como estaba?
