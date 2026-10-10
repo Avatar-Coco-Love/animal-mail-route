@@ -43,6 +43,9 @@ Tick or write yes / no / unsure. A word or two of detail helps a lot.
 - [ ] Got bored or frustrated (when?):
 - [ ] Favourite animal or moment:
 
+**Screen**
+- [ ] After switching language (the "Español" button by the gear, then "English" to come back), the buttons at the bottom were above the phone's Back / Home / Recent apps bar, not under it:
+
 **Offline (optional)**
 - [ ] Turned on airplane mode after playing once, then reopened: still worked
 
@@ -127,6 +130,9 @@ Marca o escribe sí / no / no sé. Unas palabras de detalle ayudan mucho.
 - [ ] Entendió los dibujos de animales (ruta 2)
 - [ ] Entendió los números y las estrellas (ruta 4, en la línea 123):
 - [ ] Supo qué tocar en la tarjeta de "¡Ruta terminada!"
+
+**Pantalla**
+- [ ] Después de cambiar de idioma (el botón "English" junto al engrane, y "Español" para volver), los botones de abajo quedaron arriba de la barra del teléfono (Atrás, Inicio, Apps recientes), no debajo:
 
 **Cómo le fue**
 - [ ] Le gustó (sonrió, quiso más)
