@@ -44,7 +44,7 @@ const holdGear = async (page, touch) => {
   await touch('touchEnd');
   await page.waitForTimeout(100);
 };
-// map path: which of the 3 segments (route 1 to 2, 2 to 3, 3 to 5 on the Letters track) are lit, and whether
+// map path: which of the 4 segments (route 1 to 2, 2 to 3, 3 to 5, 5 to 6 on the Letters track) are lit, and whether
 // each runs from one disc's centre to the next route's on its track (data-seg is the route it leaves)
 const segState = (page) => page.$$eval('#route .seg', (gs) => gs.map((g) => g.classList.contains('lit') ? 1 : 0).join(''));
 const segsJoinDiscs = (page) => page.evaluate(() => {
@@ -52,8 +52,8 @@ const segsJoinDiscs = (page) => page.evaluate(() => {
   const c = (id) => { const r = route.querySelector(`.node[data-level="${id}"] .disc`).getBoundingClientRect(); return [r.left - box.left + r.width / 2, r.top - box.top + r.height / 2]; };
   const lines = [...route.querySelectorAll('.seg .dash')];
   const near = (a, b) => Math.abs(a - b) <= 2;
-  const next = { 1: 2, 2: 3, 3: 5 };   // the Letters track: 1, 2, 3, then 5 (Letter sounds)
-  return lines.length === 3 && lines.every((l) => { const from = +l.closest('.seg').getAttribute('data-seg'), a = c(from), b = c(next[from]); return near(+l.getAttribute('x1'), a[0]) && near(+l.getAttribute('y1'), a[1]) && near(+l.getAttribute('x2'), b[0]) && near(+l.getAttribute('y2'), b[1]); });
+  const next = { 1: 2, 2: 3, 3: 5, 5: 6 };   // the Letters track: 1, 2, 3, then 5 (Letter sounds) and 6 (Lowercase)
+  return lines.length === 4 && lines.every((l) => { const from = +l.closest('.seg').getAttribute('data-seg'), a = c(from), b = c(next[from]); return near(+l.getAttribute('x1'), a[0]) && near(+l.getAttribute('y1'), a[1]) && near(+l.getAttribute('x2'), b[0]) && near(+l.getAttribute('y2'), b[1]); });
 });
 // segments are straight lines, so one of width or height can be 0
 const segsOnScreen = (page) => page.$$eval('#route .seg', (els) => els.every((e) => { const r = e.getBoundingClientRect(); return r.width + r.height > 0 && r.left >= -1 && r.top >= -1 && r.right <= innerWidth + 1 && r.bottom <= innerHeight + 1; }));
@@ -90,8 +90,8 @@ const wanted = (page) => page.evaluate(() => document.querySelector('#caption').
     await page.tap('.playbtn');
     await page.waitForTimeout(300);
     if (name === 'pixel') check('one player: Play goes straight to the map, no picker or avatar', await page.$eval('#s-who', (e) => e.hidden) && await page.$eval('#m-who', (e) => e.hidden));
-    check(`${name}: all 4 routes on screen`, await allOnScreen(page, '.node'));
-    check(`${name}: map path joins routes 1 to 3 and 5, on screen, all grey at the start`, (await segState(page)) === '000' && await segsJoinDiscs(page) && await segsOnScreen(page));
+    check(`${name}: all 6 routes on screen`, await allOnScreen(page, '.node'));
+    check(`${name}: map path joins routes 1 to 3, 5 and 6, on screen, all grey at the start`, (await segState(page)) === '0000' && await segsJoinDiscs(page) && await segsOnScreen(page));
     // tracks: Letters (1 to 3) and Numbers (4), side by side upright and one above the other sideways
     const tracks = await page.evaluate(() => {
       const t = [...document.querySelectorAll('#route .track')].map((e) => ({ id: e.getAttribute('data-track'), routes: [...e.querySelectorAll('.node')].map((n) => +n.getAttribute('data-level')) }));
@@ -99,7 +99,7 @@ const wanted = (page) => page.evaluate(() => document.querySelector('#caption').
       const a = r(1), b = r(4), side = innerWidth > innerHeight && innerHeight <= 560;
       return { t: JSON.stringify(t), level: side ? Math.abs(a.left - b.left) <= 2 && b.top > a.bottom : Math.abs(a.top - b.top) <= 2 && b.left > a.right };
     });
-    check(`${name}: two tracks, Letters 1, 2, 3, 5 and Numbers 4, route 4 next to route 1`, tracks.t === '[{"id":"letters","routes":[1,2,3,5]},{"id":"numbers","routes":[4]}]' && tracks.level, tracks);
+    check(`${name}: two tracks, Letters 1, 2, 3, 5, 6 and Numbers 4, route 4 next to route 1`, tracks.t === '[{"id":"letters","routes":[1,2,3,5,6]},{"id":"numbers","routes":[4]}]' && tracks.level, tracks);
     check(`${name}: route 4 open from the start, route 2 locked`, !(await page.$('.node[data-level="4"].locked')) && !!(await page.$('.node[data-level="2"].locked')));
     check(`${name}: track labels on screen`, await allOnScreen(page, '#route .tname'));
     await page.tap('.node[data-level="1"]');
@@ -162,10 +162,10 @@ const wanted = (page) => page.evaluate(() => document.querySelector('#caption').
     check('win card: Next route starts route 2', !!(await page.$('.house.has-pal')));
     await page.tap('[data-go="map"]');
     await page.waitForTimeout(300);
-    check('map path: 2 rounds of route 1 light the path to route 2', (await segState(page)) === '100', await segState(page));
+    check('map path: 2 rounds of route 1 light the path to route 2', (await segState(page)) === '1000', await segState(page));
     check('map path: the segment that just lit animates once', await page.$$eval('#route .seg.new', (g) => g.map((x) => x.getAttribute('data-seg')).join()) === '1');
     // stars match the unlock rule: 2 per route
-    check('map: 2 stars per route', (await page.$$eval('.node .stars', (x) => x.map((e) => e.children.length).join())) === '2,2,2,2,2');
+    check('map: 2 stars per route', (await page.$$eval('.node .stars', (x) => x.map((e) => e.children.length).join())) === '2,2,2,2,2,2');
     // "you are here": the player's animal sits on the route to play next, and a new route pulses until played
     const here = () => page.$$eval('.node .here', (x) => x.map((e) => e.closest('.node').getAttribute('data-level')).join());
     const fresh = () => page.$$eval('.node.fresh', (x) => x.map((e) => e.getAttribute('data-level')).join());
@@ -237,7 +237,7 @@ const wanted = (page) => page.evaluate(() => document.querySelector('#caption').
     // on this screen the finger lifts over Print summary; that lift must not press it
     check('parent corner: lifting the finger after the hold presses nothing', await page.$eval('#summary', (e) => e.hidden) && !(await page.$('.pbtn.armed')));
     check('parent corner: no Print all players with one player', await page.$eval('#print-all-row', (e) => e.hidden));
-    const want = ['Route 1, Letters: 3 rounds', 'Route 2, Animals: 1 round, so 1 more opens Route 3', 'Route 3, Letters and animals: locked', 'Route 4, Numbers: 0 rounds', 'Route 5, Letter sounds: locked', 'Stickers: 4', 'Letters: S, B, K, C, P'];
+    const want = ['Route 1, Letters: 3 rounds', 'Route 2, Animals: 1 round, so 1 more opens Route 3', 'Route 3, Letters and animals: locked', 'Route 4, Numbers: 0 rounds', 'Route 5, Letter sounds: locked', 'Route 6, Lowercase: locked', 'Stickers: 4', 'Letters: S, B, K, C, P'];
     let got = await progressText(page);
     check('progress row matches the unlock rule', JSON.stringify(got) === JSON.stringify(want), got);
     await page.tap('#t-unlock');
@@ -246,7 +246,7 @@ const wanted = (page) => page.evaluate(() => document.querySelector('#caption').
     await page.tap('#p-close');
     await page.tap('.playbtn');
     await page.waitForTimeout(300);
-    check('map path: Unlock all lights every segment', (await segState(page)) === '111', await segState(page));
+    check('map path: Unlock all lights every segment', (await segState(page)) === '1111', await segState(page));
     await ctx.close();
   }
 
@@ -259,13 +259,13 @@ const wanted = (page) => page.evaluate(() => document.querySelector('#caption').
     check('v1 save migrates to player 1', !st.v1 && st.v2.v === 2 && st.v2.players.length === 1 && p1.name === '' && p1.animal === 'S' && p1.rounds[1] === 2 && p1.stickers.length === 2 && p1.weak.K === 4 && st.v2.device.voice === false, st);
     await holdGear(page, touch);
     const got = await progressText(page);
-    check('v1 progress carries over to the progress row', got[0] === 'Route 1, Letters: 2 rounds' && got[1] === 'Route 2, Animals: 0 rounds, so 2 more open Route 3' && got[4] === 'Route 5, Letter sounds: locked' && got[5] === 'Stickers: 2', got);
+    check('v1 progress carries over to the progress row', got[0] === 'Route 1, Letters: 2 rounds' && got[1] === 'Route 2, Animals: 0 rounds, so 2 more open Route 3' && got[4] === 'Route 5, Letter sounds: locked' && got[5] === 'Route 6, Lowercase: locked' && got[6] === 'Stickers: 2', got);
     check('v1 practice letters carry over', (await page.$eval('#weaklist', (e) => e.textContent)) === 'K');
     await page.tap('#p-close');
     await page.tap('.playbtn');
     await page.waitForTimeout(300);
     check('v1: route 2 open on the map after migration', !(await page.$('.node[data-level="2"].locked')) && !!(await page.$('.node[data-level="3"].locked')));
-    check('map path: lit up to the last open route, grey after', (await segState(page)) === '100' && !(await page.$('#route .seg.new')), await segState(page));
+    check('map path: lit up to the last open route, grey after', (await segState(page)) === '1000' && !(await page.$('#route .seg.new')), await segState(page));
     await ctx.close();
   }
 
@@ -275,8 +275,8 @@ const wanted = (page) => page.evaluate(() => document.querySelector('#caption').
     const { ctx, page, touch, errors } = await newPage(browser, 412, 915, { 'animal-mail-route-v2': old });
     await holdGear(page, touch);
     const got = await progressText(page);
-    check('0.5 save loads unchanged: progress, practice letters, avatar', got[0] === 'Route 1, Letters: 1 round, so 1 more opens Route 2' && got[5] === 'Stickers: 3' && (await page.$eval('#weaklist', (e) => e.textContent)) === 'C' && (await page.$eval('#players [data-ani][aria-pressed="true"]', (e) => e.getAttribute('data-ani'))) === 'K', got);
-    check('clip count covers every friend and letter', (await page.$eval('#clipcount', (e) => e.textContent)) === '0 of 157');
+    check('0.5 save loads unchanged: progress, practice letters, avatar', got[0] === 'Route 1, Letters: 1 round, so 1 more opens Route 2' && got[6] === 'Stickers: 3' && (await page.$eval('#weaklist', (e) => e.textContent)) === 'C' && (await page.$eval('#players [data-ani][aria-pressed="true"]', (e) => e.getAttribute('data-ani'))) === 'K', got);
+    check('clip count covers every friend and letter', (await page.$eval('#clipcount', (e) => e.textContent)) === '0 of 158');
     await page.tap('#p-close');
     await page.tap('.playbtn');
     await page.waitForTimeout(300);
@@ -367,7 +367,7 @@ const wanted = (page) => page.evaluate(() => document.querySelector('#caption').
     const p1 = await progressText(page);
     await page.tap('#players .pl:nth-child(2)');
     const p2 = await progressText(page);
-    check('progress row follows the selected player', p1[0] === 'Route 1, Letters: 0 rounds, so 2 more open Route 2' && p2[0] === 'Route 1, Letters: 1 round, so 1 more opens Route 2' && p2[5] === 'Stickers: 1' && /Mia/.test(await page.$eval('#prog-head', (e) => e.textContent)), [p1, p2]);
+    check('progress row follows the selected player', p1[0] === 'Route 1, Letters: 0 rounds, so 2 more open Route 2' && p2[0] === 'Route 1, Letters: 1 round, so 1 more opens Route 2' && p2[6] === 'Stickers: 1' && /Mia/.test(await page.$eval('#prog-head', (e) => e.textContent)), [p1, p2]);
     // erase player 1 (two taps); Mia stays, and with one player the picker goes away
     await page.tap('#players .pl:nth-child(1) [data-erase]');
     check('erase a player needs a second tap', (await page.$$('#players .pl')).length === 2);
@@ -430,7 +430,7 @@ const wanted = (page) => page.evaluate(() => document.querySelector('#caption').
       fits: document.querySelector('#summary').scrollWidth <= innerWidth,
     }));
     check('print summary: opens the summary and the print dialog', sum.shown && sum.printed === 1, sum);
-    check("print summary: shows the selected player's lines", sum.who === 'Player: Mia (Kelly the Kangaroo)' && JSON.stringify(sum.lines) === JSON.stringify(lines) && sum.lines[0] === 'Route 1, Letters: 3 rounds' && sum.lines[2] === 'Route 3, Letters and animals: 1 round, so 1 more opens Route 5' && sum.lines[3] === 'Route 4, Numbers: 0 rounds' && sum.lines[4] === 'Route 5, Letter sounds: locked' && sum.lines[5] === 'Stickers: 6', sum);
+    check("print summary: shows the selected player's lines", sum.who === 'Player: Mia (Kelly the Kangaroo)' && JSON.stringify(sum.lines) === JSON.stringify(lines) && sum.lines[0] === 'Route 1, Letters: 3 rounds' && sum.lines[2] === 'Route 3, Letters and animals: 1 round, so 1 more opens Route 5' && sum.lines[3] === 'Route 4, Numbers: 0 rounds' && sum.lines[4] === 'Route 5, Letter sounds: locked' && sum.lines[5] === 'Route 6, Lowercase: locked' && sum.lines[6] === 'Stickers: 6', sum);
     check('print summary: needs practice with names', sum.weak === 'K (Kelly the Kangaroo), C (Cody the Crane)', sum.weak);
     check('print summary: fits the width of a sideways phone', sum.fits);
     await page.emulateMedia({ media: 'print' });
@@ -444,7 +444,7 @@ const wanted = (page) => page.evaluate(() => document.querySelector('#caption').
     await page.$eval('#b-print', (b) => b.scrollIntoView());
     await page.tap('#b-print');
     const leo = await page.$$eval('#summary .sum-progress li', (li) => li.map((e) => e.textContent));
-    check('print summary: follows the selected player', leo[0] === 'Route 1, Letters: 1 round, so 1 more opens Route 2' && leo[5] === 'Stickers: 1' && (await page.$eval('#summary .sum-weak', (e) => e.textContent)) === 'None yet' && (await page.$$('#summary .sheet')).length === 1, leo);
+    check('print summary: follows the selected player', leo[0] === 'Route 1, Letters: 1 round, so 1 more opens Route 2' && leo[6] === 'Stickers: 1' && (await page.$eval('#summary .sum-weak', (e) => e.textContent)) === 'None yet' && (await page.$$('#summary .sheet')).length === 1, leo);
     await page.$eval('#sum-close', (b) => b.scrollIntoView());
     await page.tap('#sum-close');
 
@@ -487,12 +487,12 @@ const wanted = (page) => page.evaluate(() => document.querySelector('#caption').
     const grid = () => page.$$eval('#lgrid button', (b) => b.map((x) => x.textContent + (x.getAttribute('aria-pressed') === 'true' ? '+' : '') + (x.disabled ? '!' : '')).join(' '));
     const g0 = await grid();
     check('letters: A to Z, every letter but X can be chosen, the first five are on', (await page.$$('#lgrid button')).length === 26 && (await page.$$('#lgrid button:not([disabled])')).length === 25 && (await page.$eval('#lgrid button[disabled]', (b) => b.textContent)) === 'X' && g0.split(' ').filter((x) => x.includes('+')).map((x) => x[0]).join('') === 'BCKPS', g0);
-    check('letters: a new player has the default set', (await progressText(page))[6] === 'Letters: S, B, K, C, P');
+    check('letters: a new player has the default set', (await progressText(page))[7] === 'Letters: S, B, K, C, P');
     // turn off K and P: S, B, C left
     await page.tap('#lgrid [data-letter="K"]');
     await page.tap('#lgrid [data-letter="P"]');
     let st = await page.evaluate(() => JSON.parse(localStorage.getItem('animal-mail-route-v2')).players[0]);
-    check('letters: turning letters off saves the set, rounds and stickers kept', JSON.stringify(st.letters) === '["S","B","C"]' && st.rounds[1] === 0 && (await progressText(page))[6] === 'Letters: S, B, C', st);
+    check('letters: turning letters off saves the set, rounds and stickers kept', JSON.stringify(st.letters) === '["S","B","C"]' && st.rounds[1] === 0 && (await progressText(page))[7] === 'Letters: S, B, C', st);
     // the 2-letter minimum
     await page.tap('#lgrid [data-letter="C"]');
     const last2 = await page.$$eval('#lgrid [data-letter][aria-pressed="true"]', (b) => b.map((x) => x.textContent + (x.disabled ? '!' : '')).join());
@@ -501,11 +501,11 @@ const wanted = (page) => page.evaluate(() => document.querySelector('#caption').
     st = await page.evaluate(() => JSON.parse(localStorage.getItem('animal-mail-route-v2')).players[0]);
     check('letters: tapping one of the last two changes nothing', JSON.stringify(st.letters) === '["S","B"]', st.letters);
     await page.tap('#b-allletters');
-    check('letters: "All" turns on every letter with a friend, Q and U too', (await progressText(page))[6] === 'Letters: S, B, K, C, P, A, D, E, F, G, H, I, J, L, M, N, O, Q, R, T, U, V, W, Y, Z', (await progressText(page))[6]);
+    check('letters: "All" turns on every letter with a friend, Q and U too', (await progressText(page))[7] === 'Letters: S, B, K, C, P, A, D, E, F, G, H, I, J, L, M, N, O, Q, R, T, U, V, W, Y, Z', (await progressText(page))[7]);
     await page.tap('#b-first5');
     await page.tap('#lgrid [data-letter="S"]');
     await page.tap('#lgrid [data-letter="C"]');
-    check('letters: S off, then C off', (await progressText(page))[6] === 'Letters: B, K, P');
+    check('letters: S off, then C off', (await progressText(page))[7] === 'Letters: B, K, P');
     check('letters: Use for all players hidden with one player', await page.$eval('#same-row', (e) => e.hidden));
     // play route 3 (Unlock all): 3 houses, every house and mail from the set
     await page.tap('#t-unlock');
@@ -569,7 +569,7 @@ const wanted = (page) => page.evaluate(() => document.querySelector('#caption').
     await page.tap('#b-print');
     await page.waitForTimeout(200);
     const sum = await page.evaluate(() => ({ lines: [...document.querySelectorAll('#summary .sum-progress li')].map((e) => e.textContent), ready: !!document.querySelector('#summary .sum-ready') }));
-    check('letters: the printed summary lists the letters and Ready for new letters', sum.lines[6] === 'Letters: B, K' && sum.ready, sum);
+    check('letters: the printed summary lists the letters and Ready for new letters', sum.lines[7] === 'Letters: B, K' && sum.ready, sum);
     await page.$eval('#sum-close', (b) => b.scrollIntoView());
     await page.tap('#sum-close');
     // a change to the set starts its count again, so the hint goes away
@@ -629,7 +629,7 @@ const wanted = (page) => page.evaluate(() => document.querySelector('#caption').
     await page.$eval('#lgrid', (b) => b.scrollIntoView());
     for (const l of ['A', 'M', 'Z']) await page.tap(`#lgrid [data-letter="${l}"]`);
     for (const l of ['S', 'B', 'K', 'C', 'P']) await page.tap(`#lgrid [data-letter="${l}"]`);
-    check('friends: a set of new letters', (await progressText(page))[6] === 'Letters: A, M, Z', (await progressText(page))[6]);
+    check('friends: a set of new letters', (await progressText(page))[7] === 'Letters: A, M, Z', (await progressText(page))[7]);
     await page.$eval('#t-unlock', (b) => b.scrollIntoView());
     await page.tap('#t-unlock');
     await page.$eval('#p-close', (b) => b.scrollIntoView());
@@ -824,7 +824,7 @@ const wanted = (page) => page.evaluate(() => document.querySelector('#caption').
       await page.waitForTimeout(300);
       seen += await words();
       const map = await page.evaluate(() => [...document.querySelectorAll('#route .node')].map((n) => n.getAttribute('aria-label')));
-      check('Spanish map: route names', map[0].startsWith('Ruta 1, Letras') && map[3].startsWith('Ruta 5, Sonidos de las letras') && map[4].startsWith('Ruta 4, Números'), map);
+      check('Spanish map: route names', map[0].startsWith('Ruta 1, Letras') && map[3].startsWith('Ruta 5, Sonidos de las letras') && map[4].startsWith('Ruta 6, Minúsculas') && map[5].startsWith('Ruta 4, Números'), map);
       await page.tap('.node[data-level="1"]');
       await page.waitForTimeout(1700);
       const cap = await page.$eval('#caption', (e) => e.textContent);
@@ -904,7 +904,7 @@ const wanted = (page) => page.evaluate(() => document.querySelector('#caption').
     // Progress is per language: Spanish starts fresh, keeps the name, and English progress is untouched
     {
       const both = JSON.parse(JSON.stringify(enSave));
-      both.players[0].langs = { es: { animal: 'L', rounds: { 1: 1, 2: 0, 3: 0, 4: 0, 5: 0 }, stickers: [{ c: 'M' }], weak: {}, seen: {}, letters: ['M', 'P'], setRounds: 1, last: 1 } };
+      both.players[0].langs = { es: { animal: 'L', rounds: { 1: 1, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0 }, stickers: [{ c: 'M' }], weak: {}, seen: {}, letters: ['M', 'P'], setRounds: 1, last: 1 } };
       const { ctx, page, touch, errors } = await newPage(browser, 412, 915, { 'animal-mail-route-v2': enSave }, { path: '?lang=es' });
       await page.tap('#s-title [data-go="book"]');
       await page.waitForTimeout(300);
@@ -966,12 +966,12 @@ const wanted = (page) => page.evaluate(() => document.querySelector('#caption').
       const n5 = await page.$eval('.node[data-level="5"]', (e) => ({ track: e.closest('.track').dataset.track, after3: e.previousElementSibling && e.previousElementSibling.dataset.level, locked: e.classList.contains('locked'), fresh: e.classList.contains('fresh'), here: !!e.querySelector('.here'), spk: !!e.querySelector('.mini svg.spk'), label: e.getAttribute('aria-label') }));
       check('letter sounds: route 5 sits after route 3 on the Letters track, with a speaker', n5.track === 'letters' && n5.after3 === '3' && n5.spk && /^Route 5, Letter sounds/.test(n5.label), n5);
       check('letter sounds: an old save (no rounds[5]) with 2 rounds of route 3 has route 5 open, new and next', !n5.locked && n5.fresh && n5.here, n5);
-      check('letter sounds: the path to route 5 is lit', (await segState(page)) === '111', await segState(page));
+      check('letter sounds: the path to route 5 is lit, not yet to route 6', (await segState(page)) === '1110', await segState(page));
       await ctx.close();
       const p2 = await newPage(browser, 412, 915, lsSave({ 1: 2, 2: 2, 3: 2, 4: 0 }, ['S', 'B', 'K', 'C', 'P']));
       await holdGear(p2.page, p2.touch);
       const lines = await progressText(p2.page);
-      check('letter sounds: Progress lines for route 3 and route 5', lines[2] === 'Route 3, Letters and animals: 2 rounds' && lines[4] === 'Route 5, Letter sounds: 0 rounds', lines);
+      check('letter sounds: Progress lines for route 3 and route 5', lines[2] === 'Route 3, Letters and animals: 2 rounds' && lines[4] === 'Route 5, Letter sounds: 0 rounds, so 2 more open Route 6', lines);
       await p2.ctx.close();
       check('letter sounds: no errors on the map', errors.length === 0, errors.length ? errors : undefined);
     }
@@ -1007,7 +1007,7 @@ const wanted = (page) => page.evaluate(() => document.querySelector('#caption').
       check('letter sounds: each delivery cheers with the letter and friend', banners.every((b) => /^[SBKP] for .+!$/.test(b)), banners);
       await page.waitForTimeout(300);
       const end = await page.evaluate(() => ({ win: !document.querySelector('#win').hidden, label: document.querySelector('#win-next-label').textContent, save: JSON.parse(localStorage.getItem('animal-mail-route-v2')).players[0] }));
-      check('letter sounds: the round finishes; rounds[5] and stickers saved; Play again (last on its track)', end.win && end.save.rounds[5] === 3 && end.save.stickers.length === 1 && end.label === 'Play again', { win: end.win, label: end.label, rounds: end.save.rounds });
+      check('letter sounds: the round finishes; rounds[5] and stickers saved; Next route (route 6 is open)', end.win && end.save.rounds[5] === 3 && end.save.stickers.length === 1 && end.label === 'Next route', { win: end.win, label: end.label, rounds: end.save.rounds });
       check('letter sounds: no errors, no other sites', errors.length === 0 && [...hosts].every((x) => x === host), errors);
       await ctx.close();
     }
@@ -1060,8 +1060,136 @@ const wanted = (page) => page.evaluate(() => document.querySelector('#caption').
         await page.tap('.playbtn');
         await page.waitForTimeout(400);
         check(`letter sounds: the map fits (${name}${path ? ', es' : ''})`, await allOnScreen(page, '#route .node') && await allOnScreen(page, '#route .tname') && await segsOnScreen(page) && await segsJoinDiscs(page));
+        // Lowercase (1.9) makes the Letters track 5 routes long: discs shrink on short screens, to no less than 60 px
+        const fit = await page.evaluate(() => {
+          const rs = [...document.querySelectorAll('#route .node, #route .tname')].map((e) => e.getBoundingClientRect());
+          const hit = (a, b) => a.left < b.right - 1 && b.left < a.right - 1 && a.top < b.bottom - 1 && b.top < a.bottom - 1;
+          const discs = [...document.querySelectorAll('#route .disc')].map((e) => Math.round(e.getBoundingClientRect().width));
+          return { overlap: rs.some((a, i) => rs.some((b, j) => i < j && hit(a, b))), discs: Math.min(...discs), n: discs.length };
+        });
+        check(`lowercase: 6 routes, none overlapping, discs at least 60 px (${name}${path ? ', es' : ''})`, fit.n === 6 && !fit.overlap && fit.discs >= 60, fit);
         await ctx.close();
       }
+    }
+  }
+
+  // ---------- Lowercase (1.9, Phase 5) ----------
+  // Route 6 on the Letters track, after route 5: the mail shows a little letter, the houses big ones, and
+  // the voice asks "Who gets this little letter?" without naming it, so the child matches the shapes.
+  // In the first 4 rounds never b with d or p with q. Old saves get rounds[6] = 0.
+  {
+    const letterOf = (cap) => ((cap.match(/["«](.+?)["»]/) || [])[1] || '');
+    const loSave = (rounds, letters, es) => {
+      const pl = { id: 1, name: '', animal: 'S', rounds, stickers: [], weak: {}, seen: {}, letters, setRounds: 0, last: 5 };
+      const d = { v: 2, device: { voice: true, sfx: true, share: false, unlockAll: false, lettersSame: false }, current: 1, players: [pl] };
+      if (es) { d.device.lang = 'es'; pl.langs = { es: { animal: 'M', rounds, stickers: [], weak: {}, seen: {}, letters: es, setRounds: 0, last: 5 } }; pl.letters = ['S', 'B', 'K', 'C', 'P']; pl.rounds = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 }; }
+      return { 'animal-mail-route-v2': d };
+    };
+    // plays a whole round by tapping the mail and then its house; returns what was seen and said per mail
+    const playRound = async (page) => {
+      const seen = [];
+      for (let i = 0; i < 5; i++) {
+        const m = await page.evaluate(() => ({ cap: document.querySelector('#caption').textContent, big: (document.querySelector('#paper .big') || {}).textContent, label: document.querySelector('#mail').getAttribute('aria-label'), said: window.__said.map((x) => x[1]) }));
+        await page.evaluate(() => { window.__said = []; });
+        await page.tap('#mail');
+        await page.waitForTimeout(100);
+        m.tapSaid = await page.evaluate(() => window.__said.map((x) => x[1]));
+        await page.tap(`.house[data-id="${letterOf(m.cap).toUpperCase()}"]`, { force: true });
+        await page.waitForTimeout(400);
+        m.banner = await page.$eval('#banner', (e) => e.textContent);
+        await page.evaluate(() => { window.__said = []; });
+        await page.waitForTimeout(2300);
+        seen.push(m);
+      }
+      await page.waitForTimeout(300);
+      return seen;
+    };
+    const spy = (page) => page.evaluate(() => { window.__said = []; speechSynthesis.speak = (u) => window.__said.push([u.lang, u.text]); });
+    // a save from before 1.9 (no rounds[6]) with 2 rounds of route 5: route 6 is open, fresh, and next
+    {
+      const { ctx, page, errors } = await newPage(browser, 360, 640, loSave({ 1: 2, 2: 2, 3: 2, 4: 0, 5: 2 }, ['S', 'B', 'K', 'C', 'P']));
+      await page.tap('.playbtn');
+      await page.waitForTimeout(300);
+      const n6 = await page.$eval('.node[data-level="6"]', (e) => ({ track: e.closest('.track').dataset.track, after5: e.previousElementSibling && e.previousElementSibling.dataset.level, last: !e.nextElementSibling, locked: e.classList.contains('locked'), fresh: e.classList.contains('fresh'), here: !!e.querySelector('.here'), mini: e.querySelector('.mini').textContent, label: e.getAttribute('aria-label') }));
+      check('lowercase: route 6 is last on the Letters track, after route 5, showing "Bb"', n6.track === 'letters' && n6.after5 === '5' && n6.last && n6.mini === 'Bb' && /^Route 6, Lowercase/.test(n6.label), n6);
+      check('lowercase: an old save (no rounds[6]) with 2 rounds of route 5 has route 6 open, new and next', !n6.locked && n6.fresh && n6.here, n6);
+      check('lowercase: the whole path is lit, and the marker is on screen (small phone)', (await segState(page)) === '1111' && await allOnScreen(page, '.node[data-level="6"] .here'), await segState(page));
+      check('lowercase: no errors on the map', errors.length === 0, errors.length ? errors : undefined);
+      await ctx.close();
+      const p2 = await newPage(browser, 360, 640, loSave({ 1: 2, 2: 2, 3: 2, 4: 0, 5: 2 }, ['S', 'B', 'K', 'C', 'P']));
+      await holdGear(p2.page, p2.touch);
+      const lines = await progressText(p2.page);
+      check('lowercase: Progress lines for route 5 and route 6', lines[4] === 'Route 5, Letter sounds: 2 rounds' && lines[5] === 'Route 6, Lowercase: 0 rounds' && lines[6] === 'Stickers: 0', lines);
+      await p2.ctx.close();
+    }
+    // English, first rounds: a set with B, D, P, Q, S gives B, P, S (no b with d, no p with q)
+    {
+      const { ctx, page, errors, hosts } = await newPage(browser, 412, 915, loSave({ 1: 2, 2: 2, 3: 2, 4: 0, 5: 2, 6: 0 }, ['B', 'D', 'P', 'Q', 'S']));
+      await spy(page);
+      await page.tap('.playbtn');
+      await page.tap('.node[data-level="6"]');
+      await page.waitForTimeout(1700);
+      const houses = await page.$$eval('.house', (h) => h.map((x) => x.dataset.id + x.querySelector('.sign').textContent).sort().join());
+      check('lowercase: first round, houses B, P, S with big letters (D and Q left out)', houses === 'BB,PP,SS', houses);
+      check('lowercase: mail and houses on screen', await allOnScreen(page, '#mail') && await allOnScreen(page, '.house'));
+      const seen = await playRound(page);
+      const first = seen[0];
+      check('lowercase: the mail shows the little letter', seen.every((m) => m.big && m.big === letterOf(m.cap) && m.big === m.big.toLowerCase() && 'bps'.includes(m.big)), seen.map((m) => m.big));
+      check('lowercase: caption and label name the little letter for the parent', first.cap === `Who gets the little "${first.big}"?` && first.label.startsWith(`Mail with a little "${first.big}"`), first);
+      check('lowercase: the voice asks without naming the letter, also when the mail is tapped', first.said.slice(-1)[0] === 'Who gets this little letter?' && seen.every((m) => m.tapSaid.join('|') === 'Who gets this little letter?'), seen.map((m) => [m.said, m.tapSaid]));
+      check('lowercase: each delivery cheers with the big letter and friend', seen.every((m) => /^[BPS] for .+!$/.test(m.banner)), seen.map((m) => m.banner));
+      const end = await page.evaluate(() => ({ win: !document.querySelector('#win').hidden, label: document.querySelector('#win-next-label').textContent, save: JSON.parse(localStorage.getItem('animal-mail-route-v2')).players[0] }));
+      check('lowercase: the round finishes; rounds[6] and a sticker saved; Play again (last on its track)', end.win && end.save.rounds[6] === 1 && end.save.stickers.length === 1 && end.label === 'Play again', { win: end.win, label: end.label, rounds: end.save.rounds });
+      check('lowercase: no errors, no other sites', errors.length === 0 && [...hosts].every((x) => x === host), errors);
+      await ctx.close();
+    }
+    // after the first 4 rounds, b and d (and p and q) may share the street
+    {
+      const { ctx, page } = await newPage(browser, 800, 1280, loSave({ 1: 2, 2: 2, 3: 2, 4: 0, 5: 2, 6: 4 }, ['B', 'D', 'P', 'Q', 'S']));
+      await page.tap('.playbtn');
+      await page.tap('.node[data-level="6"]');
+      await page.waitForTimeout(1200);
+      const houses = await page.$$eval('.house', (h) => h.map((x) => x.dataset.id).sort().join());
+      check('lowercase: from round 5, all 5 letters, b with d and p with q', houses === 'B,D,P,Q,S', houses);
+      await ctx.close();
+    }
+    // a set of only B and D in the first rounds: B, plus the first of the language's letters (S, from the first five)
+    {
+      const { ctx, page } = await newPage(browser, 740, 360, loSave({ 1: 2, 2: 2, 3: 2, 4: 0, 5: 2, 6: 1 }, ['B', 'D']));
+      await page.tap('.playbtn');
+      await page.tap('.node[data-level="6"]');
+      await page.waitForTimeout(1200);
+      const houses = await page.$$eval('.house', (h) => h.map((x) => x.dataset.id).sort().join());
+      check('lowercase: a set of B and D gives B and S in the first rounds (never b with d)', houses === 'B,S', houses);
+      await ctx.close();
+    }
+    // Spanish (sideways phone): Ñ, N, M, B, D gives Ñ, N, M, B; the mail shows ñ in the game's font
+    {
+      const { ctx, page, errors } = await newPage(browser, 740, 360, loSave({ 1: 2, 2: 2, 3: 2, 4: 0, 5: 2, 6: 2 }, null, ['Ñ', 'N', 'M', 'B', 'D']), { path: '?lang=es' });
+      await spy(page);
+      await page.tap('.playbtn');
+      await page.waitForTimeout(300);
+      const n6 = await page.$eval('.node[data-level="6"]', (e) => [e.getAttribute('aria-label'), e.querySelector('.mini').textContent]);
+      check('lowercase (es): route 6 is "Minúsculas", showing "Pp"', /^Ruta 6, Minúsculas/.test(n6[0]) && n6[1] === 'Pp', n6);
+      await page.tap('.node[data-level="6"]');
+      await page.waitForTimeout(1700);
+      const houses = await page.$$eval('.house', (h) => h.map((x) => x.dataset.id).sort().join());
+      check('lowercase (es): houses B, M, N, Ñ (no D with B)', houses === 'B,M,N,Ñ', houses);
+      const font = await page.evaluate(async () => {
+        await document.fonts.load("800 60px 'Baloo 2'", 'ñ');
+        const c = document.createElement('canvas').getContext('2d'), w = (f) => { c.font = f; return c.measureText('ñ').width; };
+        return { baloo: w("800 60px 'Baloo 2', monospace"), mono: w('800 60px monospace'), mail: getComputedStyle(document.querySelector('#paper .big')).fontFamily };
+      });
+      check('lowercase (es): the game\'s font has ñ (it doesn\'t fall back)', /Baloo 2/.test(font.mail) && Math.abs(font.baloo - font.mono) > 1, font);
+      const seen = await playRound(page);
+      const first = seen[0];
+      check('lowercase (es): caption, label and voice in Spanish', first.cap === `¿Quién recibe la «${first.big}» chiquita?` && first.label.startsWith(`Carta con una «${first.big}» chiquita`) && first.said.slice(-1)[0] === '¿Quién recibe esta letra chiquita?', first);
+      check('lowercase (es): little letters on the mail, ñ among them when Ñ comes', seen.every((m) => 'ñnmb'.includes(m.big)) && seen.some((m) => m.big === 'ñ') === seen.some((m) => letterOf(m.cap) === 'ñ'), seen.map((m) => m.big));
+      check('lowercase (es): every delivery cheers in Spanish', seen.every((m) => /^¡[ÑNMB] de .+!$/.test(m.banner)), seen.map((m) => m.banner));
+      const end = await page.evaluate(() => ({ win: !document.querySelector('#win').hidden, save: JSON.parse(localStorage.getItem('animal-mail-route-v2')).players[0] }));
+      check('lowercase (es): the round finishes, saved in Spanish progress only', end.win && end.save.langs.es.rounds[6] === 3 && !end.save.rounds[6], { es: end.save.langs.es.rounds, en: end.save.rounds });
+      check('lowercase (es): no errors', errors.length === 0, errors.length ? errors : undefined);
+      await ctx.close();
     }
   }
 
@@ -1091,7 +1219,7 @@ const wanted = (page) => page.evaluate(() => document.querySelector('#caption').
     const listen = (page) => page.evaluate(() => { window.__said = []; speechSynthesis.speak = (u) => window.__said.push(u.text); });
     const hear = async (page) => { await listen(page); await page.tap('#cast .pal', { force: true }); await page.waitForTimeout(300); return said(page); };
     const vsets = (page) => page.$$eval('#vsets [data-vset]', (b) => b.map((x) => x.textContent + ':' + x.getAttribute('aria-pressed')).join());
-    check('voice sets: words.js gives the game\'s lines (157 English, 134 Spanish)', keys.en.length === 157 && keys.es.length === 134, [keys.en.length, keys.es.length]);
+    check('voice sets: words.js gives the game\'s lines (158 English, 135 Spanish)', keys.en.length === 158 && keys.es.length === 135, [keys.en.length, keys.es.length]);
     // the repo's sets are empty: no "Recorded voice" row, the built-in voice speaks, only the two English lists are asked for
     {
       const reqs = [];
@@ -1100,7 +1228,7 @@ const wanted = (page) => page.evaluate(() => document.querySelector('#caption').
       check('voice sets: the game asks only for the English female and male lists', asked.join() === 'audio/en/female/clips.json,audio/en/male/clips.json', asked);
       check('voice sets: with no recordings, the built-in voice speaks', (await hear(page)) === 1);
       await holdGear(page, touch);
-      check('voice sets: no "Recorded voice" row until a set has recordings', await page.$eval('#vset-row', (e) => e.hidden) && (await page.$eval('#clipcount', (e) => e.textContent)) === '0 of 157');
+      check('voice sets: no "Recorded voice" row until a set has recordings', await page.$eval('#vset-row', (e) => e.hidden) && (await page.$eval('#clipcount', (e) => e.textContent)) === '0 of 158');
       check('voice sets: no errors', errors.length === 0, errors.length ? errors : undefined);
       await ctx.close();
     }
@@ -1111,17 +1239,17 @@ const wanted = (page) => page.evaluate(() => document.querySelector('#caption').
       check('voice sets: a fully recorded line plays the recording, not the built-in voice', (await hear(page)) === 0);
       await holdGear(page, touch);
       check('voice sets: the row shows the sets with recordings and the device voice; the fuller set is used', (await vsets(page)) === 'Female:true,Male:false,Device voice:false' && !(await page.$eval('#vset-row', (e) => e.hidden)), await vsets(page));
-      check('voice sets: every clip of the female set loads', (await page.$eval('#clipcount', (e) => e.textContent)) === '157 of 157', await page.$eval('#clipcount', (e) => e.textContent));
+      check('voice sets: every clip of the female set loads', (await page.$eval('#clipcount', (e) => e.textContent)) === '158 of 158', await page.$eval('#clipcount', (e) => e.textContent));
       await page.tap('#vsets [data-vset="male"]');
       await page.waitForTimeout(500);
       const m = await page.evaluate(() => ({ count: document.querySelector('#clipcount').textContent, saved: JSON.parse(localStorage.getItem('animal-mail-route-v2')).device.voices }));
-      check('voice sets: choosing Male uses its 2 clips and saves the choice for English', (await vsets(page)) === 'Female:false,Male:true,Device voice:false' && m.count === '2 of 157' && m.saved.en === 'male', m);
+      check('voice sets: choosing Male uses its 2 clips and saves the choice for English', (await vsets(page)) === 'Female:false,Male:true,Device voice:false' && m.count === '2 of 158' && m.saved.en === 'male', m);
       await page.tap('#p-close');
       check('voice sets: a line the male set lacks falls back to the built-in voice', (await hear(page)) === 1);
       await holdGear(page, touch);
       await page.tap('#vsets [data-vset="device"]');
       await page.waitForTimeout(300);
-      check('voice sets: Device voice turns the recordings off', (await page.$eval('#clipcount', (e) => e.textContent)) === '0 of 157' && (await vsets(page)) === 'Female:false,Male:false,Device voice:true');
+      check('voice sets: Device voice turns the recordings off', (await page.$eval('#clipcount', (e) => e.textContent)) === '0 of 158' && (await vsets(page)) === 'Female:false,Male:false,Device voice:true');
       await page.reload();
       await page.waitForTimeout(800);
       check('voice sets: Device voice is kept after a reload, and the built-in voice speaks', (await hear(page)) === 1);
@@ -1139,7 +1267,7 @@ const wanted = (page) => page.evaluate(() => document.querySelector('#caption').
       await page.waitForTimeout(800);
       check('voice sets (es): the Spanish male set is used, with every line', (await hear(page)) === 0);
       await holdGear(page, touch);
-      check('voice sets (es): Hombre and Voz del dispositivo, Hombre chosen, 134 of 134', (await vsets(page)) === 'Hombre:true,Voz del dispositivo:false' && (await page.$eval('#clipcount', (e) => e.textContent)) === '134 de 134', await vsets(page));
+      check('voice sets (es): Hombre and Voz del dispositivo, Hombre chosen, 135 of 135', (await vsets(page)) === 'Hombre:true,Voz del dispositivo:false' && (await page.$eval('#clipcount', (e) => e.textContent)) === '135 de 135', await vsets(page));
       await page.tap('#vsets [data-vset="device"]');
       const v = await page.evaluate(() => JSON.parse(localStorage.getItem('animal-mail-route-v2')).device.voices);
       check('voice sets (es): each language keeps its own choice', v.es === 'device' && v.en === 'device', v);
@@ -1183,7 +1311,7 @@ const wanted = (page) => page.evaluate(() => document.querySelector('#caption').
         fits: document.documentElement.scrollWidth <= innerWidth, disabled: [...document.querySelectorAll('[data-act=rec]')].every((b) => b.disabled), agreeNote: !document.querySelector('#agree-first').hidden,
         hiddenPlay: [...document.querySelectorAll('[data-act=play]')].every((b) => b.offsetParent === null), adults: /adult/i.test(document.body.textContent), gift: /(gift|regalo)/.test(document.body.textContent) }));
       check(`volunteer (${lang}): the page is in the language, for adults, says recordings are given freely`, st.lang === lang && st.h1 === (lang === 'en' ? 'Animal Mail Route: lend your voice' : 'El Correo de los Animales: presta tu voz') && st.adults && st.gift, st.h1);
-      check(`volunteer (${lang}): every line of the game, in order, each with a delivery note`, st.keys.join() === keys.join() && keys.length === (lang === 'en' ? 157 : 134) && st.notes, [st.keys.length, keys.length]);
+      check(`volunteer (${lang}): every line of the game, in order, each with a delivery note`, st.keys.join() === keys.join() && keys.length === (lang === 'en' ? 158 : 135) && st.notes, [st.keys.length, keys.length]);
       check(`volunteer (${lang}): lines read as the game says them`, st.says.includes(lang === 'en' ? 'Who gets the' : '¿Quién recibe la') && st.says.includes(lang === 'en' ? 'Sammy the Skunk' : 'Memo el Mono') && st.says.includes(lang === 'en' ? "The letter's name: S" : 'El nombre de la letra: M'));
       check(`volunteer (${lang}): recording waits for "I agree", nothing to play yet, the page fits`, st.disabled && st.agreeNote && st.hiddenPlay && st.fits, st);
       await page.check('#agree');
@@ -1196,7 +1324,7 @@ const wanted = (page) => page.evaluate(() => document.querySelector('#caption').
       await rec.click();
       await page.waitForTimeout(1200);
       const one = await page.evaluate((k) => { const l = document.querySelector(`.line[data-key="${k}"]`); return { done: l.classList.contains('done'), btn: l.querySelector('[data-act=rec]').textContent, play: l.querySelector('[data-act=play]').offsetParent !== null, status: l.querySelector('.status').textContent, count: document.querySelector('#count').textContent }; }, k);
-      check(`volunteer (${lang}): recording a line (Stop, others wait), then Redo, Play and its length`, during.stop === (lang === 'en' ? 'Stop' : 'Parar') && during.others && one.done && one.btn === (lang === 'en' ? 'Redo' : 'Repetir') && one.play && /\d\.\d/.test(one.status) && one.count === (lang === 'en' ? '1 of 157 recorded' : '1 de 134 grabadas'), [during, one]);
+      check(`volunteer (${lang}): recording a line (Stop, others wait), then Redo, Play and its length`, during.stop === (lang === 'en' ? 'Stop' : 'Parar') && during.others && one.done && one.btn === (lang === 'en' ? 'Redo' : 'Repetir') && one.play && /\d\.\d/.test(one.status) && one.count === (lang === 'en' ? '1 of 158 recorded' : '1 de 135 grabadas'), [during, one]);
       check(`volunteer (${lang}): playback works`, await page.evaluate((k) => new Promise((res) => { const orig = HTMLMediaElement.prototype.play; HTMLMediaElement.prototype.play = function () { res(this.src.startsWith('blob:')); return orig.call(this); }; document.querySelector(`.line[data-key="${k}"] [data-act=play]`).click(); setTimeout(() => res(false), 2000); }), k));
       // redo replaces it, still one line
       await rec.click(); await page.waitForTimeout(700); await rec.click(); await page.waitForTimeout(1200);
@@ -1211,7 +1339,7 @@ const wanted = (page) => page.evaluate(() => document.querySelector('#caption').
       check(`volunteer (${lang}): each voice keeps its own recordings`, /^0 /.test(male) && (await page.$eval('#count', (e) => e.textContent)) === one.count, male);
       // the email link and Save all
       const mail = await page.$eval('#send a[href^="mailto:"]', (a) => { const u = new URL(a.href); return { to: u.pathname, subject: u.searchParams.get('subject'), body: u.searchParams.get('body') }; });
-      check(`volunteer (${lang}): the email link goes to the contact address with the language, voice, count and credit`, mail.to === 'clements.cody.j@gmail.com' && mail.subject.includes(lang === 'en' ? 'English' : 'Español') && mail.body.includes('Test Volunteer') && mail.body.includes(lang === 'en' ? '1 of 157' : '1 de 134'), mail);
+      check(`volunteer (${lang}): the email link goes to the contact address with the language, voice, count and credit`, mail.to === 'clements.cody.j@gmail.com' && mail.subject.includes(lang === 'en' ? 'English' : 'Español') && mail.body.includes('Test Volunteer') && mail.body.includes(lang === 'en' ? '1 of 158' : '1 de 135'), mail);
       const [dl] = await Promise.all([page.waitForEvent('download'), page.click('#save-all')]);
       const zip = require('fs').readFileSync(await dl.path());
       const names = [];

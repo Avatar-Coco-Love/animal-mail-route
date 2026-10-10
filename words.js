@@ -121,7 +121,8 @@ var LANGS = {
       'deliver-to':'Deliver to number',
       'count-prompt':'Count the stars! Which number?',
       'whos-playing':"Who's playing?",
-      'who-starts-with':'Who starts with'
+      'who-starts-with':'Who starts with',
+      'little-letter':'Who gets this little letter?'
     },
     t:{
       title:'Animal Mail Route', play:'Play', book:'Sticker book', switchTo:'Play in English',
@@ -131,11 +132,11 @@ var LANGS = {
       winAria:'Route complete', winHead:'Route complete!', winText:'You delivered all the mail and earned a sticker.',
       map:'Map', playAgain:'Play again', nextRoute:'Next route',
       routeAria:'Route {n}, {name}', lockedAria:', locked', nextAria:', play next',
-      trackLetters:'Letters', trackNumbers:'Numbers', levels:['Letters', 'Animals', 'Letters and animals', 'Numbers', 'Letter sounds'],
+      trackLetters:'Letters', trackNumbers:'Numbers', levels:['Letters', 'Animals', 'Letters and animals', 'Numbers', 'Letter sounds', 'Lowercase'],
       playing:'Playing: {name}. Tap to change player.',
       houseLetter:'House with the letter {l}, home of {name}', houseNumber:'House number {n}, home of {name}',
-      capLetter:'Who gets the {l}?', capNumber:'Deliver to number {n}!', capCount:'Count the stars. Which number?', capPicture:'This mail is for {name}!', capSound:'Who starts with "{s}"?',
-      mailLetter:'Mail with the letter {l}', mailNumber:'Mail with the number {n}', mailCount:'Mail with {n} stars', mailPicture:'Mail with a picture of {name}', mailSound:'Mail that says "{s}". Tap it to hear the sound again',
+      capLetter:'Who gets the {l}?', capNumber:'Deliver to number {n}!', capCount:'Count the stars. Which number?', capPicture:'This mail is for {name}!', capSound:'Who starts with "{s}"?', capLower:'Who gets the little "{l}"?',
+      mailLetter:'Mail with the letter {l}', mailNumber:'Mail with the number {n}', mailCount:'Mail with {n} stars', mailPicture:'Mail with a picture of {name}', mailSound:'Mail that says "{s}". Tap it to hear the sound again', mailLower:'Mail with a little "{l}"',
       mailHow:'. Drag it to the matching house, or tap it and then tap a house.',
       bannerLetter:'{l} for {name}!', bannerNumber:'{n} is {name}!', sayLetter:'{l}! {l} for {name}!', sayNumber:'{n}! {name}!', reward:'{l} for {name}!',
       parent:'Parent corner', language:'Language / Idioma', on:'On', off:'Off',
@@ -188,7 +189,8 @@ var LANGS = {
       'deliver-to':'Lleva la carta al número',
       'count-prompt':'¡Cuenta las estrellas! ¿Qué número es?',
       'whos-playing':'¿Quién va a jugar?',
-      'who-starts-with':'¿Quién empieza con'
+      'who-starts-with':'¿Quién empieza con',
+      'little-letter':'¿Quién recibe esta letra chiquita?'
     },
     t:{
       title:'El Correo de los Animales', play:'Jugar', book:'Álbum de estampas', switchTo:'Jugar en español',
@@ -198,11 +200,11 @@ var LANGS = {
       winAria:'Ruta terminada', winHead:'¡Ruta terminada!', winText:'Entregaste todas las cartas y ganaste una estampa.',
       map:'Mapa', playAgain:'Jugar otra vez', nextRoute:'Siguiente ruta',
       routeAria:'Ruta {n}, {name}', lockedAria:', cerrada', nextAria:', sigue esta',
-      trackLetters:'Letras', trackNumbers:'Números', levels:['Letras', 'Animales', 'Letras y animales', 'Números', 'Sonidos de las letras'],
+      trackLetters:'Letras', trackNumbers:'Números', levels:['Letras', 'Animales', 'Letras y animales', 'Números', 'Sonidos de las letras', 'Minúsculas'],
       playing:'Juega: {name}. Toca para cambiar de jugador.',
       houseLetter:'Casa con la letra {l}, de {name}', houseNumber:'Casa número {n}, de {name}',
-      capLetter:'¿Quién recibe la {l}?', capNumber:'¡Lleva la carta al número {n}!', capCount:'Cuenta las estrellas. ¿Qué número es?', capPicture:'¡Esta carta es para {name}!', capSound:'¿Quién empieza con «{s}»?',
-      mailLetter:'Carta con la letra {l}', mailNumber:'Carta con el número {n}', mailCount:'Carta con {n} estrellas', mailPicture:'Carta con un dibujo de {name}', mailSound:'Carta que dice «{s}». Tócala para oír el sonido otra vez',
+      capLetter:'¿Quién recibe la {l}?', capNumber:'¡Lleva la carta al número {n}!', capCount:'Cuenta las estrellas. ¿Qué número es?', capPicture:'¡Esta carta es para {name}!', capSound:'¿Quién empieza con «{s}»?', capLower:'¿Quién recibe la «{l}» chiquita?',
+      mailLetter:'Carta con la letra {l}', mailNumber:'Carta con el número {n}', mailCount:'Carta con {n} estrellas', mailPicture:'Carta con un dibujo de {name}', mailSound:'Carta que dice «{s}». Tócala para oír el sonido otra vez', mailLower:'Carta con una «{l}» chiquita',
       mailHow:'. Arrástrala a la casa correcta, o tócala y luego toca una casa.',
       bannerLetter:'¡{l} de {name}!', bannerNumber:'¡El {n} es de {name}!', sayLetter:'¡{l}! ¡{l} de {name}!', sayNumber:'¡{n}! ¡{name}!', reward:'¡{l} de {name}!',
       parent:'Rincón de papás', language:'Idioma / Language', on:'Sí', off:'No',
