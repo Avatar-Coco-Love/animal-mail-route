@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>El Correo de los Animales: privacidad</title>
+<meta name="theme-color" content="#8fd1ff">
+<style>
+@font-face{font-family:'Baloo 2';font-weight:400 800;font-display:swap;src:url(fonts/baloo2-latin.woff2) format('woff2')}
+@font-face{font-family:'Nunito';font-weight:200 1000;font-display:swap;src:url(fonts/nunito-latin.woff2) format('woff2')}
+:root{--ink:#24304d;--paper:#fffaf0;--sky:#e2f4ff;--red:#ee5350;--blue:#2e6fe8;color-scheme:light}
+*{box-sizing:border-box}
+body{margin:0;background:var(--sky);color:var(--ink);font:600 1.05rem/1.55 'Nunito',system-ui,sans-serif}
+main{max-width:680px;margin:0 auto;padding:24px 16px 48px}
+.stripe{height:10px;border-radius:5px;background:repeating-linear-gradient(135deg,var(--red) 0 12px,var(--paper) 12px 24px,var(--blue) 24px 36px,var(--paper) 36px 48px);margin-bottom:20px}
+h1,h2{font-family:'Baloo 2',system-ui,sans-serif;font-weight:800;line-height:1.15;margin:1.4em 0 .4em}
+h1{font-size:2rem;margin-top:0}
+h2{font-size:1.35rem}
+section{background:var(--paper);border-radius:18px;padding:4px 20px 12px;margin-top:16px;box-shadow:0 4px 0 rgba(36,48,77,.12)}
+table{width:100%;border-collapse:collapse;font-size:.98rem}
+th,td{text-align:left;vertical-align:top;padding:8px 6px;border-bottom:2px solid rgba(36,48,77,.1)}
+th{font-weight:800}
+code{font-size:.9em}
+a{color:var(--blue)}
+.back{display:inline-block;margin-top:24px;font-weight:800}
+</style>
+</head>
+<body>
+<main>
+  <h1>El Correo de los Animales: privacidad</h1>
+  <div class="stripe" aria-hidden="true"></div>
+  <p lang="en"><a href="privacy.html">Read this page in English</a></p>
+  <p>El Correo de los Animales es un juego para niños pequeños. No tiene anuncios, cuentas, compras dentro de la app ni código de análisis o rastreo de otras empresas. Nunca pide nombre, edad, foto, ubicación ni datos de contacto.</p>
+
+  <section>
+    <h2>Lo que se guarda en tu dispositivo</h2>
+    <p>El juego guarda su progreso en el almacenamiento local de tu navegador: las rondas jugadas en cada ruta, las estampas ganadas, qué letras necesitan más práctica, qué amigos animales vio cada jugador más recientemente (para que los amigos se turnen), qué letras usan las rondas de cada jugador y los ajustes del rincón de papás, incluido el idioma del juego. Si agregas jugadores en el rincón de papás, el progreso de cada jugador se guarda por separado, junto con el dibujo de animal y el nombre opcional que elijas; los nombres nunca salen del dispositivo y nunca forman parte de los conteos de juego. Cada idioma guarda su propio progreso. En la primera visita, el juego lee el idioma del dispositivo para elegir el idioma del juego; esto pasa en el dispositivo y no se envía nada. Todo esto se queda en el dispositivo y nunca se envía a ningún lado. "Borrar" (un jugador) o "Borrar todo" en el rincón de papás lo elimina, igual que borrar los datos del sitio en tu navegador. Para que el juego se pueda instalar y jugar sin internet, el navegador también guarda una copia de los archivos del propio juego (páginas, fuentes, dibujos y grabaciones de voz). Esos archivos son el juego, no información sobre el niño.</p>
+  </section>
+
+  <section>
+    <h2>Conteos de juego (apagados a menos que un papá o una mamá los active)</h2>
+    <p>El rincón de papás (mantén presionado el engrane en la pantalla de inicio) tiene un ajuste llamado "Compartir conteos de juego". Está <b>apagado</b> de forma predeterminada. Mientras está apagado, el juego no envía nada.</p>
+    <p>Si un papá o una mamá lo activa, el juego envía un mensaje pequeño cuando se deja de jugar, con estos totales:</p>
+    <table>
+      <tr><th>Qué</th><th>Ejemplo</th></tr>
+      <tr><td>Veces que se abrió el juego</td><td>1</td></tr>
+      <tr><td>Rondas empezadas en cada ruta</td><td>ruta 1: 3</td></tr>
+      <tr><td>Rondas terminadas en cada ruta</td><td>ruta 1: 2</td></tr>
+      <tr><td>Casas equivocadas probadas en cada ruta</td><td>ruta 1: 4</td></tr>
+      <tr><td>Versión del juego</td><td>1.2</td></tr>
+    </table>
+    <p>Eso es todo. El mensaje no lleva identificador del dispositivo, cookies, hora del día ni nada sobre qué letras se le dificultaron a un niño. Nuestro servidor suma los totales en una fila por día para todos juntos. No guarda direcciones IP. Apagar el ajuste borra los totales que todavía no se hayan enviado.</p>
+    <p>El servidor funciona en Cloudflare Workers. Como cualquier servicio de hospedaje web, Cloudflare maneja la conexión; no le pedimos que guarde nada más que los totales diarios de arriba.</p>
+  </section>
+
+  <section>
+    <h2>Fuentes, voces y hospedaje</h2>
+    <p>Las fuentes (tipos de letra) del juego y las voces grabadas vienen con el juego, así que jugar no contacta a ninguna otra empresa. Cuando no hay una grabación, el juego usa la voz integrada de tu dispositivo. El juego está hospedado en GitHub Pages, que, como cualquier hospedaje web, recibe la información normal de conexión cuando se carga la página.</p>
+  </section>
+
+  <section>
+    <h2>Preguntas</h2>
+    <p>Abre un reporte (issue) en <a href="https://github.com/Avatar-Coco-Love/animal-mail-route/issues">github.com/Avatar-Coco-Love/animal-mail-route</a>. Si esta página cambia, la fecha de abajo también cambia. Si esta página y la versión en inglés no dicen lo mismo, la versión en inglés es la que vale.</p>
+    <p>Última actualización: 10 de octubre de 2026</p>
+  </section>
+
+  <a class="back" href="es/">Volver al juego</a>
+</main>
+</body>
+</html>

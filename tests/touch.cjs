@@ -691,8 +691,13 @@ const wanted = (page) => page.evaluate(() => document.querySelector('#caption').
     await touch('touchEnd');
     await page.waitForTimeout(400);
     check('offline: drop delivers', (await page.$$eval('.pip.on', (x) => x.length)) === 1);
-    const priv = await page.evaluate(() => fetch('privacy.html').then((r) => r.ok, () => false));
-    check('offline: privacy page available', priv);
+    const priv = await page.evaluate(() => Promise.all(['privacy.html', 'privacy-es.html'].map((u) => fetch(u).then((r) => r.ok, () => false))));
+    check('offline: privacy pages available (English and Spanish)', priv.every(Boolean), priv);
+    // the Spanish address works offline too: es/ opens the game in Spanish
+    await page.goto(BASE + 'es/');
+    await page.waitForURL(/\?lang=es/);
+    await page.waitForTimeout(600);
+    check('offline: the Spanish address opens the game in Spanish', (await page.evaluate(() => document.documentElement.lang)) === 'es' && await allOnScreen(page, '.playbtn'));
     check('offline: no script or console errors', errors.length === 0, errors.length ? errors : undefined);
     await ctx.close();
   }
@@ -716,6 +721,45 @@ const wanted = (page) => page.evaluate(() => document.querySelector('#caption').
     {
       const { ctx, page } = await newPage(browser, 412, 915, { 'animal-mail-route-v2': enSave }, { locale: 'es-MX' });
       check('languages: a save from before languages stays English', (await page.evaluate(() => document.documentElement.lang)) === 'en');
+      await ctx.close();
+    }
+    // The Spanish address (es/): a Spanish link preview, then the game in Spanish, installable under a Spanish name
+    {
+      const { ctx, page, errors } = await newPage(browser, 412, 915);
+      const enMan = await page.evaluate(async () => { const l = document.querySelector('link[rel=manifest]'), r = await fetch(l.href), m = await r.json(); return { href: l.getAttribute('href'), id: new URL(m.id, l.href).href }; });
+      check('languages: the English page links the English manifest', enMan.href === 'manifest.webmanifest' && enMan.id === new URL(BASE, page.url()).href, enMan);
+      check('languages: the English parent corner links the English privacy page', (await page.$eval('#privacy-link', (e) => e.getAttribute('href'))) === 'privacy.html');
+      const og = await page.evaluate(async () => {
+        const doc = new DOMParser().parseFromString(await (await fetch('es/')).text(), 'text/html');
+        const m = (k) => (doc.querySelector(`meta[property="${k}"], meta[name="${k}"]`) || {}).content;
+        const img = m('og:image'), r = await fetch(new URL(img).pathname.replace(/^\/animal-mail-route\//, ''));
+        const bmp = r.ok ? await createImageBitmap(await r.blob()) : null;
+        return { lang: doc.documentElement.lang, title: m('og:title'), url: m('og:url'), img, card: m('twitter:card'), size: bmp && [bmp.width, bmp.height], w: m('og:image:width'), h: m('og:image:height') };
+      });
+      check('Spanish address: a Spanish link preview with a 1200x630 picture that loads', og.lang === 'es' && og.title === 'El Correo de los Animales' && og.url === 'https://avatar-coco-love.github.io/animal-mail-route/es/' &&
+        og.img === 'https://avatar-coco-love.github.io/animal-mail-route/icons/share-es.png' && og.card === 'summary_large_image' && JSON.stringify(og.size) === '[1200,630]' && og.w === '1200' && og.h === '630', og);
+      await page.goto(BASE + 'es/');
+      await page.waitForURL(/\?lang=es/);
+      await page.waitForTimeout(600);
+      const st = await page.evaluate(async () => {
+        const l = document.querySelector('link[rel=manifest]'), m = await (await fetch(l.href)).json(), abs = (u) => new URL(u, l.href).href;
+        const icons = await Promise.all(m.icons.map(async (i) => (await fetch(abs(i.src))).ok));
+        return { lang: document.documentElement.lang, h1: document.querySelector('h1').textContent, href: l.getAttribute('href'), name: m.name, short: m.short_name, mlang: m.lang,
+          id: abs(m.id), start: abs(m.start_url), scope: abs(m.scope), display: m.display, icons, maskable: m.icons.some((i) => i.purpose === 'maskable') };
+      });
+      const base = new URL(BASE, page.url()).href;
+      check('Spanish address: opens the game in Spanish', st.lang === 'es' && st.h1 === 'El Correo de los Animales', st);
+      check('Spanish address: a Spanish manifest, its own app, starting at es/, scope the whole game, icons load',
+        st.href === 'es/manifest.webmanifest' && st.name === 'El Correo de los Animales' && st.short === 'Correo Animal' && st.mlang === 'es-MX' && st.id === base + 'es/' && st.start === base + 'es/' &&
+        st.scope === base && page.url().startsWith(st.scope) && st.display === 'standalone' && st.maskable && st.icons.every(Boolean), st);
+      // the Spanish privacy page, from the Spanish parent corner
+      const href = await page.$eval('#privacy-link', (e) => e.getAttribute('href'));
+      await page.goto(BASE + href);
+      const pr = await page.evaluate(() => ({ lang: document.documentElement.lang, h1: document.querySelector('h1').textContent, back: document.querySelector('a.back').href, en: !!document.querySelector('a[href="privacy.html"]'), w: document.documentElement.scrollWidth <= innerWidth }));
+      check('Spanish privacy page: linked from the Spanish parent corner, in Spanish, back to es/, links to English, fits', href === 'privacy-es.html' && pr.lang === 'es' && pr.h1 === 'El Correo de los Animales: privacidad' && pr.back === base + 'es/' && pr.en && pr.w, pr);
+      await page.goto(BASE + 'privacy.html');
+      check('English privacy page links to the Spanish one', await page.evaluate(() => !!document.querySelector('a[href="privacy-es.html"]')));
+      check('Spanish address: no errors', errors.length === 0, errors.length ? errors : undefined);
       await ctx.close();
     }
     // Spanish preview at every size: the title screen and its language button fit, nothing overlaps

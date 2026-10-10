@@ -72,4 +72,73 @@ Press and hold the gear on the title screen. Copy these lines:
 - Map: the map now has two lines, ABC (letter routes) and 123 (numbers). Could the child find the numbers route, and did the two lines make sense?
 - Gear: tap the gear twice quickly instead of holding it. Did a tip appear saying to press and hold?
 - Share link: send the game's address in a text or chat. Did the preview show the picture of the animals?
-- Spanish (draft, for a Spanish speaker to try): open the game's address with `?lang=es` at the end. Does anything sound or read wrong: words, animal names, the title, the letter sounds? The "English" button beside the gear switches back.
+- Spanish (draft, for a Spanish speaker to try): open https://avatar-coco-love.github.io/animal-mail-route/es/ (or the game's address with `?lang=es` at the end). Does anything sound or read wrong: words, animal names, the title, the letter sounds? The "English" button beside the gear switches back. A Spanish-speaking family can use the Spanish sheet below instead of this one.
+
+---
+
+# Hoja de prueba (en español)
+
+Para un papá o una mamá que mira a un niño de 3 a 5 años jugar en un teléfono o tableta Android, en español. Unos 15 minutos. Llena lo que puedas y luego pega la hoja completa de vuelta a Claude. Puedes contestar en español o en inglés.
+
+## Antes de empezar
+- Abre https://avatar-coco-love.github.io/animal-mail-route/es/ en Chrome. El juego abre en español.
+- Sube el volumen y apaga el modo silencio.
+- Opcional: menú de Chrome ⋮ → "Agregar a la pantalla principal" (o "Instalar app"), y ábrelo desde ahí. Debe llamarse "Correo Animal".
+- Deja que el niño juegue. Ayúdale solo si se atora un buen rato, y anota dónde.
+
+## Datos
+- Dispositivo (modelo, teléfono o tableta):
+- Vertical, horizontal o los dos:
+- Edad del niño:
+- Idioma que más habla el niño en casa (español, inglés, los dos):
+- ¿Lo instalaste en la pantalla principal? (sí / no), y ¿con qué nombre apareció?:
+
+## Lista
+Marca o escribe sí / no / no sé. Unas palabras de detalle ayudan mucho.
+
+**Sonido y voz**
+- [ ] Se oyó la voz decir la pregunta ("¿Quién recibe la M?")
+- [ ] La voz sonaba en español (no con acento de otro idioma)
+- [ ] El niño entendió la voz
+- [ ] Alguna frase se cortó, se saltó o se encimó con otra:
+
+**Palabras** (lo más importante de esta hoja)
+- [ ] El título "El Correo de los Animales" suena bien (¿otro nombre que te guste más?):
+- [ ] Los sonidos de las letras ("M, mmm", "P, pa", "S, sss") son como los enseñan en la escuela o en casa (¿cuáles no?):
+- [ ] Los nombres de los animales suenan bien y se entienden (Memo el Mono, Paco el Pingüino, Leo el León, Sofi la Salamandra, Tita la Tortuga…). ¿Alguno raro o confuso?:
+- [ ] Algún dibujo no parece el animal que dice su nombre:
+- [ ] Alguna palabra que no se usa en tu casa (por ejemplo "estampa", "engrane", "rincón de papás"), y cuál usarías:
+- [ ] Alguna palabra en inglés que se quedó sin traducir:
+
+**Mover las cartas**
+- [ ] El niño pudo arrastrar la carta a una casa con el dedo
+- [ ] El niño intentó tocar en vez de arrastrar (¿funcionó? sí / no):
+- [ ] Las casas eran lo bastante grandes:
+
+**Entender**
+- [ ] Entendió qué hacer sin ayuda (ruta 1, letras)
+- [ ] Notó la casa que se mueve después de dos intentos equivocados
+- [ ] Entendió los dibujos de animales (ruta 2)
+- [ ] Entendió los números y las estrellas (ruta 4, en la línea 123):
+- [ ] Supo qué tocar en la tarjeta de "¡Ruta terminada!"
+
+**Cómo le fue**
+- [ ] Le gustó (sonrió, quiso más)
+- [ ] Se aburrió o se frustró (¿cuándo?):
+- [ ] Animal o momento favorito:
+
+## Dónde se atoró el niño
+-
+-
+
+## Algo más
+Cosas raras, cosas que dijo el niño, ideas:
+-
+-
+
+## Rincón de papás (opcional, después de jugar)
+Mantén presionado el engrane en la pantalla de inicio. Copia estas líneas:
+- Progreso (todas las líneas):
+- Necesita práctica:
+- Toca "Privacidad" al final: ¿se abrió la página en español?
+- Toca "English" (junto al engrane): ¿cambió a inglés? Para volver, toca "Español" si aparece, o abre otra vez la dirección de arriba. ¿El progreso en español se quedó como estaba?
