@@ -217,7 +217,7 @@ const wanted = (page) => page.evaluate(() => document.querySelector('#caption').
     check('play counts setting hidden while COUNT_URL is empty', await page.evaluate(() => document.querySelector('#share-row').hidden || /COUNT_URL = '[^']+'/.test(document.documentElement.innerHTML)));
     // the card is long, so a parent may swipe a few times
     let swipes = 0;
-    for (let n = 0; n < 6 && !(await allOnScreen(page, '#p-close')); n++) {
+    for (let n = 0; n < 10 && !(await allOnScreen(page, '#p-close')); n++) {
       swipes++;
       await touch('touchStart', 370, 320);
       for (let y = 320; y >= 60; y -= 10) { await touch('touchMove', 370, y); await page.waitForTimeout(16); }
@@ -728,6 +728,15 @@ const wanted = (page) => page.evaluate(() => document.querySelector('#caption').
       await ctx.close();
       check('languages: no errors in English', errors.length === 0, errors.length ? errors : undefined);
     }
+    // 1.7.1: no viewport-fit=cover, so Android Chrome never draws the game under the navigation bar
+    // (Back, Home, Recent apps). With it, after switching language the bottom buttons sat under that bar.
+    {
+      const { ctx, page } = await newPage(browser, 412, 915);
+      const metas = [await page.$eval('meta[name=viewport]', (m) => m.content)];
+      metas.push(await page.evaluate(async () => (await (await fetch('es/index.html')).text()).match(/<meta name="viewport" content="([^"]*)"/)[1]));
+      check('languages: the game and es/ keep clear of the navigation bar (no viewport-fit=cover)', metas.every((c) => /width=device-width/.test(c) && !/viewport-fit/.test(c)), metas);
+      await ctx.close();
+    }
     // Spanish device, first visit: the game opens in Spanish, and the Spanish parent corner says the translation is a draft
     {
       const { ctx, page, touch, errors } = await newPage(browser, 412, 915, null, { locale: 'es-MX' });
@@ -1129,9 +1138,10 @@ const wanted = (page) => page.evaluate(() => document.querySelector('#caption').
       await holdGear(page, touch);
       const m = await mails(page);
       const head = await page.$eval('#fb-block b', (e) => e.textContent);
+      const v = await page.$eval('#note', (e) => e.textContent.match(/\d+\.\d+(\.\d+)?/)[0]);
       const want = lang === 'en'
-        ? { head: 'Help improve the game', labels: ['A wrong word or translation', 'Report a problem', 'Suggest an idea'], subj: /^Animal Mail Route: (a wrong word|a problem|an idea)$/, info: ['Game version: 1.7', 'Language: en (English)', `Screen: ${w} x ${h}`] }
-        : { head: 'Ayuda a mejorar el juego', labels: ['Una palabra o traducción equivocada', 'Reportar un problema', 'Sugerir una idea'], subj: /^El Correo de los Animales: (una palabra equivocada|un problema|una idea)$/, info: ['Versión del juego: 1.7', 'Idioma: es (Español)', `Pantalla: ${w} x ${h}`] };
+        ? { head: 'Help improve the game', labels: ['A wrong word or translation', 'Report a problem', 'Suggest an idea'], subj: /^Animal Mail Route: (a wrong word|a problem|an idea)$/, info: [`Game version: ${v}`, 'Language: en (English)', `Screen: ${w} x ${h}`] }
+        : { head: 'Ayuda a mejorar el juego', labels: ['Una palabra o traducción equivocada', 'Reportar un problema', 'Sugerir una idea'], subj: /^El Correo de los Animales: (una palabra equivocada|un problema|una idea)$/, info: [`Versión del juego: ${v}`, 'Idioma: es (Español)', `Pantalla: ${w} x ${h}`] };
       check(`feedback (${lang}): three choices, a wrong word, a problem, an idea, in the page's language`, head === want.head && m.map((x) => x.kind).join() === 'word,problem,idea' && m.map((x) => x.label).join() === want.labels.join(), m.map((x) => x.label));
       check(`feedback (${lang}): each opens a prefilled email to the contact address`, m.every((x) => x.to === 'mailto:clements.cody.j@gmail.com' && want.subj.test(x.subject) && x.body.length > 40), m);
       check(`feedback (${lang}): the email has the game version, language and screen size`, m.every((x) => want.info.every((i) => x.body.includes(i))), m.map((x) => x.body));

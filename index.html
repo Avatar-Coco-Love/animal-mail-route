@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="viewport" content="width=device-width,initial-scale=1">
 <style>:root{color-scheme:light}body{margin:0}[hidden]{display:none!important}</style>
 <title>Animal Mail Route</title>
 <meta name="description" content="A mail delivery game for preschoolers: drag each letter to the right animal's house.">
@@ -510,7 +510,7 @@ svg{display:block}
       </div>
       <div class="block" id="vol-block"><b data-t="volunteer">Volunteer voices</b><p class="hint-text" data-t="volunteerHint"></p><a class="pbtn" id="vol-link" href="volunteer.html" target="_blank" rel="noopener" data-t="volunteerBtn">Lend your voice</a></div>
       <div class="row"><b data-t="everyone">Everyone</b><button class="pbtn danger" type="button" id="b-reset" data-t="reset">Erase everything</button></div>
-      <p class="note"><span id="note">Prototype 1.7. Voice prompts use your device's built-in speech until recorded voices are added.</span> <span id="share-note" data-t="shareNote" hidden>"Share play counts" sends only anonymous totals, such as rounds played per route, and is off unless you turn it on.</span> <a id="privacy-link" href="privacy.html" target="_blank" rel="noopener" data-t="privacy">Privacy</a></p>
+      <p class="note"><span id="note">Prototype 1.7.1. Voice prompts use your device's built-in speech until recorded voices are added.</span> <span id="share-note" data-t="shareNote" hidden>"Share play counts" sends only anonymous totals, such as rounds played per route, and is off unless you turn it on.</span> <a id="privacy-link" href="privacy.html" target="_blank" rel="noopener" data-t="privacy">Privacy</a></p>
       <button class="close" type="button" id="p-close" data-t="done">Done</button>
     </div>
   </div>
@@ -957,7 +957,7 @@ function hush(){
    Off unless a parent turns on "Share play counts". Only totals per route are kept, with no
    identifier or timestamp, and they are sent once when the page is hidden. The setting is
    not shown at all while COUNT_URL is empty. */
-var VERSION = '1.7';
+var VERSION = '1.7.1';
 var COUNT_URL = '';      // the Worker, e.g. 'https://animal-mail-counts.<account>.workers.dev/v1/counts'
 var CKEY = 'animal-mail-route-counts', CAP = 200, METRICS = ['started','finished','misses'];
 function emptyCounts(){ return {opens:0, started:{}, finished:{}, misses:{}}; }
