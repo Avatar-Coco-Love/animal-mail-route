@@ -36,7 +36,7 @@ Tick or write yes / no / unsure. A word or two of detail helps a lot.
 - [ ] Understood numbers and stars (route 4, if reached):
 - [ ] Letter sounds (route 5, after route 3; or turn on "Unlock all routes" in the parent corner): understood "Who starts with *buh*?", tapped the speaker on the mail to hear it again, and the voice said the sounds clearly ("sss", "buh"):
 - [ ] Lowercase (route 6, after route 5): the mail shows a little letter ("b") and the houses big ones ("B"). Matched them without the voice saying the letter's name? Which little letters were hard (b and d, p and q come together only after 4 rounds)?:
-- [ ] On a small phone: the map's circles (smaller now, so all six routes fit) were big enough to tap:
+- [ ] The map shows one line of routes at a time, with two big buttons at the top, ABC (letters) and 123 (numbers). Found the 123 button on their own to reach the numbers, and came back to ABC? (A button pulses when a new route opened on the other line.):
 - [ ] Knew what to press on the "Route complete" card
 - [ ] Noticed the path on the map light up after a route's second round (said or pointed at it?):
 - [ ] Noticed that the S house sometimes has Sally the Seal instead of Sammy the Skunk (confused, or liked it?):
@@ -75,7 +75,7 @@ Press and hold the gear on the title screen. Copy these lines:
 - With two or more players: tap "Print all players". Did each child get their own page?
 - Letters: turn a letter off, then play a round. Did the round use only the letters left on, and did the child notice the change?
 - New friends: tap "All" in Letters, or turn on a few new letters (A, M, Z…), and play a round. Did the child like the new animals, and did any name or picture confuse them? Under a player, tap "More" and pick a new animal: did it show on "Who's playing?"
-- Map: the map now has two lines, ABC (letter routes) and 123 (numbers). Could the child find the numbers route, and did the two lines make sense?
+- Map: since 2.0 the map shows one line at a time, chosen with the ABC and 123 buttons at the top, and opens on the line of the last route played. Could the child switch lines on their own, and did they miss seeing both at once?
 - Gear: tap the gear twice quickly instead of holding it. Did a tip appear saying to press and hold?
 - Share link: send the game's address in a text or chat. Did the preview show the picture of the animals?
 - Español: the "Español" button beside the gear switches the game to Spanish, and "English" switches back. Did the child tap it by accident, and was it easy to get back? Spanish progress is kept separately.
@@ -134,6 +134,7 @@ Marca o escribe sí / no / no sé. Unas palabras de detalle ayudan mucho.
 - [ ] Notó la casa que se mueve después de dos intentos equivocados
 - [ ] Entendió los dibujos de animales (ruta 2)
 - [ ] Entendió los números y las estrellas (ruta 4, en la línea 123):
+- [ ] El mapa muestra una sola línea de rutas a la vez, con dos botones grandes arriba, ABC (letras) y 123 (números). ¿Encontró solo el botón 123 para llegar a los números, y volvió a ABC? (Un botón pulsa cuando se abrió una ruta nueva en la otra línea.):
 - [ ] Sonidos de las letras (ruta 5, después de la ruta 3; o activa "Abrir todas las rutas" en el rincón de papás): entendió "¿Quién empieza con *ba*?", tocó la bocina de la carta para oírlo otra vez, y la voz dijo bien los sonidos ("sss", "ba", "mmm"):
 - [ ] Minúsculas (ruta 6, después de la ruta 5): la carta muestra una letra chiquita ("b") y las casas la grande ("B"). ¿Las juntó sin que la voz dijera el nombre de la letra? ¿Cuáles costaron (b y d, p y q salen juntas solo después de 4 rondas)? ¿Se vio bien la "ñ"?:
 - [ ] Supo qué tocar en la tarjeta de "¡Ruta terminada!"

@@ -90,18 +90,30 @@ const wanted = (page) => page.evaluate(() => document.querySelector('#caption').
     await page.tap('.playbtn');
     await page.waitForTimeout(300);
     if (name === 'pixel') check('one player: Play goes straight to the map, no picker or avatar', await page.$eval('#s-who', (e) => e.hidden) && await page.$eval('#m-who', (e) => e.hidden));
-    check(`${name}: all 6 routes on screen`, await allOnScreen(page, '.node'));
-    check(`${name}: map path joins routes 1 to 3, 5 and 6, on screen, all grey at the start`, (await segState(page)) === '0000' && await segsJoinDiscs(page) && await segsOnScreen(page));
-    // tracks: Letters (1 to 3) and Numbers (4), side by side upright and one above the other sideways
-    const tracks = await page.evaluate(() => {
+    // track switcher (2.0): one track at a time, ABC tab chosen, its routes zigzag down (across on a sideways phone)
+    const tracks = () => page.evaluate(() => {
       const t = [...document.querySelectorAll('#route .track')].map((e) => ({ id: e.getAttribute('data-track'), routes: [...e.querySelectorAll('.node')].map((n) => +n.getAttribute('data-level')) }));
-      const r = (id) => document.querySelector(`.node[data-level="${id}"] .disc`).getBoundingClientRect();
-      const a = r(1), b = r(4), side = innerWidth > innerHeight && innerHeight <= 560;
-      return { t: JSON.stringify(t), level: side ? Math.abs(a.left - b.left) <= 2 && b.top > a.bottom : Math.abs(a.top - b.top) <= 2 && b.left > a.right };
+      const tabs = [...document.querySelectorAll('#tabs .tab')].map((e) => e.textContent + (e.getAttribute('aria-selected') === 'true' ? '*' : ''));
+      const d = [...document.querySelectorAll('#route .node .disc')].map((e) => e.getBoundingClientRect());
+      const side = innerWidth > innerHeight && innerHeight <= 560;
+      // each disc further along than the one before, and on the other side of the zigzag, without overlapping
+      const zig = d.every((r, i) => !i || (side ? r.left > d[i - 1].right && Math.abs(r.top - d[i - 1].top) > 20 : r.top > d[i - 1].top + 10 && Math.abs(r.left - d[i - 1].left) > 20 && (r.left >= d[i - 1].right || r.right <= d[i - 1].left)));
+      return { t: JSON.stringify(t), tabs: tabs.join(), zig, w: Math.round(Math.min(...d.map((r) => r.width))) };
     });
-    check(`${name}: two tracks, Letters 1, 2, 3, 5, 6 and Numbers 4, route 4 next to route 1`, tracks.t === '[{"id":"letters","routes":[1,2,3,5,6]},{"id":"numbers","routes":[4]}]' && tracks.level, tracks);
-    check(`${name}: route 4 open from the start, route 2 locked`, !(await page.$('.node[data-level="4"].locked')) && !!(await page.$('.node[data-level="2"].locked')));
-    check(`${name}: track labels on screen`, await allOnScreen(page, '#route .tname'));
+    let tr = await tracks();
+    check(`${name}: only the Letters track shows (1, 2, 3, 5, 6), ABC tab chosen`, tr.t === '[{"id":"letters","routes":[1,2,3,5,6]}]' && tr.tabs === 'ABC*,123', tr);
+    check(`${name}: Letters routes zigzag, none overlapping, discs at least 60 px`, tr.zig && tr.w >= 60, tr);
+    check(`${name}: all 5 Letters routes and both tabs on screen`, await allOnScreen(page, '.node') && await allOnScreen(page, '#tabs .tab'));
+    check(`${name}: the tabs overlap no top bar button`, await page.evaluate(() => { const t = document.querySelector('#tabs').getBoundingClientRect(); return [...document.querySelectorAll('#s-map .bar .rbtn')].filter((b) => !b.hidden).every((b) => { const r = b.getBoundingClientRect(); return r.right <= t.left || r.left >= t.right; }); }));
+    check(`${name}: map path joins routes 1 to 3, 5 and 6, on screen, all grey at the start`, (await segState(page)) === '0000' && await segsJoinDiscs(page) && await segsOnScreen(page));
+    check(`${name}: route 2 locked`, !!(await page.$('.node[data-level="2"].locked')));
+    await page.tap('#tabs .tab[data-track="numbers"]');
+    await page.waitForTimeout(200);
+    tr = await tracks();
+    check(`${name}: the 123 tab shows the Numbers track, route 4 open from the start, on screen`, tr.t === '[{"id":"numbers","routes":[4]}]' && tr.tabs === 'ABC,123*' && !(await page.$('.node[data-level="4"].locked')) && await allOnScreen(page, '.node'), tr);
+    await page.tap('#tabs .tab[data-track="letters"]');
+    await page.waitForTimeout(200);
+    check(`${name}: the ABC tab brings the Letters track back`, (await tracks()).t.includes('"letters"'));
     await page.tap('.node[data-level="1"]');
     await page.waitForTimeout(1700);
     check(`${name}: houses, mail and prompt on screen`, await allOnScreen(page, '.house, #mail, #caption'));
@@ -165,7 +177,7 @@ const wanted = (page) => page.evaluate(() => document.querySelector('#caption').
     check('map path: 2 rounds of route 1 light the path to route 2', (await segState(page)) === '1000', await segState(page));
     check('map path: the segment that just lit animates once', await page.$$eval('#route .seg.new', (g) => g.map((x) => x.getAttribute('data-seg')).join()) === '1');
     // stars match the unlock rule: 2 per route
-    check('map: 2 stars per route', (await page.$$eval('.node .stars', (x) => x.map((e) => e.children.length).join())) === '2,2,2,2,2,2');
+    check('map: 2 stars per route', (await page.$$eval('.node .stars', (x) => x.map((e) => e.children.length).join())) === '2,2,2,2,2');
     // "you are here": the player's animal sits on the route to play next, and a new route pulses until played
     const here = () => page.$$eval('.node .here', (x) => x.map((e) => e.closest('.node').getAttribute('data-level')).join());
     const fresh = () => page.$$eval('.node.fresh', (x) => x.map((e) => e.getAttribute('data-level')).join());
@@ -531,6 +543,7 @@ const wanted = (page) => page.evaluate(() => document.querySelector('#caption').
     // route 4 keeps its five numbered houses
     await page.tap('#win-map');
     await page.waitForTimeout(300);
+    await page.tap('#tabs .tab[data-track="numbers"]');
     await page.tap('.node[data-level="4"]');
     await page.waitForTimeout(1200);
     check('letters: the numbers route keeps houses 1 to 3 to start', (await page.$$eval('.house .sign', (s) => s.map((x) => x.textContent).sort().join())) === '1,2,3');
@@ -824,7 +837,12 @@ const wanted = (page) => page.evaluate(() => document.querySelector('#caption').
       await page.waitForTimeout(300);
       seen += await words();
       const map = await page.evaluate(() => [...document.querySelectorAll('#route .node')].map((n) => n.getAttribute('aria-label')));
-      check('Spanish map: route names', map[0].startsWith('Ruta 1, Letras') && map[3].startsWith('Ruta 5, Sonidos de las letras') && map[4].startsWith('Ruta 6, Minúsculas') && map[5].startsWith('Ruta 4, Números'), map);
+      await page.tap('#tabs .tab[data-track="numbers"]');
+      map.push(...await page.evaluate(() => [...document.querySelectorAll('#route .node')].map((n) => n.getAttribute('aria-label'))));
+      const tabs = await page.$$eval('#tabs .tab', (b) => b.map((e) => e.getAttribute('aria-label')).join());
+      seen += await words();
+      await page.tap('#tabs .tab[data-track="letters"]');
+      check('Spanish map: route names, and the tabs named Letras and Números', map[0].startsWith('Ruta 1, Letras') && map[3].startsWith('Ruta 5, Sonidos de las letras') && map[4].startsWith('Ruta 6, Minúsculas') && map[5].startsWith('Ruta 4, Números') && tabs === 'Letras,Números', [map, tabs]);
       await page.tap('.node[data-level="1"]');
       await page.waitForTimeout(1700);
       const cap = await page.$eval('#caption', (e) => e.textContent);
@@ -1059,18 +1077,80 @@ const wanted = (page) => page.evaluate(() => document.querySelector('#caption').
         const { ctx, page } = await newPage(browser, w, h, null, { path });
         await page.tap('.playbtn');
         await page.waitForTimeout(400);
-        check(`letter sounds: the map fits (${name}${path ? ', es' : ''})`, await allOnScreen(page, '#route .node') && await allOnScreen(page, '#route .tname') && await segsOnScreen(page) && await segsJoinDiscs(page));
+        check(`letter sounds: the map fits (${name}${path ? ', es' : ''})`, await allOnScreen(page, '#route .node') && await allOnScreen(page, '#tabs .tab') && await segsOnScreen(page) && await segsJoinDiscs(page));
         // Lowercase (1.9) makes the Letters track 5 routes long: discs shrink on short screens, to no less than 60 px
         const fit = await page.evaluate(() => {
-          const rs = [...document.querySelectorAll('#route .node, #route .tname')].map((e) => e.getBoundingClientRect());
+          const rs = [...document.querySelectorAll('#route .node, #tabs')].map((e) => e.getBoundingClientRect());
           const hit = (a, b) => a.left < b.right - 1 && b.left < a.right - 1 && a.top < b.bottom - 1 && b.top < a.bottom - 1;
           const discs = [...document.querySelectorAll('#route .disc')].map((e) => Math.round(e.getBoundingClientRect().width));
           return { overlap: rs.some((a, i) => rs.some((b, j) => i < j && hit(a, b))), discs: Math.min(...discs), n: discs.length };
         });
-        check(`lowercase: 6 routes, none overlapping, discs at least 60 px (${name}${path ? ', es' : ''})`, fit.n === 6 && !fit.overlap && fit.discs >= 60, fit);
+        check(`lowercase: the Letters track's 5 routes and the tabs, none overlapping, discs at least 60 px (${name}${path ? ', es' : ''})`, fit.n === 5 && !fit.overlap && fit.discs >= 60, fit);
+        // room to grow (2.0): the same track stretched to 8 routes (copies of route 1) still fits, discs at least 60 px
+        const grown = await page.evaluate(() => {
+          const tr = document.querySelector('#route .track'), first = tr.querySelector('.node');
+          for (let i = tr.children.length; i < 8; i++) tr.appendChild(first.cloneNode(true));
+          [...tr.children].forEach((e, i) => { e.style.setProperty('--i', i + 1); e.style.setProperty('--col', i % 2 + 1); });
+          tr.style.setProperty('--n', 8); tr.style.setProperty('--rows', 9);
+          const rs = [...document.querySelectorAll('#route .node, #tabs')].map((e) => e.getBoundingClientRect());
+          const hit = (a, b) => a.left < b.right - 1 && b.left < a.right - 1 && a.top < b.bottom - 1 && b.top < a.bottom - 1;
+          const discs = [...document.querySelectorAll('#route .disc')].map((e) => Math.round(e.getBoundingClientRect().width));
+          const on = rs.every((r) => r.left >= -1 && r.top >= -1 && r.right <= innerWidth + 1 && r.bottom <= innerHeight + 1);
+          return { overlap: rs.some((a, i) => rs.some((b, j) => i < j && hit(a, b))), on, discs: Math.min(...discs), n: discs.length };
+        });
+        check(`track switcher: an 8-route track still fits, discs at least 60 px (${name}${path ? ', es' : ''})`, grown.n === 8 && !grown.overlap && grown.on && grown.discs >= 60, grown);
         await ctx.close();
       }
     }
+  }
+
+  // ---------- Track switcher (2.0) ----------
+  // Two tabs, ABC and 123, one track at a time. The map opens on the track of the player's last route; the
+  // marker and the pulse work per track, and a tab pulses while its hidden track has a route that just opened.
+  {
+    const pl = { id: 1, name: '', animal: 'S', rounds: { 1: 2, 2: 0, 3: 0, 4: 1, 5: 0, 6: 0 }, stickers: [], weak: {}, seen: {}, letters: ['S', 'B', 'K', 'C', 'P'], setRounds: 2, last: 4 };
+    const { ctx, page, errors } = await newPage(browser, 360, 640, { 'animal-mail-route-v2': { v: 2, device: { voice: true, sfx: true, share: false, unlockAll: false, lettersSame: false }, current: 1, players: [pl] } });
+    const state = () => page.evaluate(() => ({
+      tabs: [...document.querySelectorAll('#tabs .tab')].map((e) => e.textContent + (e.getAttribute('aria-selected') === 'true' ? '*' : '') + (e.classList.contains('fresh') ? '~' : '')).join(),
+      routes: [...document.querySelectorAll('#route .node')].map((n) => n.getAttribute('data-level')).join(),
+      here: [...document.querySelectorAll('.node .here')].map((e) => e.closest('.node').getAttribute('data-level')).join(),
+      fresh: [...document.querySelectorAll('.node.fresh')].map((e) => e.getAttribute('data-level')).join(),
+      anim: document.querySelectorAll('#route .seg.new').length,
+    }));
+    await page.tap('.playbtn');
+    await page.waitForTimeout(300);
+    let st = await state();
+    check('switcher: the map opens on the track of the last route (123), marker on route 4', st.tabs.startsWith('ABC') && st.tabs.includes('123*') && st.routes === '4' && st.here === '4', st);
+    check('switcher: the ABC tab pulses, since route 2 just opened there', st.tabs === 'ABC~,123*', st);
+    await page.tap('#tabs .tab[data-track="letters"]');
+    await page.waitForTimeout(200);
+    st = await state();
+    check('switcher: ABC shows the Letters track, its own marker and pulse on route 2', st.tabs === 'ABC*,123' && st.routes === '1,2,3,5,6' && st.here === '2' && st.fresh === '2', st);
+    check('switcher: the lit path on a first look at a track does not animate', (await segState(page)) === '1000' && st.anim === 0, await segState(page));
+    check('switcher: the marker and tabs on screen (small phone)', await allOnScreen(page, '.node .here') && await allOnScreen(page, '#tabs .tab'));
+    await page.tap('#s-map [data-go="book"]');
+    await page.waitForTimeout(200);
+    await page.tap('#s-book [data-go="map"]');
+    await page.waitForTimeout(200);
+    check('switcher: back from the sticker book, the chosen track stays', (await state()).tabs === 'ABC*,123');
+    await page.reload();
+    await page.waitForTimeout(600);
+    await page.tap('.playbtn');
+    await page.waitForTimeout(300);
+    check('switcher: after a reload the map opens on the last route\'s track again (123)', (await state()).tabs === 'ABC~,123*');
+    await page.tap('#tabs .tab[data-track="letters"]');
+    await page.tap('.node[data-level="2"]');
+    await page.waitForTimeout(800);
+    await page.tap('#s-play [data-go="map"]');
+    await page.waitForTimeout(300);
+    await page.reload();
+    await page.waitForTimeout(600);
+    await page.tap('.playbtn');
+    await page.waitForTimeout(300);
+    st = await state();
+    check('switcher: once route 2 is started, the map opens on ABC, and the 123 tab does not pulse', st.tabs === 'ABC*,123' && st.here === '2', st);
+    check('switcher: no script or console errors', errors.length === 0, errors.length ? errors : undefined);
+    await ctx.close();
   }
 
   // ---------- Lowercase (1.9, Phase 5) ----------
