@@ -81,7 +81,7 @@ test('malformed and oversized bodies are rejected and nothing is stored', async 
     { ...good, opens: 201 },
     { ...good, opens: -1 },
     { ...good, opens: 1.5 },
-    { ...good, started: { 5: 1 } },
+    { ...good, started: { 6: 1 } },
     { ...good, started: { 1: '3' } },
     { ...good, misses: { 1: 999 } },
     { ...good, finished: [1] },

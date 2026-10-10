@@ -34,6 +34,7 @@ Tick or write yes / no / unsure. A word or two of detail helps a lot.
 - [ ] Noticed the wiggling house after two wrong tries
 - [ ] Understood the animal pictures (route 2)
 - [ ] Understood numbers and stars (route 4, if reached):
+- [ ] Letter sounds (route 5, after route 3; or turn on "Unlock all routes" in the parent corner): understood "Who starts with *buh*?", tapped the speaker on the mail to hear it again, and the voice said the sounds clearly ("sss", "buh"):
 - [ ] Knew what to press on the "Route complete" card
 - [ ] Noticed the path on the map light up after a route's second round (said or pointed at it?):
 - [ ] Noticed that the S house sometimes has Sally the Seal instead of Sammy the Skunk (confused, or liked it?):
@@ -113,6 +114,7 @@ Marca o escribe sí / no / no sé. Unas palabras de detalle ayudan mucho.
 **Palabras** (lo más importante de esta hoja)
 - [ ] El título "El Correo de los Animales" suena bien (¿otro nombre que te guste más?):
 - [ ] Los sonidos de las letras ("M, mmm", "P, pa", "S, sss") son como los enseñan en la escuela o en casa (¿cuáles no?):
+- [ ] La pregunta de la ruta 5, "¿Quién empieza con…?" seguida del sonido, suena natural (¿cómo la dirías?):
 - [ ] Los nombres de los animales suenan bien y se entienden (Memo el Mono, Paco el Pingüino, Leo el León, Sofi la Salamandra, Tita la Tortuga…). ¿Alguno raro o confuso?:
 - [ ] Algún dibujo no parece el animal que dice su nombre:
 - [ ] Amigos nuevos: en el rincón de papás, en Letras, activa D, Ñ y Q (o toca "Todas") y juega una ronda. ¿Se reconocen Dani el Delfín, Ñico el Ñandú y Quique el Quetzal, y suenan bien sus nombres?:
@@ -129,6 +131,7 @@ Marca o escribe sí / no / no sé. Unas palabras de detalle ayudan mucho.
 - [ ] Notó la casa que se mueve después de dos intentos equivocados
 - [ ] Entendió los dibujos de animales (ruta 2)
 - [ ] Entendió los números y las estrellas (ruta 4, en la línea 123):
+- [ ] Sonidos de las letras (ruta 5, después de la ruta 3; o activa "Abrir todas las rutas" en el rincón de papás): entendió "¿Quién empieza con *ba*?", tocó la bocina de la carta para oírlo otra vez, y la voz dijo bien los sonidos ("sss", "ba", "mmm"):
 - [ ] Supo qué tocar en la tarjeta de "¡Ruta terminada!"
 
 **Pantalla**

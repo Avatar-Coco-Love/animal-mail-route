@@ -215,6 +215,9 @@ svg{display:block}
 .paper::after{content:'';position:absolute;top:2px;right:2px;width:15%;aspect-ratio:.8;background:var(--sun);border:2px dashed var(--red)}
 .paper .big{font:800 clamp(3rem,16vmin,6rem)/1 var(--font-display);color:var(--ink);transform:translateY(-.04em)}
 .paper svg{width:54%;height:auto}
+.paper .spk{display:grid;place-items:center;width:62%;aspect-ratio:1.6;border-radius:999px;background:var(--blue);color:#fff;box-shadow:0 5px 0 rgba(36,48,77,.25)}
+.paper .spk svg{width:auto;height:80%}
+.mini svg.spk{width:auto;height:90%;color:var(--blue)}
 .paper .cnt{display:flex;flex-wrap:wrap;gap:6% 4%;justify-content:center;align-items:center;width:78%}
 .paper .cnt svg{width:22%;height:auto;color:var(--sun);filter:drop-shadow(0 2px 0 rgba(36,48,77,.4))}
 .mail.wiggle .paper{animation:wiggle .6s ease-in-out 2}
@@ -510,7 +513,7 @@ svg{display:block}
       </div>
       <div class="block" id="vol-block"><b data-t="volunteer">Volunteer voices</b><p class="hint-text" data-t="volunteerHint"></p><a class="pbtn" id="vol-link" href="volunteer.html" target="_blank" rel="noopener" data-t="volunteerBtn">Lend your voice</a></div>
       <div class="row"><b data-t="everyone">Everyone</b><button class="pbtn danger" type="button" id="b-reset" data-t="reset">Erase everything</button></div>
-      <p class="note"><span id="note">Prototype 1.7.1. Voice prompts use your device's built-in speech until recorded voices are added.</span> <span id="share-note" data-t="shareNote" hidden>"Share play counts" sends only anonymous totals, such as rounds played per route, and is off unless you turn it on.</span> <a id="privacy-link" href="privacy.html" target="_blank" rel="noopener" data-t="privacy">Privacy</a></p>
+      <p class="note"><span id="note">Prototype 1.8. Voice prompts use your device's built-in speech until recorded voices are added.</span> <span id="share-note" data-t="shareNote" hidden>"Share play counts" sends only anonymous totals, such as rounds played per route, and is off unless you turn it on.</span> <a id="privacy-link" href="privacy.html" target="_blank" rel="noopener" data-t="privacy">Privacy</a></p>
       <button class="close" type="button" id="p-close" data-t="done">Done</button>
     </div>
   </div>
@@ -656,6 +659,8 @@ quetzal:'<path d="M42 76C34 88 30 96 22 99C30 99 40 92 46 80Z" fill="#2f9e5a"/><
 /* A friend's picture, by friend id (each friend names its ART). */
 function art(id){ return '<svg viewBox="0 0 100 100" aria-hidden="true">' + ART[BYID[id].art] + '</svg>'; }
 
+/* Letter sounds: a speaker on the mail (tap to hear the sound again) and on the map */
+var SPEAKER = '<svg viewBox="3 4 17 16" aria-hidden="true"><path d="M4 9.5h3.5L12 5.5v13l-4.5-4H4z" fill="currentColor"/><path d="M15.2 9a4.2 4.2 0 0 1 0 6M17.8 6.5a7.8 7.8 0 0 1 0 11" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>';
 var STAR = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l2.6 5.6 6.1.7-4.5 4.2 1.2 6L12 16.5 6.6 19.5l1.2-6L3.3 9.3l6.1-.7z" fill="currentColor"/></svg>';
 var LOCK = '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2" fill="currentColor"/><path d="M8 11V8a4 4 0 018 0v3" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/></svg>';
 
@@ -670,7 +675,7 @@ var LOCK = '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="11" width
 var MAX_PLAYERS = 8, NAME_MAX = 20;
 var MIN_LETTERS = 2;
 var PROG = ['animal', 'rounds', 'stickers', 'weak', 'seen', 'letters', 'setRounds', 'last'];
-function newPlayer(id, animal){ return {id:id, name:'', animal:animal || STARTERS[0], rounds:{1:0,2:0,3:0,4:0}, stickers:[], weak:{}, seen:{}, letters:STARTERS.slice(), setRounds:0, last:1, other:{}}; }
+function newPlayer(id, animal){ return {id:id, name:'', animal:animal || STARTERS[0], rounds:{1:0,2:0,3:0,4:0,5:0}, stickers:[], weak:{}, seen:{}, letters:STARTERS.slice(), setRounds:0, last:1, other:{}}; }
 function defaults(){ return {v:2, device:{lang:LANG, voice:true, sfx:true, share:false, unlockAll:false, lettersSame:false, voices:{}}, current:1, players:[newPlayer(1)]}; }
 /* voices (1.6): the recorded voice chosen per language, 'female', 'male' or 'device' (the built-in
    speech); a language with no choice uses the set with the most recordings. */
@@ -957,7 +962,7 @@ function hush(){
    Off unless a parent turns on "Share play counts". Only totals per route are kept, with no
    identifier or timestamp, and they are sent once when the page is hidden. The setting is
    not shown at all while COUNT_URL is empty. */
-var VERSION = '1.7.1';
+var VERSION = '1.8';
 var COUNT_URL = '';      // the Worker, e.g. 'https://animal-mail-counts.<account>.workers.dev/v1/counts'
 var CKEY = 'animal-mail-route-counts', CAP = 200, METRICS = ['started','finished','misses'];
 function emptyCounts(){ return {opens:0, started:{}, finished:{}, misses:{}}; }
@@ -967,7 +972,7 @@ try{
   var oc = JSON.parse(localStorage.getItem(CKEY) || 'null');
   if(oc && typeof oc === 'object'){
     C.opens = capN(oc.opens);
-    METRICS.forEach(function(m){ for(var r=1;r<=4;r++){ var n = capN(oc[m] && oc[m][r]); if(n) C[m][r] = n; } });
+    METRICS.forEach(function(m){ for(var r=1;r<=9;r++){ var n = capN(oc[m] && oc[m][r]); if(n) C[m][r] = n; } });
   }
 }catch(e){}
 function sharing(){ return !!(COUNT_URL && S.share); }
@@ -996,7 +1001,7 @@ document.addEventListener('visibilitychange', function(){ if(document.visibility
 /* Tracks: each has its own unlock chain, so numbers don't wait for letters. A route's saved
    rounds key is its id (1 to 4 as before 0.9), whatever track it is on; new routes get new ids. */
 var TRACKS = [
-  {id:'letters', name:'ABC', label:t('trackLetters'), routes:[1, 2, 3]},
+  {id:'letters', name:'ABC', label:t('trackLetters'), routes:[1, 2, 3, 5]},
   {id:'numbers', name:'123', label:t('trackNumbers'), routes:[4]}
 ];
 function trackOf(l){ return TRACKS.filter(function(t){ return t.routes.indexOf(l) >= 0; })[0]; }
@@ -1006,23 +1011,41 @@ function nextIn(l){ var r = trackOf(l).routes; return r[r.indexOf(l) + 1] || 0; 
 var STARS = 2;
 function unlocked(l, p){ var b = prevIn(l); return !b || S.unlockAll || ((p || P).rounds[b] || 0) >= STARS; }
 function houseCount(l){
-  var grow = l === 1 ? 2 + (P.rounds[1] || 0) : l === 2 ? 3 + (P.rounds[2] || 0) : l === 4 ? 3 + (P.rounds[4] || 0) : 5;
+  var grow = l === 1 ? 2 + (P.rounds[1] || 0) : (l === 2 || l === 4 || l === 5) ? 3 + (P.rounds[l] || 0) : 5;
   return Math.min(5, grow, l === 4 ? 5 : P.letters.length);
 }
-/* The letters for a round on routes 1 to 3. A set that fits on the street is used in its order,
+/* The letters for a round on a letter route. A set that fits on the street is used in its order,
    so the default set plays as before (S and B first, then K, C, P as houses are added). A bigger
    set takes its weakest letters first (score 2 or more), then the ones met least recently. */
-function roundLetters(n){
-  var set = P.letters;
-  if(set.length <= 5) return set.slice(0, n);
-  var met = function(l){ return Math.max.apply(null, BYLETTER[l].map(function(f){ return P.seen[f.id] || 0; })); };
-  var weak = function(l){ var w = P.weak[l] || 0; return w >= 2 ? w : 0; };
-  return set.slice().sort(function(a, b){ return (weak(b) - weak(a)) || (met(a) - met(b)) || (set.indexOf(a) - set.indexOf(b)); }).slice(0, n);
+function roundLetters(n, l){
+  var set = P.letters, order = set.slice();
+  if(set.length > 5){
+    var met = function(x){ return Math.max.apply(null, BYLETTER[x].map(function(f){ return P.seen[f.id] || 0; })); };
+    var weak = function(x){ var w = P.weak[x] || 0; return w >= 2 ? w : 0; };
+    order.sort(function(a, b){ return (weak(b) - weak(a)) || (met(a) - met(b)) || (set.indexOf(a) - set.indexOf(b)); });
+  }
+  return l === 5 ? soundLetters(order, n) : order.slice(0, n);
+}
+/* Letter sounds (route 5): only letters with a sound (not Spanish H), and never two that sound
+   alike (L10N.alike: English C and K; Spanish S and Z, B and V, C and K), so every mail has one
+   right house by ear. The first of a pair in the order wins. If the set leaves fewer than 2, the
+   first letters of the alphabet's friends (LETTERS order) fill in, so the round still has 2 houses. */
+function hasSound(l){ return !!L10N.sounds[l]; }
+function soundsAlike(a, b){ return (L10N.alike || []).some(function(g){ return g.indexOf(a) >= 0 && g.indexOf(b) >= 0; }); }
+function soundLetters(order, n){
+  var out = [];
+  order.concat(LETTERS).forEach(function(x, i){
+    if(out.length >= n || (i >= order.length && out.length >= MIN_LETTERS)) return;
+    if(!hasSound(x) || out.indexOf(x) >= 0 || out.some(function(y){ return soundsAlike(x, y); })) return;
+    out.push(x);
+  });
+  return out;
 }
 function kindFor(l){
   if(l === 1) return 'letter';
   if(l === 2) return 'picture';
   if(l === 4) return Math.random() < 0.5 ? 'number' : 'count';
+  if(l === 5) return 'sound';
   return Math.random() < 0.5 ? 'letter' : 'picture';
 }
 function shuffle(a){
@@ -1128,9 +1151,11 @@ var LEVELS = [
   {id:1, mini:'<span class="l">' + STARTERS[0] + '</span>', two:false},
   {id:2, mini:art(STARTERS[2]), two:false},
   {id:3, mini:'<span class="l">' + STARTERS[1] + '</span>' + art(STARTERS[4]), two:true},
-  {id:4, mini:'<span class="l">3</span>', two:false}
+  {id:4, mini:'<span class="l">3</span>', two:false},
+  {id:5, mini:SPEAKER.replace('<svg ', '<svg class="spk" '), two:false}
 ];
-var LEVEL_NAME = {1:t('levels')[0], 2:t('levels')[1], 3:t('levels')[2], 4:t('levels')[3]};
+var LEVEL_NAME = {};
+LEVELS.forEach(function(L){ LEVEL_NAME[L.id] = t('levels')[L.id - 1]; });
 /* The route to play next: on the track the player last played, the first open route with fewer
    than STARS rounds, or the last open one when they all have their stars. */
 function nextUp(p){
@@ -1237,7 +1262,7 @@ function startLevel(l){
   count('started', l);
   P.last = l;
   var n = houseCount(l);
-  var ids = l === 4 ? STARTERS.slice(0, n) : roundLetters(n);
+  var ids = l === 4 ? STARTERS.slice(0, n) : roundLetters(n, l);
   var friend = pickFriends(ids);
   R = {level:l, ids:ids, friend:friend, queue:buildQueue(ids, l), i:0, misses:0, busy:true, current:null, selected:false, timer:null};
   R.queue.forEach(function(q){ q.f = friend[q.id]; });
@@ -1288,6 +1313,10 @@ function promptFor(item){
   if(item.kind === 'number'){
     return {cap:t('capNumber', {n:NUM[item.id]}), say:['deliver-to', 'num-' + NUM[item.id]], label:t('mailNumber', {n:NUM[item.id]})};
   }
+  if(item.kind === 'sound'){
+    var snd = L10N.sounds[item.id];
+    return {cap:t('capSound', {s:snd}), say:['who-starts-with', 'sound-' + item.id], label:t('mailSound', {s:snd})};
+  }
   if(item.kind === 'count'){
     return {cap:t('capCount'), say:['count-prompt'], label:t('mailCount', {n:NUM[item.id]})};
   }
@@ -1296,6 +1325,7 @@ function promptFor(item){
 function paperHTML(item){
   if(item.kind === 'letter') return '<span class="big">' + item.id + '</span>';
   if(item.kind === 'number') return '<span class="big">' + NUM[item.id] + '</span>';
+  if(item.kind === 'sound') return '<span class="spk">' + SPEAKER + '</span>';
   if(item.kind === 'count'){
     var s = '';
     for(var i=0;i<NUM[item.id];i++) s += STAR;
@@ -1407,7 +1437,7 @@ function endDrag(e, cancelled){
     mail.classList.toggle('selected', R.selected);
     street.classList.toggle('armed', R.selected);
     homeMail();
-    say(R.say);
+    say(R.current.kind === 'sound' ? ['sound-' + R.current.id] : R.say);
     return;
   }
   if(cancelled){ homeMail(); return; }

@@ -23,4 +23,4 @@ If the game is hosted somewhere other than `https://avatar-coco-love.github.io`,
 ```
 npx wrangler d1 execute animal-mail-counts --remote --command "SELECT day, metric, route, n FROM counts ORDER BY day DESC, metric, route"
 ```
-Metrics: `opens` (route 0), `started`, `finished`, `misses` (routes 1 to 4).
+Metrics: `opens` (route 0), `started`, `finished`, `misses` (routes 1 to 5).

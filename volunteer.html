@@ -147,7 +147,7 @@ var T = W[LANG] || W.en;
 function tx(s, v){ return v ? s.replace(/\{(\w+)\}/g, function(m, k){ return v[k] !== undefined ? v[k] : m; }) : s; }
 
 /* Delivery notes, per line kind, in the page's language. Prompts joined to another clip in the game
-   (who-gets-the + a letter, mail-for + a name, deliver-to + a number) must stop where the next clip
+   (who-gets-the + a letter, mail-for + a name, deliver-to + a number, who-starts-with + a sound) must stop where the next clip
    starts. */
 var NOTES = {
   en: {
@@ -160,6 +160,7 @@ var NOTES = {
     'deliver-to':'Clear. Stop right after "number": the game adds the number.',
     'count-prompt':'Slow and clear, as if about to count together.',
     'whos-playing':'Welcoming and a little excited.',
+    'who-starts-with':'A curious question, with the voice going up a little at the end. Stop right after "with": the game adds the letter\'s sound.',
     num:'Just the number, clearly, as if counting.',
     letter:'Just the letter\'s name, clearly, as in the alphabet song.',
     sound:'Just the sound the letter makes, not its name. Hold long sounds (sss, mmm, fff) about a second; keep short ones (b, k, p) short, with as little "uh" after them as you can.',
@@ -176,6 +177,7 @@ var NOTES = {
     'deliver-to':'Clara. Para justo después de "número": el juego agrega el número.',
     'count-prompt':'Despacio y claro, como para contar juntos.',
     'whos-playing':'Acogedora y un poco emocionada.',
+    'who-starts-with':'Una pregunta curiosa. Para justo después de "con": el juego agrega el sonido de la letra.',
     num:'Solo el número, claro, como al contar.',
     letter:'Solo el nombre de la letra, claro, como en el abecedario (M es "eme").',
     sound:'Solo el sonido, no el nombre de la letra. Los sonidos largos (mmm, sss, fff) dúralos como un segundo; las sílabas (pa, ta, ca) cortas y claras.',
