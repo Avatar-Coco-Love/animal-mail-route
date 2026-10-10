@@ -136,10 +136,18 @@ svg{display:block}
 /* map */
 .map{background:linear-gradient(180deg,var(--sky-top) 0%,var(--sky-low) 40%,var(--grass) 40%,var(--grass-deep) 100%)}
 .route{position:relative;flex:1;display:flex;flex-direction:row;justify-content:space-evenly;gap:8px;width:100%;max-width:720px;margin-inline:auto;padding-block:8px 24px}
-/* Two tracks, each with its own unlock chain: columns side by side upright, rows on a sideways phone.
-   Both use the same number of slots (--n, the longest track), so route 1 and route 4 sit level. */
-.track{position:relative;flex:1;display:grid;grid-template-rows:auto repeat(var(--n),1fr);justify-items:center;align-items:center;min-width:0}
-.tname{position:relative;z-index:1;padding:3px 14px;border-radius:999px;background:rgba(255,255,255,.85);font:800 clamp(1rem,4vw,1.3rem)/1.1 var(--font-display);letter-spacing:.06em;color:var(--ink)}
+/* Track switcher (2.0): two big tabs, "ABC" and "123", in the map's top bar; one track shows at a
+   time, at every size. Its routes zigzag down two columns (each disc spans two rows, so neighbours
+   overlap by half), and along two rows on a sideways phone, so a long track keeps big discs. */
+.tabs{flex:0 1 200px;min-width:0;display:flex;gap:4px;padding:4px;border-radius:999px;background:rgba(255,255,255,.6)}
+.tab{position:relative;flex:1 1 0;min-width:0;height:48px;padding:0 6px;border:0;border-radius:999px;background:none;font:800 clamp(1.1rem,4.6vw,1.4rem)/1 var(--font-display);letter-spacing:.04em;color:var(--ink)}
+.tab[aria-selected="true"]{background:var(--sun);box-shadow:0 3px 0 rgba(36,48,77,.25)}
+.tab:active{transform:translateY(2px)}
+/* a route on the other track just opened and hasn't been played: its tab pulses too */
+.tab.fresh::after{content:"";position:absolute;inset:-2px;border-radius:999px;border:4px solid var(--sun);animation:ring 1.6s ease-out infinite;pointer-events:none}
+.track{position:relative;flex:1;display:grid;grid-template-columns:1fr 1fr;grid-template-rows:repeat(var(--rows),1fr);justify-items:center;align-items:center;min-width:0}
+.track .node{grid-column:var(--col);grid-row:var(--i) / span 2}
+.track.one .node{grid-column:1 / -1}
 /* the path between routes: drawn by drawPath() from disc centre to disc centre, lit once the route before has 2 rounds */
 .path{position:absolute;inset:0;width:100%;height:100%;overflow:visible;pointer-events:none;z-index:0}
 .seg line{fill:none;stroke-linecap:round}
@@ -171,11 +179,10 @@ svg{display:block}
 .here svg{width:84%;height:auto}
 /* a route that just opened and hasn't been played pulses until it is */
 .node.fresh .disc::after{content:"";position:absolute;inset:-7px;border-radius:50%;border:5px solid var(--sun);animation:ring 1.6s ease-out infinite;pointer-events:none}
-/* Discs shrink to fit the longest track (--n routes) in the height: about 60 px on the small phone
-   with 5 Letters routes. The envelope, padlock and letters inside scale with the disc (cqi), so a
+/* Discs shrink to fit the track's zigzag (--n routes, each spanning 2 of n + 1 rows) in the height. The envelope, padlock and letters inside scale with the disc (cqi), so a
    small disc still reads. Browsers without dvh or cqi keep the sizes above. */
 @supports (height:1dvh) and (width:1cqi){
-  .disc{width:clamp(60px,min(26vw,14vh,calc((100dvh - 150px) / var(--n) - 38px)),128px);container-type:inline-size}
+  .disc{width:clamp(60px,min(26vw,14vh,calc((100dvh - 150px) * 2 / (var(--n) + 1) - 38px)),128px);container-type:inline-size}
   .mini{width:max(62%,34px);border-width:min(6px,8cqi)}
   .mini .l{font-size:min(clamp(1.4rem,6vw,1.9rem),40cqi)}
   .mini.two .l{font-size:min(clamp(1rem,4.4vw,1.4rem),28cqi)}
@@ -366,7 +373,9 @@ svg{display:block}
 @media (orientation:landscape) and (max-height:560px){
   .route{flex-direction:column;gap:2px;padding-block:0 8px}
   .route{max-width:none}
-  .track{grid-template-rows:none;grid-template-columns:4.4em repeat(var(--n),1fr);column-gap:8px}
+  .track{grid-template-columns:repeat(var(--rows),1fr);grid-template-rows:1fr 1fr;column-gap:8px}
+  .track .node{grid-row:var(--col);grid-column:var(--i) / span 2}
+  .track.one .node{grid-row:1 / -1}
   .route .node{gap:4px}
   .route .disc{width:clamp(64px,22vh,104px);border-width:6px}
 }
@@ -432,6 +441,7 @@ svg{display:block}
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>
       </button>
       <button class="rbtn me" type="button" id="m-who" data-go="who" hidden></button>
+      <div class="tabs" id="tabs" role="tablist"></div>
       <button class="rbtn" type="button" data-go="book" aria-label="Sticker book" data-ta="book">
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l2.6 5.6 6.1.7-4.5 4.2 1.2 6L12 16.5 6.6 19.5l1.2-6L3.3 9.3l6.1-.7z" fill="currentColor"/></svg>
       </button>
@@ -524,7 +534,7 @@ svg{display:block}
       </div>
       <div class="block" id="vol-block"><b data-t="volunteer">Volunteer voices</b><p class="hint-text" data-t="volunteerHint"></p><a class="pbtn" id="vol-link" href="volunteer.html" target="_blank" rel="noopener" data-t="volunteerBtn">Lend your voice</a></div>
       <div class="row"><b data-t="everyone">Everyone</b><button class="pbtn danger" type="button" id="b-reset" data-t="reset">Erase everything</button></div>
-      <p class="note"><span id="note">Prototype 1.9. Voice prompts use your device's built-in speech until recorded voices are added.</span> <span id="share-note" data-t="shareNote" hidden>"Share play counts" sends only anonymous totals, such as rounds played per route, and is off unless you turn it on.</span> <a id="privacy-link" href="privacy.html" target="_blank" rel="noopener" data-t="privacy">Privacy</a></p>
+      <p class="note"><span id="note">Prototype 2.0. Voice prompts use your device's built-in speech until recorded voices are added.</span> <span id="share-note" data-t="shareNote" hidden>"Share play counts" sends only anonymous totals, such as rounds played per route, and is off unless you turn it on.</span> <a id="privacy-link" href="privacy.html" target="_blank" rel="noopener" data-t="privacy">Privacy</a></p>
       <button class="close" type="button" id="p-close" data-t="done">Done</button>
     </div>
   </div>
@@ -973,7 +983,7 @@ function hush(){
    Off unless a parent turns on "Share play counts". Only totals per route are kept, with no
    identifier or timestamp, and they are sent once when the page is hidden. The setting is
    not shown at all while COUNT_URL is empty. */
-var VERSION = '1.9';
+var VERSION = '2.0';
 var COUNT_URL = '';      // the Worker, e.g. 'https://animal-mail-counts.<account>.workers.dev/v1/counts'
 var CKEY = 'animal-mail-route-counts', CAP = 200, METRICS = ['started','finished','misses'];
 function emptyCounts(){ return {opens:0, started:{}, finished:{}, misses:{}}; }
@@ -1180,14 +1190,16 @@ var LEVEL_NAME = {};
 LEVELS.forEach(function(L){ LEVEL_NAME[L.id] = t('levels')[L.id - 1]; });
 /* The route to play next: on the track the player last played, the first open route with fewer
    than STARS rounds, or the last open one when they all have their stars. */
-function nextUp(p){
-  var open = trackOf(p.last).routes.filter(function(l){ return unlocked(l, p); });
+function nextUp(p, track){
+  var open = (track || trackOf(p.last)).routes.filter(function(l){ return unlocked(l, p); });
   return open.filter(function(l){ return (p.rounds[l] || 0) < STARS; })[0] || open[open.length - 1];
 }
-function nodeHTML(L){
-  var open = unlocked(L.id), here = L.id === nextUp(P);
+/* A route that just opened (the one before it has its stars) and has no rounds yet pulses. */
+function isFresh(l){ return unlocked(l) && !!prevIn(l) && !S.unlockAll && !P.rounds[l]; }
+function nodeHTML(L, i, track){
+  var open = unlocked(L.id), here = L.id === nextUp(P, track);
   var done = Math.min(STARS, P.rounds[L.id] || 0);
-  var fresh = open && prevIn(L.id) && !S.unlockAll && !done;
+  var fresh = isFresh(L.id);
   var stars = '';
   for(var i=0;i<STARS;i++){ stars += STAR.replace('<svg ', '<svg class="' + (i<done?'on':'') + '" '); }
   return '<button type="button" class="node' + (open?'':' locked') + (fresh?' fresh':'') + '" data-level="' + L.id + '" aria-label="' + t('routeAria', {n:L.id, name:LEVEL_NAME[L.id]}) + (open?'':t('lockedAria')) + (here?t('nextAria'):'') + '">' +
@@ -1195,14 +1207,23 @@ function nodeHTML(L){
     (here ? '<span class="here" style="--bg:' + BYID[P.animal].color + '">' + art(P.animal) + '</span>' : '') + '</span>' +
     '<span class="stars" aria-hidden="true">' + stars + '</span></button>';
 }
+/* The track the map shows: the one the player picked with a tab while the page is open (memory
+   only), else the track of their last route. */
+var viewTrack = {};      // player id -> track id
+function shownTrack(){
+  return TRACKS.filter(function(t){ return t.id === viewTrack[P.id]; })[0] || trackOf(P.last);
+}
 function renderMap(){
-  var n = Math.max.apply(null, TRACKS.map(function(t){ return t.routes.length; }));
-  var html = TRACKS.map(function(t){
-    return '<div class="track" data-track="' + t.id + '" role="group" aria-label="' + t.label + '" style="--n:' + n + '">' +
-      '<span class="tname" aria-hidden="true">' + t.name + '</span>' +
-      t.routes.map(function(id){ return nodeHTML(LEVELS[id - 1]); }).join('') + '</div>';
+  var track = shownTrack(), n = track.routes.length;
+  $('tabs').innerHTML = TRACKS.map(function(t){
+    var on = t === track, fresh = !on && t.routes.some(isFresh);
+    return '<button type="button" class="tab' + (fresh ? ' fresh' : '') + '" role="tab" data-track="' + t.id + '" aria-selected="' + on + '" aria-controls="route" aria-label="' + t.label + '">' + t.name + '</button>';
   }).join('');
-  $('route').innerHTML = html + '<svg class="path" aria-hidden="true"></svg>';
+  /* routes zigzag: odd ones in the first column (row on a sideways phone), even ones in the second */
+  $('route').innerHTML = '<div class="track' + (n < 2 ? ' one' : '') + '" data-track="' + track.id + '" role="tabpanel" aria-label="' + track.label + '" style="--n:' + n + ';--rows:' + (n + 1) + '">' +
+    track.routes.map(function(id, i){
+      return nodeHTML(LEVELS[id - 1], i, track).replace('<button ', '<button style="--i:' + (i + 1) + ';--col:' + (i % 2 + 1) + '" ');
+    }).join('') + '</div><svg class="path" aria-hidden="true"></svg>';
   drawPath(true);
   var me = $('m-who');
   me.hidden = D.players.length < 2;
@@ -1210,12 +1231,12 @@ function renderMap(){
   me.innerHTML = art(P.animal);
   me.setAttribute('aria-label', t('playing', {name:playerLabel(P)}));
 }
-/* One segment per pair of neighbouring routes on a track, lit when the second one is open by the
-   same rule as unlocked() (2 rounds of the route before, or Unlock all). Lines run between disc
-   centres, down each column on tall screens and along each row on a sideways phone. data-seg is
+/* One segment per pair of neighbouring routes on the shown track, lit when the second one is open
+   by the same rule as unlocked() (2 rounds of the route before, or Unlock all). Lines run between
+   disc centres, zigzagging down on tall screens and across on a sideways phone. data-seg is
    the route the segment leaves. A segment that lit up since this player last saw the map plays a
-   short animation. */
-var litSeen = {};        // player id -> {route id: lit} last time (memory only)
+   short animation; each track keeps its own memory, so a first look at a track animates nothing. */
+var litSeen = {};        // 'player id:track id' -> {route id: lit} last time (memory only)
 function drawPath(fresh){
   var route = $('route'), svg = route.querySelector('.path');
   if(!svg || $('s-map').hidden) return;
@@ -1224,22 +1245,29 @@ function drawPath(fresh){
     var r = route.querySelector('.node[data-level="' + id + '"] .disc').getBoundingClientRect();
     return [Math.round(r.left - box.left + r.width / 2), Math.round(r.top - box.top + r.height / 2)];
   };
-  var seen = litSeen[P.id], lit = {}, out = '';
-  TRACKS.forEach(function(t){
-    for(var i=1;i<t.routes.length;i++){
-      var from = t.routes[i-1], on = unlocked(t.routes[i]), a = at(from), b = at(t.routes[i]);
-      var ends = ' x1="' + a[0] + '" y1="' + a[1] + '" x2="' + b[0] + '" y2="' + b[1] + '"/>';
-      lit[from] = on;
-      out += '<g class="seg' + (on ? ' lit' : '') + (on && fresh && seen && !seen[from] ? ' new' : '') + '" data-seg="' + from + '">' +
-        '<line class="base"' + ends + '<line class="dash"' + ends + '</g>';
-    }
-  });
+  var t = shownTrack(), key = P.id + ':' + t.id;
+  var seen = litSeen[key], lit = {}, out = '';
+  for(var i=1;i<t.routes.length;i++){
+    var from = t.routes[i-1], on = unlocked(t.routes[i]), a = at(from), b = at(t.routes[i]);
+    var ends = ' x1="' + a[0] + '" y1="' + a[1] + '" x2="' + b[0] + '" y2="' + b[1] + '"/>';
+    lit[from] = on;
+    out += '<g class="seg' + (on ? ' lit' : '') + (on && fresh && seen && !seen[from] ? ' new' : '') + '" data-seg="' + from + '">' +
+      '<line class="base"' + ends + '<line class="dash"' + ends + '</g>';
+  }
   svg.setAttribute('viewBox', '0 0 ' + Math.round(box.width) + ' ' + Math.round(box.height));
   svg.innerHTML = out;
-  litSeen[P.id] = lit;
+  litSeen[key] = lit;
 }
 window.addEventListener('resize', function(){ drawPath(false); });
 if(document.fonts && document.fonts.ready) document.fonts.ready.then(function(){ drawPath(false); });
+$('tabs').addEventListener('click', function(e){
+  var b = e.target.closest('.tab');
+  if(!b || b.getAttribute('aria-selected') === 'true') return;
+  unlock();
+  sfx.pick();
+  viewTrack[P.id] = b.getAttribute('data-track');
+  renderMap();
+});
 $('route').addEventListener('click', function(e){
   var n = e.target.closest('.node');
   if(!n) return;
