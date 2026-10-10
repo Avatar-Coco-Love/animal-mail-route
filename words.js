@@ -111,6 +111,15 @@ var LANGS = {
       I:'ih', J:'juh', L:'lll', M:'mmm', N:'nnn', O:'ah', Q:'kwuh', R:'rrr', T:'tuh', U:'uh', V:'vvv', W:'wuh', Y:'yuh', Z:'zzz'},
     // letters that make the same sound: never two of a group on the street on the Letter sounds route
     alike:[['C','K']],
+    // Beginning sounds (route 7): an object per letter whose word starts with the letter's sound, and
+    // its picture (OBJ_ART in index.html). Short vowels, hard C and G, as for the friends.
+    objects:{A:{art:'apple', word:'apple'}, B:{art:'ball', word:'ball'}, C:{art:'cup', word:'cup'}, D:{art:'drum', word:'drum'},
+      E:{art:'egg', word:'egg'}, F:{art:'fork', word:'fork'}, G:{art:'gift', word:'gift'}, H:{art:'hat', word:'hat'},
+      I:{art:'igloo', word:'igloo'}, J:{art:'juice', word:'juice'}, K:{art:'kite', word:'kite'}, L:{art:'leaf', word:'leaf'},
+      M:{art:'moon', word:'moon'}, N:{art:'nest', word:'nest'}, O:{art:'olive', word:'olive'}, P:{art:'pizza', word:'pizza'},
+      Q:{art:'quilt', word:'quilt'}, R:{art:'rainbow', word:'rainbow'}, S:{art:'sun', word:'sun'}, T:{art:'tent', word:'tent'},
+      U:{art:'umbrella', word:'umbrella'}, V:{art:'van', word:'van'}, W:{art:'watermelon', word:'watermelon'}, Y:{art:'yoyo', word:'yo-yo'},
+      Z:{art:'zipper', word:'zipper'}},
     clips:{
       'who-gets-the':'Who gets the',
       'mail-for':'This mail is for',
@@ -122,7 +131,8 @@ var LANGS = {
       'count-prompt':'Count the stars! Which number?',
       'whos-playing':"Who's playing?",
       'who-starts-with':'Who starts with',
-      'little-letter':'Who gets this little letter?'
+      'little-letter':'Who gets this little letter?',
+      'starts-like':'Who starts like'
     },
     t:{
       title:'Animal Mail Route', play:'Play', book:'Sticker book', switchTo:'Play in English',
@@ -133,13 +143,13 @@ var LANGS = {
       winAria:'Route complete', winHead:'Route complete!', winText:'You delivered all the mail and earned a sticker.',
       map:'Map', playAgain:'Play again', nextRoute:'Next route',
       routeAria:'Route {n}, {name}', lockedAria:', locked', nextAria:', play next',
-      trackLetters:'Letters', trackNumbers:'Numbers', levels:['Letters', 'Animals', 'Letters and animals', 'Numbers', 'Letter sounds', 'Lowercase'],
+      trackLetters:'Letters', trackNumbers:'Numbers', levels:['Letters', 'Animals', 'Letters and animals', 'Numbers', 'Letter sounds', 'Lowercase', 'Beginning sounds'],
       playing:'Playing: {name}. Tap to change player.',
       houseLetter:'House with the letter {l}, home of {name}', houseNumber:'House number {n}, home of {name}',
-      capLetter:'Who gets the {l}?', capNumber:'Deliver to number {n}!', capCount:'Count the stars. Which number?', capPicture:'This mail is for {name}!', capSound:'Who starts with "{s}"?', capLower:'Who gets the little "{l}"?',
-      mailLetter:'Mail with the letter {l}', mailNumber:'Mail with the number {n}', mailCount:'Mail with {n} stars', mailPicture:'Mail with a picture of {name}', mailSound:'Mail that says "{s}". Tap it to hear the sound again', mailLower:'Mail with a little "{l}"',
+      capLetter:'Who gets the {l}?', capNumber:'Deliver to number {n}!', capCount:'Count the stars. Which number?', capPicture:'This mail is for {name}!', capSound:'Who starts with "{s}"?', capLower:'Who gets the little "{l}"?', capObject:'Who starts like "{w}"?',
+      mailLetter:'Mail with the letter {l}', mailNumber:'Mail with the number {n}', mailCount:'Mail with {n} stars', mailPicture:'Mail with a picture of {name}', mailSound:'Mail that says "{s}". Tap it to hear the sound again', mailLower:'Mail with a little "{l}"', mailObject:'Mail with a picture: "{w}". Tap it to hear the word again',
       mailHow:'. Drag it to the matching house, or tap it and then tap a house.',
-      bannerLetter:'{l} for {name}!', bannerNumber:'{n} is {name}!', sayLetter:'{l}! {l} for {name}!', sayNumber:'{n}! {name}!', reward:'{l} for {name}!',
+      bannerLetter:'{l} for {name}!', bannerNumber:'{n} is {name}!', sayLetter:'{l}! {l} for {name}!', sayObject:'{w}! {l} for {name}!', sayNumber:'{n}! {name}!', reward:'{l} for {name}!',
       parent:'Parent corner', language:'Language / Idioma', on:'On', off:'Off',
       voice:'Voice prompts', sfx:'Sound effects', unlock:'Unlock all routes', share:'Share play counts', clips:'Recorded voice clips', clipCount:'{n} of {m}',
       players:'Players', playersHint:'Tap a player to see their progress. Names are optional and stay on this device.', addPlayer:'Add player',
@@ -180,6 +190,14 @@ var LANGS = {
       I:'i', J:'ja', K:'ka', N:'nnn', O:'o', R:'rrr', V:'va', Y:'ya', Z:'sss'},
     // same sound in Latin American Spanish: S and Z (sss), B and V (ba), C and K (ca)
     alike:[['S','Z'], ['B','V'], ['C','K']],
+    // Beginning sounds (route 7): the word alone, with no article ("la pelota" would start with an l).
+    // None for H (silent) or Ñ (no everyday object a preschooler knows).
+    objects:{A:{art:'tree', word:'árbol'}, B:{art:'boat', word:'barco'}, C:{art:'crown', word:'corona'}, D:{art:'die', word:'dado'},
+      E:{art:'star', word:'estrella'}, F:{art:'flower', word:'flor'}, G:{art:'balloon', word:'globo'}, I:{art:'igloo', word:'iglú'},
+      J:{art:'juice', word:'jugo'}, K:{art:'kiwi', word:'kiwi'}, L:{art:'moon', word:'luna'}, M:{art:'apple', word:'manzana'},
+      N:{art:'cloud', word:'nube'}, O:{art:'eye', word:'ojo'}, P:{art:'ball', word:'pelota'}, Q:{art:'cheese', word:'queso'},
+      R:{art:'gift', word:'regalo'}, S:{art:'sun', word:'sol'}, T:{art:'cup', word:'taza'}, V:{art:'candle', word:'vela'},
+      Y:{art:'yoyo', word:'yoyó'}, Z:{art:'shoe', word:'zapato'}},
     clips:{
       'who-gets-the':'¿Quién recibe la',
       'mail-for':'Esta carta es para',
@@ -191,7 +209,8 @@ var LANGS = {
       'count-prompt':'¡Cuenta las estrellas! ¿Qué número es?',
       'whos-playing':'¿Quién va a jugar?',
       'who-starts-with':'¿Quién empieza con',
-      'little-letter':'¿Quién recibe esta letra chiquita?'
+      'little-letter':'¿Quién recibe esta letra chiquita?',
+      'starts-like':'¿Quién empieza como'
     },
     t:{
       title:'El Correo de los Animales', play:'Jugar', book:'Álbum de estampas', switchTo:'Jugar en español',
@@ -202,13 +221,13 @@ var LANGS = {
       winAria:'Ruta terminada', winHead:'¡Ruta terminada!', winText:'Entregaste todas las cartas y ganaste una estampa.',
       map:'Mapa', playAgain:'Jugar otra vez', nextRoute:'Siguiente ruta',
       routeAria:'Ruta {n}, {name}', lockedAria:', cerrada', nextAria:', sigue esta',
-      trackLetters:'Letras', trackNumbers:'Números', levels:['Letras', 'Animales', 'Letras y animales', 'Números', 'Sonidos de las letras', 'Minúsculas'],
+      trackLetters:'Letras', trackNumbers:'Números', levels:['Letras', 'Animales', 'Letras y animales', 'Números', 'Sonidos de las letras', 'Minúsculas', 'Sonido inicial'],
       playing:'Juega: {name}. Toca para cambiar de jugador.',
       houseLetter:'Casa con la letra {l}, de {name}', houseNumber:'Casa número {n}, de {name}',
-      capLetter:'¿Quién recibe la {l}?', capNumber:'¡Lleva la carta al número {n}!', capCount:'Cuenta las estrellas. ¿Qué número es?', capPicture:'¡Esta carta es para {name}!', capSound:'¿Quién empieza con «{s}»?', capLower:'¿Quién recibe la «{l}» chiquita?',
-      mailLetter:'Carta con la letra {l}', mailNumber:'Carta con el número {n}', mailCount:'Carta con {n} estrellas', mailPicture:'Carta con un dibujo de {name}', mailSound:'Carta que dice «{s}». Tócala para oír el sonido otra vez', mailLower:'Carta con una «{l}» chiquita',
+      capLetter:'¿Quién recibe la {l}?', capNumber:'¡Lleva la carta al número {n}!', capCount:'Cuenta las estrellas. ¿Qué número es?', capPicture:'¡Esta carta es para {name}!', capSound:'¿Quién empieza con «{s}»?', capLower:'¿Quién recibe la «{l}» chiquita?', capObject:'¿Quién empieza como «{w}»?',
+      mailLetter:'Carta con la letra {l}', mailNumber:'Carta con el número {n}', mailCount:'Carta con {n} estrellas', mailPicture:'Carta con un dibujo de {name}', mailSound:'Carta que dice «{s}». Tócala para oír el sonido otra vez', mailLower:'Carta con una «{l}» chiquita', mailObject:'Carta con un dibujo: «{w}». Tócala para oír la palabra otra vez',
       mailHow:'. Arrástrala a la casa correcta, o tócala y luego toca una casa.',
-      bannerLetter:'¡{l} de {name}!', bannerNumber:'¡El {n} es de {name}!', sayLetter:'¡{l}! ¡{l} de {name}!', sayNumber:'¡{n}! ¡{name}!', reward:'¡{l} de {name}!',
+      bannerLetter:'¡{l} de {name}!', bannerNumber:'¡El {n} es de {name}!', sayLetter:'¡{l}! ¡{l} de {name}!', sayObject:'¡{w}! ¡{l} de {name}!', sayNumber:'¡{n}! ¡{name}!', reward:'¡{l} de {name}!',
       parent:'Rincón de papás', language:'Idioma / Language', on:'Sí', off:'No',
       voice:'Instrucciones habladas', sfx:'Efectos de sonido', unlock:'Abrir todas las rutas', share:'Compartir conteos de juego', clips:'Grabaciones de voz', clipCount:'{n} de {m}',
       players:'Jugadores', playersHint:'Toca un jugador para ver su progreso. Los nombres son opcionales y se quedan en este dispositivo.', addPlayer:'Agregar jugador',
@@ -244,8 +263,9 @@ var LANGS = {
 };
 
 /* Every spoken line in a language, keyed by clip name: the fixed prompts, a number word per
-   starter's house (num-1 to num-5), letter- and sound- per letter with a friend (no sound- for a
-   letter with no sound of its own, like Spanish H), and name- and reward- per friend. The text is
+   starter's house (num-1 to num-5), letter-, sound- and word- (its object, route 7) per letter with
+   a friend (no sound- or word- for a letter with no sound of its own, like Spanish H; no word- for a
+   letter with no object, like Spanish Ñ), and name- and reward- per friend. The text is
    what the built-in voice says when a recording is missing, and what a volunteer reads. */
 function clipsFor(code){
   var L = LANGS[code], c = {}, k, seen = {};
@@ -257,6 +277,7 @@ function clipsFor(code){
     seen[f.letter] = true;
     c['letter-' + f.letter] = f.letter;
     if(L.sounds[f.letter]) c['sound-' + f.letter] = L.sounds[f.letter];
+    if(L.sounds[f.letter] && L.objects && L.objects[f.letter]) c['word-' + f.letter] = L.objects[f.letter].word;
   });
   L.friends.forEach(function(f){
     c['name-' + f.id] = f.name;
