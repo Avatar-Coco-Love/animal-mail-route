@@ -701,8 +701,8 @@ const wanted = (page) => page.evaluate(() => document.querySelector('#caption').
     check('offline: drop delivers', (await page.$$eval('.pip.on', (x) => x.length)) === 1);
     const priv = await page.evaluate(() => Promise.all(['privacy.html', 'privacy-es.html'].map((u) => fetch(u).then((r) => r.ok, () => false))));
     check('offline: privacy pages available (English and Spanish)', priv.every(Boolean), priv);
-    const sets = await page.evaluate(() => Promise.all(['words.js', 'audio/en/female/clips.json', 'audio/en/male/clips.json', 'audio/es/female/clips.json', 'audio/es/male/clips.json'].map((u) => fetch(u).then((r) => r.ok, () => false))));
-    check('offline: words.js and every voice set\'s list available', sets.every(Boolean), sets);
+    const sets = await page.evaluate(() => Promise.all(['words.js', 'volunteer.html', 'audio/en/female/clips.json', 'audio/en/male/clips.json', 'audio/es/female/clips.json', 'audio/es/male/clips.json'].map((u) => fetch(u).then((r) => r.ok, () => false))));
+    check('offline: words.js, the volunteer page and every voice set\'s list available', sets.every(Boolean), sets);
     // the Spanish address works offline too: es/ opens the game in Spanish
     await page.goto(BASE + 'es/');
     await page.waitForURL(/\?lang=es/);
@@ -1019,6 +1019,95 @@ const wanted = (page) => page.evaluate(() => document.querySelector('#caption').
     }
   }
 
+  // ---------- Volunteer page (1.7) ----------
+  // For adults, linked only from the parent corner and the privacy pages. Lists every line from words.js,
+  // records in the browser (a fake microphone here), plays back, redoes, keeps recordings on the device,
+  // saves a .zip of WAV files named as the game expects, and uploads nothing.
+  {
+    const vm = require('vm');
+    const sandbox = { window: {} };
+    vm.runInNewContext(await (await fetch(BASE + 'words.js')).text(), sandbox);
+    const AMR = sandbox.window.AMR;
+    const mic = await chromium.launch({ args: ['--use-fake-ui-for-media-stream', '--use-fake-device-for-media-stream'] });
+    // the game links it from the parent corner only, in the game's language
+    for (const [lang, path] of [['en', ''], ['es', '?lang=es']]) {
+      const { ctx, page, touch } = await newPage(browser, 412, 915, null, { path });
+      const outside = await page.evaluate(() => [...document.querySelectorAll('a[href*="volunteer"]')].filter((a) => !a.closest('#parent')).length);
+      await holdGear(page, touch);
+      const l = await page.$eval('#vol-link', (a) => ({ href: a.getAttribute('href'), text: a.textContent, inCorner: !!a.closest('#parent') }));
+      check(`volunteer (${lang}): linked from the parent corner only, in the game's language`, outside === 0 && l.inCorner && l.href === 'volunteer.html?lang=' + lang && l.text === (lang === 'en' ? 'Lend your voice' : 'Presta tu voz'), l);
+      await ctx.close();
+    }
+    for (const [lang, w, h] of [['en', 412, 915], ['es', 360, 640]]) {
+      const keys = Object.keys(AMR.clipsFor(lang));
+      const ctx = await mic.newContext({ viewport: { width: w, height: h }, isMobile: true, hasTouch: true, acceptDownloads: true, locale: lang === 'es' ? 'es-MX' : 'en-US' });
+      const page = await ctx.newPage();
+      const errors = [], hosts = new Set();
+      page.on('pageerror', (e) => errors.push(e.message));
+      page.on('console', (m) => { if (m.type() === 'error') errors.push(m.text()); });
+      // blob: addresses are the recordings themselves, played and saved on the device
+      page.on('request', (r) => { if (!/^(blob|data):/.test(r.url())) hosts.add(new URL(r.url()).host); });
+      await page.goto(BASE + 'volunteer.html?lang=' + lang);
+      await page.waitForTimeout(800);
+      const st = await page.evaluate(() => ({ lang: document.documentElement.lang, h1: document.querySelector('h1').textContent, keys: [...document.querySelectorAll('.line')].map((l) => l.getAttribute('data-key')),
+        notes: [...document.querySelectorAll('.line .how')].every((n) => n.textContent.length > 15), says: [...document.querySelectorAll('.line .say')].map((n) => n.textContent),
+        fits: document.documentElement.scrollWidth <= innerWidth, disabled: [...document.querySelectorAll('[data-act=rec]')].every((b) => b.disabled), agreeNote: !document.querySelector('#agree-first').hidden,
+        hiddenPlay: [...document.querySelectorAll('[data-act=play]')].every((b) => b.offsetParent === null), adults: /adult/i.test(document.body.textContent), gift: /(gift|regalo)/.test(document.body.textContent) }));
+      check(`volunteer (${lang}): the page is in the language, for adults, says recordings are given freely`, st.lang === lang && st.h1 === (lang === 'en' ? 'Animal Mail Route: lend your voice' : 'El Correo de los Animales: presta tu voz') && st.adults && st.gift, st.h1);
+      check(`volunteer (${lang}): every line of the game, in order, each with a delivery note`, st.keys.join() === keys.join() && keys.length === (lang === 'en' ? 156 : 133) && st.notes, [st.keys.length, keys.length]);
+      check(`volunteer (${lang}): lines read as the game says them`, st.says.includes(lang === 'en' ? 'Who gets the' : '¿Quién recibe la') && st.says.includes(lang === 'en' ? 'Sammy the Skunk' : 'Memo el Mono') && st.says.includes(lang === 'en' ? "The letter's name: S" : 'El nombre de la letra: M'));
+      check(`volunteer (${lang}): recording waits for "I agree", nothing to play yet, the page fits`, st.disabled && st.agreeNote && st.hiddenPlay && st.fits, st);
+      await page.check('#agree');
+      const k = lang === 'en' ? 'letter-S' : 'name-M';
+      const rec = page.locator(`.line[data-key="${k}"] [data-act=rec]`);
+      await rec.click();
+      await page.waitForTimeout(300);
+      const during = await page.evaluate(() => ({ stop: document.querySelector('.rec.on') && document.querySelector('.rec.on').textContent, others: [...document.querySelectorAll('[data-act=rec]:not(.on)')].every((b) => b.disabled) }));
+      await page.waitForTimeout(900);
+      await rec.click();
+      await page.waitForTimeout(1200);
+      const one = await page.evaluate((k) => { const l = document.querySelector(`.line[data-key="${k}"]`); return { done: l.classList.contains('done'), btn: l.querySelector('[data-act=rec]').textContent, play: l.querySelector('[data-act=play]').offsetParent !== null, status: l.querySelector('.status').textContent, count: document.querySelector('#count').textContent }; }, k);
+      check(`volunteer (${lang}): recording a line (Stop, others wait), then Redo, Play and its length`, during.stop === (lang === 'en' ? 'Stop' : 'Parar') && during.others && one.done && one.btn === (lang === 'en' ? 'Redo' : 'Repetir') && one.play && /\d\.\d/.test(one.status) && one.count === (lang === 'en' ? '1 of 156 recorded' : '1 de 133 grabadas'), [during, one]);
+      check(`volunteer (${lang}): playback works`, await page.evaluate((k) => new Promise((res) => { const orig = HTMLMediaElement.prototype.play; HTMLMediaElement.prototype.play = function () { res(this.src.startsWith('blob:')); return orig.call(this); }; document.querySelector(`.line[data-key="${k}"] [data-act=play]`).click(); setTimeout(() => res(false), 2000); }), k));
+      // redo replaces it, still one line
+      await rec.click(); await page.waitForTimeout(700); await rec.click(); await page.waitForTimeout(1200);
+      check(`volunteer (${lang}): Redo replaces the recording`, (await page.$eval('#count', (e) => e.textContent)) === one.count);
+      await page.fill('#credit', 'Test Volunteer');
+      // kept on the device after a reload, per voice
+      await page.reload(); await page.waitForTimeout(1000);
+      check(`volunteer (${lang}): recordings, "I agree" and the credit name stay on this device after a reload`, (await page.$eval('#count', (e) => e.textContent)) === one.count && await page.$eval('#agree', (e) => e.checked) && (await page.$eval('#credit', (e) => e.value)) === 'Test Volunteer');
+      await page.check('input[name=set][value=male]'); await page.waitForTimeout(400);
+      const male = await page.$eval('#count', (e) => e.textContent);
+      await page.check('input[name=set][value=female]'); await page.waitForTimeout(400);
+      check(`volunteer (${lang}): each voice keeps its own recordings`, /^0 /.test(male) && (await page.$eval('#count', (e) => e.textContent)) === one.count, male);
+      // the email link and Save all
+      const mail = await page.$eval('#send a[href^="mailto:"]', (a) => { const u = new URL(a.href); return { to: u.pathname, subject: u.searchParams.get('subject'), body: u.searchParams.get('body') }; });
+      check(`volunteer (${lang}): the email link goes to the contact address with the language, voice, count and credit`, mail.to === 'clements.cody.j@gmail.com' && mail.subject.includes(lang === 'en' ? 'English' : 'Español') && mail.body.includes('Test Volunteer') && mail.body.includes(lang === 'en' ? '1 of 156' : '1 de 133'), mail);
+      const [dl] = await Promise.all([page.waitForEvent('download'), page.click('#save-all')]);
+      const zip = require('fs').readFileSync(await dl.path());
+      const names = [];
+      for (let i = 0; i + 30 < zip.length; ) { if (zip.readUInt32LE(i) !== 0x04034b50) break; const n = zip.readUInt16LE(i + 26), size = zip.readUInt32LE(i + 18); names.push([zip.slice(i + 30, i + 30 + n).toString(), zip.slice(i + 30 + n, i + 34 + n).toString()]); i += 30 + n + size; }
+      const dir = lang + '-female/';
+      check(`volunteer (${lang}): Save all gives a .zip of WAV files named as the game expects, and a credits note`, dl.suggestedFilename() === `animal-mail-voices-${lang}-female.zip` && names.length === 2 && names[0][0] === dir + k + '.wav' && names[0][1] === 'RIFF' && names[1][0] === dir + 'credits.txt', [dl.suggestedFilename(), names]);
+      const [one1] = await Promise.all([page.waitForEvent('download'), page.click(`.line[data-key="${k}"] [data-act=save]`)]);
+      check(`volunteer (${lang}): Save file saves one line as ${k}.wav`, one1.suggestedFilename() === k + '.wav');
+      // erase (two taps)
+      await page.click('#erase'); await page.click('#erase'); await page.waitForTimeout(400);
+      await page.reload(); await page.waitForTimeout(800);
+      check(`volunteer (${lang}): Erase my recordings (two taps) removes them`, /^0 /.test(await page.$eval('#count', (e) => e.textContent)));
+      check(`volunteer (${lang}): links back to the game and its privacy page`, await page.evaluate((lang) => !!document.querySelector(`a[href="${lang === 'en' ? 'privacy.html' : 'privacy-es.html'}"]`) && !!document.querySelector(`a[href="${lang === 'en' ? './' : 'es/'}"]`), lang));
+      check(`volunteer (${lang}): nothing uploaded, no other sites, no errors`, [...hosts].every((x) => x === host) && errors.length === 0, { hosts: [...hosts], errors });
+      await ctx.close();
+    }
+    await mic.close();
+    {
+      const { ctx, page } = await newPage(browser, 412, 915);
+      const pr = await page.evaluate(() => Promise.all(['privacy.html', 'privacy-es.html'].map((u) => fetch(u).then((r) => r.text()))));
+      check('volunteer: both privacy pages link it and say recording stays on the device and nothing is sent', pr[0].includes('href="volunteer.html?lang=en"') && /uploads nothing and sends nothing/.test(pr[0]) && pr[1].includes('href="volunteer.html?lang=es"') && /no sube nada ni envía nada/.test(pr[1]));
+      await ctx.close();
+    }
+  }
+
   // ---------- Help improve the game (1.5) ----------
   // Parent corner only: three links, each a prefilled email the parent sends themselves, with the game
   // version, language and screen size, and nothing about the child.
@@ -1041,8 +1130,8 @@ const wanted = (page) => page.evaluate(() => document.querySelector('#caption').
       const m = await mails(page);
       const head = await page.$eval('#fb-block b', (e) => e.textContent);
       const want = lang === 'en'
-        ? { head: 'Help improve the game', labels: ['A wrong word or translation', 'Report a problem', 'Suggest an idea'], subj: /^Animal Mail Route: (a wrong word|a problem|an idea)$/, info: ['Game version: 1.6', 'Language: en (English)', `Screen: ${w} x ${h}`] }
-        : { head: 'Ayuda a mejorar el juego', labels: ['Una palabra o traducción equivocada', 'Reportar un problema', 'Sugerir una idea'], subj: /^El Correo de los Animales: (una palabra equivocada|un problema|una idea)$/, info: ['Versión del juego: 1.6', 'Idioma: es (Español)', `Pantalla: ${w} x ${h}`] };
+        ? { head: 'Help improve the game', labels: ['A wrong word or translation', 'Report a problem', 'Suggest an idea'], subj: /^Animal Mail Route: (a wrong word|a problem|an idea)$/, info: ['Game version: 1.7', 'Language: en (English)', `Screen: ${w} x ${h}`] }
+        : { head: 'Ayuda a mejorar el juego', labels: ['Una palabra o traducción equivocada', 'Reportar un problema', 'Sugerir una idea'], subj: /^El Correo de los Animales: (una palabra equivocada|un problema|una idea)$/, info: ['Versión del juego: 1.7', 'Idioma: es (Español)', `Pantalla: ${w} x ${h}`] };
       check(`feedback (${lang}): three choices, a wrong word, a problem, an idea, in the page's language`, head === want.head && m.map((x) => x.kind).join() === 'word,problem,idea' && m.map((x) => x.label).join() === want.labels.join(), m.map((x) => x.label));
       check(`feedback (${lang}): each opens a prefilled email to the contact address`, m.every((x) => x.to === 'mailto:clements.cody.j@gmail.com' && want.subj.test(x.subject) && x.body.length > 40), m);
       check(`feedback (${lang}): the email has the game version, language and screen size`, m.every((x) => want.info.every((i) => x.body.includes(i))), m.map((x) => x.body));

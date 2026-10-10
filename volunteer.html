@@ -1,0 +1,440 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<!-- Volunteer voices: for adults who offer to record the game's lines. Linked only from the parent
+     corner and the privacy pages. Every line comes from words.js (the game's own CLIPS). Recording
+     happens on this device; recordings are kept in this browser (IndexedDB) until the volunteer
+     erases them, and nothing is uploaded: the volunteer saves the files and emails them. -->
+<title>Animal Mail Route: lend your voice</title>
+<meta name="robots" content="noindex">
+<meta name="theme-color" content="#8fd1ff">
+<style>
+@font-face{font-family:'Baloo 2';font-weight:400 800;font-display:swap;src:url(fonts/baloo2-latin.woff2) format('woff2')}
+@font-face{font-family:'Nunito';font-weight:200 1000;font-display:swap;src:url(fonts/nunito-latin.woff2) format('woff2')}
+:root{--ink:#24304d;--paper:#fffaf0;--sky:#e2f4ff;--red:#ee5350;--blue:#2e6fe8;--yellow:#ffd34e;--green:#2f9f5a;color-scheme:light}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+body{margin:0;background:var(--sky);color:var(--ink);font:600 1.05rem/1.55 'Nunito',system-ui,sans-serif}
+main{max-width:720px;margin:0 auto;padding:24px 16px 48px}
+.stripe{height:10px;border-radius:5px;background:repeating-linear-gradient(135deg,var(--red) 0 12px,var(--paper) 12px 24px,var(--blue) 24px 36px,var(--paper) 36px 48px);margin-bottom:20px}
+h1,h2,h3{font-family:'Baloo 2',system-ui,sans-serif;font-weight:800;line-height:1.15;margin:1.2em 0 .4em}
+h1{font-size:2rem;margin-top:0}
+h2{font-size:1.35rem}
+h3{font-size:1.1rem;margin-top:1.4em}
+section{background:var(--paper);border-radius:18px;padding:4px 20px 14px;margin-top:16px;box-shadow:0 4px 0 rgba(36,48,77,.12)}
+a{color:var(--blue)}
+button,.btn{font:800 1rem 'Nunito',system-ui,sans-serif;padding:9px 16px;border-radius:14px;border:3px solid var(--ink);background:#fff;color:var(--ink);cursor:pointer;text-decoration:none;display:inline-block}
+button:disabled{opacity:.45;cursor:default}
+.primary{background:var(--blue);border-color:var(--blue);color:#fff}
+.danger{border-color:var(--red);color:var(--red)}
+.rec{background:var(--red);border-color:var(--red);color:#fff}
+.rec.on{background:#fff;color:var(--red)}
+label{display:flex;gap:10px;align-items:flex-start}
+input[type=checkbox],input[type=radio]{width:22px;height:22px;margin-top:3px;flex:none}
+input[type=text]{font:inherit;padding:8px 12px;border-radius:12px;border:3px solid var(--ink);width:100%;max-width:360px}
+.choices{display:flex;flex-wrap:wrap;gap:16px;margin:6px 0 12px}
+.langs{margin:-8px 0 8px}
+.count{font-weight:800}
+ul.lines{list-style:none;margin:0;padding:0}
+.line{border-top:2px solid rgba(36,48,77,.1);padding:12px 0}
+.line .say{font:800 1.3rem/1.3 'Baloo 2',system-ui,sans-serif;margin:0}
+.line .file{font-size:.85rem;opacity:.75;margin:0;word-break:break-all}
+.line .how{font-size:.92rem;margin:2px 0 8px}
+.line .acts{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.line .acts button{padding:6px 12px}
+.status{font-size:.92rem;font-weight:800}
+.status.ok{color:var(--green)}
+.status.warn{color:#b0670a}
+.line.done .say::after{content:' ✓';color:var(--green)}
+.note{background:#fff3c4;border-radius:14px;padding:10px 16px}
+.err{color:var(--red);font-weight:800}
+.back{display:inline-block;margin-top:24px;font-weight:800}
+</style>
+</head>
+<body>
+<main id="main">
+  <h1 id="h1">Animal Mail Route: lend your voice</h1>
+  <div class="stripe" aria-hidden="true"></div>
+  <noscript><p>This page needs JavaScript to record.</p></noscript>
+</main>
+<script src="words.js"></script>
+<script>
+(function(){
+'use strict';
+
+var $ = function(id){ return document.getElementById(id); };
+function esc(s){ return String(s).replace(/[&<>"']/g, function(ch){ return '&#' + ch.charCodeAt(0) + ';'; }); }
+var CONTACT = 'clements.cody.j@gmail.com';
+var LANGS = AMR.LANGS;
+
+/* The page's language is also the language of the lines: ?lang=es, else the device's language if the
+   game has it, else English. */
+var LANG = (function(){
+  var q = /[?&]lang=([a-z]{2})\b/.exec(location.search);
+  if(q && LANGS[q[1]]) return q[1];
+  var want = navigator.languages && navigator.languages.length ? navigator.languages : [navigator.language || 'en'];
+  for(var i = 0; i < want.length; i++){ var c = String(want[i]).slice(0, 2).toLowerCase(); if(LANGS[c] && LANGS[c].ready) return c; }
+  return 'en';
+})();
+var CLIPS = AMR.clipsFor(LANG), KEYS = Object.keys(CLIPS);
+
+/* ---------- Words (this page only) ---------- */
+var W = {
+  en: {
+    title:'Animal Mail Route: lend your voice', other:'Esta página en español',
+    aboutH:'What this is',
+    about:'<p><b>Animal Mail Route</b> is a free game for children about 3 to 5 years old: they drag letters to the right animal\'s house and learn letters, sounds and numbers. It has no ads and collects nothing about children. Right now every line is spoken by the device\'s built-in computer voice. Real voices make it much warmer, and you can help.</p><p>This page is for <b>adults</b>. It lists every line the game says in English ({n} lines), lets you record each one here, listen back and redo it, and then save the files to your device. You send them by email when you are ready. The Spanish lines are on <a href="volunteer.html?lang=es">the Spanish version of this page</a>.</p>',
+    agreeH:'What you agree to',
+    agree:'<ul><li>Your recordings are a gift: you give them freely, with no payment, for use in Animal Mail Route (on the web and in any app version of it, which will stay free for families).</li><li>If you want, you are credited by the name you give below (for example in the game\'s credits). Leave it empty to stay anonymous.</li><li>Your recordings may be trimmed, made louder or quieter, or converted to another file type, but not changed to say something else.</li><li>You are an adult and the voice is yours.</li><li>You can ask us to stop using your recordings at any time, by email.</li></ul>',
+    agreeBox:'I have read this and I agree.',
+    setH:'Your voice', setHint:'The game has a female and a male voice for each language. Which one are you recording?',
+    female:'Female voice', male:'Male voice',
+    credit:'Name for the credits (optional)', creditPh:'e.g. Maria L., or leave empty',
+    tipsH:'Tips',
+    tips:'<ul><li>A quiet room, no music or TV. Soft furnishings (a closet full of clothes is great) stop echo.</li><li>Hold the phone or stay about a hand\'s width (15 to 20 cm) from the microphone, the same for every line.</li><li>Warm, friendly and a little slow, as if talking to a 4 year old. Smile while you speak; it shows.</li><li>Press Record, wait a moment, say the line, wait a moment, press Stop. Listen back, and redo any you don\'t like.</li><li>You don\'t have to do them all at once. Your recordings stay in this browser on this device until you erase them.</li></ul>',
+    linesH:'The lines', progress:'{n} of {m} recorded',
+    say:'Say', sayLetter:'The letter\'s name: {t}', saySound:'The sound: /{t}/',
+    record:'Record', stop:'Stop', play:'Play', redo:'Redo', saveOne:'Save file',
+    agreeFirst:'Tick "I agree" above to start recording.',
+    noMic:'The microphone could not be used. Allow microphone access for this page in your browser, then try again.',
+    noRec:'This browser can\'t record. Try Chrome on Android, or Safari or Chrome on a computer.',
+    quiet:'A bit quiet: move a little closer, or speak up.', loud:'Too loud (it distorts): move back a little.', okLevel:'Recorded, {s} seconds.',
+    sections:{prompts:'Prompts', nums:'Numbers', letters:'Letters and their sounds', friends:'Animal friends'},
+    sendH:'Send your recordings',
+    send:'<ol><li>Press <b>Save all</b>. Your browser saves one file, <code>{zip}</code>, with every line you recorded (each named as the game needs, like <code>letter-S.wav</code>) and a note with your credit name.</li><li>Email that file to <a href="{mail}">{to}</a> (the link starts the email for you). Attach the file from your Downloads.</li><li>If the email says the file is too big, use <b>Save file</b> on each line to send them in two or three emails, or share it with a Google Drive or similar link.</li></ol><p>We\'ll write back to say thanks and when your voice is in the game.</p>',
+    saveAll:'Save all', mailSubj:'Animal Mail Route voice recordings: {lang}, {set}',
+    mailBody:'Hello! Here are my recordings for Animal Mail Route.\n\nLanguage: {lang}\nVoice: {set}\nLines recorded: {n} of {m}\nName for the credits: {credit}\n\nI have read the volunteer page and I agree to what it says.\n',
+    anon:'(anonymous)', nothing:'Record at least one line first.',
+    eraseH:'Your recordings on this device',
+    erase:'<p>Recordings stay in this browser, on this device, until you erase them. Nothing is uploaded: this page sends nothing anywhere. Only what you email yourself leaves the device.</p>',
+    eraseBtn:'Erase my recordings', eraseSure:'Tap again to erase all your recordings here',
+    privacy:'Privacy', back:'Back to the game', gamePrivacy:'privacy.html', game:'./'
+  },
+  es: {
+    title:'El Correo de los Animales: presta tu voz', other:'This page in English',
+    aboutH:'De qué se trata',
+    about:'<p><b>El Correo de los Animales</b> es un juego gratis para niños de unos 3 a 5 años: llevan cartas a la casa del animal correcto y aprenden letras, sonidos y números. No tiene anuncios y no recoge nada sobre los niños. Por ahora, todas las frases las dice la voz de computadora del dispositivo. Las voces de verdad lo hacen mucho más cálido, y tú puedes ayudar.</p><p>Esta página es para <b>adultos</b>. Muestra todas las frases que dice el juego en español ({n} frases), te deja grabar cada una aquí, escucharla y repetirla, y luego guardar los archivos en tu dispositivo. Tú los envías por correo cuando quieras. Las frases en inglés están en <a href="volunteer.html?lang=en">la versión en inglés de esta página</a>.</p>',
+    agreeH:'Lo que aceptas',
+    agree:'<ul><li>Tus grabaciones son un regalo: las das libremente, sin pago, para usarlas en El Correo de los Animales (en la web y en cualquier versión como app, que seguirá siendo gratis para las familias).</li><li>Si quieres, te damos crédito con el nombre que escribas abajo (por ejemplo, en los créditos del juego). Déjalo vacío para quedar anónimo.</li><li>Tus grabaciones se pueden recortar, subir o bajar de volumen o convertir a otro tipo de archivo, pero no cambiar para que digan otra cosa.</li><li>Eres adulto y la voz es tuya.</li><li>Puedes pedirnos por correo que dejemos de usar tus grabaciones cuando quieras.</li></ul>',
+    agreeBox:'Lo leí y estoy de acuerdo.',
+    setH:'Tu voz', setHint:'El juego tiene una voz de mujer y una de hombre en cada idioma. ¿Cuál vas a grabar?',
+    female:'Voz de mujer', male:'Voz de hombre',
+    credit:'Nombre para los créditos (opcional)', creditPh:'p. ej. María L., o déjalo vacío',
+    tipsH:'Consejos',
+    tips:'<ul><li>Un cuarto callado, sin música ni tele. Las cosas suaves (un clóset lleno de ropa es ideal) quitan el eco.</li><li>Ponte a un palmo (15 a 20 cm) del micrófono, siempre a la misma distancia.</li><li>Cálido, amable y un poco despacio, como si le hablaras a un niño de 4 años. Sonríe al hablar; se nota.</li><li>Toca Grabar, espera un momento, di la frase, espera un momento y toca Parar. Escúchala y repite las que no te gusten.</li><li>No tienes que hacerlas todas de una vez. Tus grabaciones se quedan en este navegador, en este dispositivo, hasta que las borres.</li></ul>',
+    linesH:'Las frases', progress:'{n} de {m} grabadas',
+    say:'Di', sayLetter:'El nombre de la letra: {t}', saySound:'El sonido: /{t}/',
+    record:'Grabar', stop:'Parar', play:'Escuchar', redo:'Repetir', saveOne:'Guardar archivo',
+    agreeFirst:'Marca "Estoy de acuerdo" arriba para empezar a grabar.',
+    noMic:'No se pudo usar el micrófono. Permite el micrófono para esta página en tu navegador y vuelve a intentarlo.',
+    noRec:'Este navegador no puede grabar. Prueba Chrome en Android, o Safari o Chrome en una computadora.',
+    quiet:'Un poco bajo: acércate un poco o habla más fuerte.', loud:'Demasiado fuerte (se distorsiona): aléjate un poco.', okLevel:'Grabada, {s} segundos.',
+    sections:{prompts:'Instrucciones', nums:'Números', letters:'Letras y sus sonidos', friends:'Amigos animales'},
+    sendH:'Envía tus grabaciones',
+    send:'<ol><li>Toca <b>Guardar todo</b>. Tu navegador guarda un archivo, <code>{zip}</code>, con todas las frases que grabaste (cada una con el nombre que necesita el juego, como <code>letter-S.wav</code>) y una nota con tu nombre para los créditos.</li><li>Envía ese archivo por correo a <a href="{mail}">{to}</a> (el enlace empieza el correo por ti). Adjunta el archivo desde tus Descargas.</li><li>Si el correo dice que el archivo es muy grande, usa <b>Guardar archivo</b> en cada frase para enviarlas en dos o tres correos, o compártelo con un enlace de Google Drive o algo parecido.</li></ol><p>Te contestaremos para darte las gracias y avisarte cuando tu voz esté en el juego.</p>',
+    saveAll:'Guardar todo', mailSubj:'Grabaciones de voz para El Correo de los Animales: {lang}, {set}',
+    mailBody:'¡Hola! Aquí están mis grabaciones para El Correo de los Animales.\n\nIdioma: {lang}\nVoz: {set}\nFrases grabadas: {n} de {m}\nNombre para los créditos: {credit}\n\nLeí la página para voluntarios y estoy de acuerdo con lo que dice.\n',
+    anon:'(anónimo)', nothing:'Primero graba al menos una frase.',
+    eraseH:'Tus grabaciones en este dispositivo',
+    erase:'<p>Las grabaciones se quedan en este navegador, en este dispositivo, hasta que las borres. No se sube nada: esta página no envía nada a ningún lado. Solo sale del dispositivo lo que tú envíes por correo.</p>',
+    eraseBtn:'Borrar mis grabaciones', eraseSure:'Toca otra vez para borrar todas tus grabaciones aquí',
+    privacy:'Privacidad', back:'Volver al juego', gamePrivacy:'privacy-es.html', game:'es/'
+  }
+};
+var T = W[LANG] || W.en;
+function tx(s, v){ return v ? s.replace(/\{(\w+)\}/g, function(m, k){ return v[k] !== undefined ? v[k] : m; }) : s; }
+
+/* Delivery notes, per line kind, in the page's language. Prompts joined to another clip in the game
+   (who-gets-the + a letter, mail-for + a name, deliver-to + a number) must stop where the next clip
+   starts. */
+var NOTES = {
+  en: {
+    'who-gets-the':'A warm, curious question. Stop right after "the": the game adds the letter from its own recording.',
+    'mail-for':'Bright and clear. Stop right after "for": the game adds the friend\'s name.',
+    'try-again':'Gentle and encouraging, never disappointed.',
+    'hint':'Playful and helpful.',
+    'locked':'Upbeat and encouraging.',
+    'route-done':'A big celebration! Three short sentences, with a little pause between them.',
+    'deliver-to':'Clear. Stop right after "number": the game adds the number.',
+    'count-prompt':'Slow and clear, as if about to count together.',
+    'whos-playing':'Welcoming and a little excited.',
+    num:'Just the number, clearly, as if counting.',
+    letter:'Just the letter\'s name, clearly, as in the alphabet song.',
+    sound:'Just the sound the letter makes, not its name. Hold long sounds (sss, mmm, fff) about a second; keep short ones (b, k, p) short, with as little "uh" after them as you can.',
+    name:'Friendly, as if introducing a friend.',
+    reward:'Cheerful, celebrating a right answer.'
+  },
+  es: {
+    'who-gets-the':'Una pregunta cálida y curiosa. Para justo después de "la": el juego agrega la letra con su propia grabación.',
+    'mail-for':'Alegre y clara. Para justo después de "para": el juego agrega el nombre del amigo.',
+    'try-again':'Suave y animando, nunca decepcionada.',
+    'hint':'Juguetona y amable.',
+    'locked':'Animada y alentadora.',
+    'route-done':'¡Una gran celebración! Tres frases cortas, con una pausa pequeña entre ellas.',
+    'deliver-to':'Clara. Para justo después de "número": el juego agrega el número.',
+    'count-prompt':'Despacio y claro, como para contar juntos.',
+    'whos-playing':'Acogedora y un poco emocionada.',
+    num:'Solo el número, claro, como al contar.',
+    letter:'Solo el nombre de la letra, claro, como en el abecedario (M es "eme").',
+    sound:'Solo el sonido, no el nombre de la letra. Los sonidos largos (mmm, sss, fff) dúralos como un segundo; las sílabas (pa, ta, ca) cortas y claras.',
+    name:'Amable, como presentando a un amigo.',
+    reward:'Alegre, celebrando una respuesta correcta.'
+  }
+};
+var N = NOTES[LANG] || NOTES.en;
+function kindOf(k){ var m = /^(num|letter|sound|name|reward)-/.exec(k); return m ? m[1] : 'prompt'; }
+function noteFor(k){ return N[k] || N[kindOf(k)] || ''; }
+function sayFor(k){
+  var kind = kindOf(k), txt = CLIPS[k];
+  if(kind === 'letter') return tx(T.sayLetter, {t:txt});
+  if(kind === 'sound') return tx(T.saySound, {t:txt});
+  return txt;
+}
+function sectionOf(k){
+  var kind = kindOf(k);
+  return kind === 'prompt' ? 'prompts' : kind === 'num' ? 'nums' : (kind === 'letter' || kind === 'sound') ? 'letters' : 'friends';
+}
+
+/* ---------- Settings (this page only, separate from the game's save) ---------- */
+var SKEY = 'amr-volunteer';
+var ST = {agree:false, set:'female', credit:''};
+try{ var o = JSON.parse(localStorage.getItem(SKEY) || 'null'); if(o){ ST.agree = o.agree === true; ST.set = AMR.VOICE_SETS.indexOf(o.set) >= 0 ? o.set : 'female'; ST.credit = String(o.credit || '').slice(0, 60); } }catch(e){}
+function saveST(){ try{ localStorage.setItem(SKEY, JSON.stringify(ST)); }catch(e){} }
+
+/* ---------- Recordings, kept in this browser (IndexedDB), keyed language/set/clip ---------- */
+var db = null, REC = {};   // REC[key] = {blob (WAV), peak, secs} for the current language and set
+function openDb(){
+  return new Promise(function(res){
+    try{
+      var r = indexedDB.open('amr-volunteer', 1);
+      r.onupgradeneeded = function(){ r.result.createObjectStore('clips'); };
+      r.onsuccess = function(){ db = r.result; res(); };
+      r.onerror = function(){ res(); };
+    }catch(e){ res(); }
+  });
+}
+function loadSet(){
+  REC = {};
+  if(!db) return Promise.resolve();
+  return new Promise(function(res){
+    try{
+      var pre = LANG + '/' + ST.set + '/', tr = db.transaction('clips'), req = tr.objectStore('clips').openCursor();
+      req.onsuccess = function(){
+        var c = req.result;
+        if(!c){ res(); return; }
+        if(String(c.key).indexOf(pre) === 0 && CLIPS.hasOwnProperty(c.key.slice(pre.length))) REC[c.key.slice(pre.length)] = c.value;
+        c.continue();
+      };
+      req.onerror = function(){ res(); };
+    }catch(e){ res(); }
+  });
+}
+function eraseAll(){
+  REC = {};
+  if(!db) return Promise.resolve();
+  return new Promise(function(res){ try{ var tr = db.transaction('clips', 'readwrite'); tr.objectStore('clips').clear(); tr.oncomplete = res; tr.onerror = res; }catch(e){ res(); } });
+}
+
+/* ---------- Page ---------- */
+document.documentElement.lang = LANG;
+document.title = T.title;
+var mailHref = 'mailto:' + CONTACT;
+function zipName(){ return 'animal-mail-voices-' + LANG + '-' + ST.set + '.zip'; }
+function render(){
+  var groups = {prompts:[], nums:[], letters:[], friends:[]};
+  KEYS.forEach(function(k){ groups[sectionOf(k)].push(k); });
+  var lines = Object.keys(groups).map(function(g){
+    return '<h3>' + esc(T.sections[g]) + '</h3><ul class="lines">' + groups[g].map(function(k){
+      return '<li class="line" data-key="' + esc(k) + '"><p class="say">' + esc(sayFor(k)) + '</p><p class="file">' + esc(k) + '.wav</p><p class="how">' + esc(noteFor(k)) + '</p>' +
+        '<div class="acts"><button type="button" class="rec" data-act="rec">' + esc(T.record) + '</button><button type="button" data-act="play" hidden>' + esc(T.play) + '</button>' +
+        '<button type="button" data-act="save" hidden>' + esc(T.saveOne) + '</button><span class="status" role="status"></span></div></li>';
+    }).join('') + '</ul>';
+  }).join('');
+  $('main').innerHTML =
+    '<h1>' + esc(T.title) + '</h1><div class="stripe" aria-hidden="true"></div>' +
+    '<p class="langs" lang="' + (LANG === 'es' ? 'en' : 'es') + '"><a href="volunteer.html?lang=' + (LANG === 'es' ? 'en' : 'es') + '">' + esc(T.other) + '</a></p>' +
+    '<section><h2>' + esc(T.aboutH) + '</h2>' + tx(T.about, {n:KEYS.length}) + '</section>' +
+    '<section><h2>' + esc(T.agreeH) + '</h2>' + T.agree + '<p><label><input type="checkbox" id="agree"' + (ST.agree ? ' checked' : '') + '> <span>' + esc(T.agreeBox) + '</span></label></p></section>' +
+    '<section><h2>' + esc(T.setH) + '</h2><p>' + esc(T.setHint) + '</p><div class="choices" role="radiogroup">' +
+      AMR.VOICE_SETS.map(function(v){ return '<label><input type="radio" name="set" value="' + v + '"' + (ST.set === v ? ' checked' : '') + '> <span>' + esc(T[v]) + '</span></label>'; }).join('') + '</div>' +
+      '<p><label for="credit" style="display:block">' + esc(T.credit) + '</label><input type="text" id="credit" maxlength="60" autocomplete="off" placeholder="' + esc(T.creditPh) + '" value="' + esc(ST.credit) + '"></p></section>' +
+    '<section><h2>' + esc(T.tipsH) + '</h2>' + T.tips + '</section>' +
+    '<section id="lines-sec"><h2>' + esc(T.linesH) + '</h2><p class="count" id="count"></p><p class="err" id="err" hidden></p><p class="note" id="agree-first" hidden>' + esc(T.agreeFirst) + '</p>' + lines + '</section>' +
+    '<section><h2>' + esc(T.sendH) + '</h2><div id="send"></div><p><button type="button" class="primary" id="save-all">' + esc(T.saveAll) + '</button> <span class="status" id="save-status" role="status"></span></p></section>' +
+    '<section><h2>' + esc(T.eraseH) + '</h2>' + T.erase + '<p><button type="button" class="danger" id="erase">' + esc(T.eraseBtn) + '</button></p></section>' +
+    '<p><a href="' + T.gamePrivacy + '">' + esc(T.privacy) + '</a> · <a class="back" style="margin:0" href="' + T.game + '">' + esc(T.back) + '</a></p>';
+  bind();
+  refresh();
+}
+function setName(){ return T[ST.set]; }
+function mailLink(){
+  var n = Object.keys(REC).length;
+  return mailHref + '?subject=' + encodeURIComponent(tx(T.mailSubj, {lang:LANGS[LANG].name, set:setName()})) +
+    '&body=' + encodeURIComponent(tx(T.mailBody, {lang:LANGS[LANG].name, set:setName(), n:n, m:KEYS.length, credit:ST.credit || T.anon}));
+}
+function refresh(){
+  var n = 0;
+  document.querySelectorAll('.line').forEach(function(li){
+    var k = li.getAttribute('data-key'), r = REC[k];
+    if(r) n++;
+    li.classList.toggle('done', !!r);
+    li.querySelector('[data-act=play]').hidden = !r;
+    li.querySelector('[data-act=save]').hidden = !r;
+    var b = li.querySelector('[data-act=rec]');
+    if(b !== recBtn){ b.textContent = r ? T.redo : T.record; b.disabled = !ST.agree; }
+    var s = li.querySelector('.status');
+    if(r && !s.textContent) levelNote(s, r);
+    if(!r){ s.textContent = ''; s.className = 'status'; }
+  });
+  $('count').textContent = tx(T.progress, {n:n, m:KEYS.length});
+  $('agree-first').hidden = ST.agree;
+  $('send').innerHTML = tx(T.send, {zip:esc(zipName()), mail:esc(mailLink()), to:CONTACT});
+}
+function levelNote(el, r){
+  var msg = r.peak < 0.08 ? T.quiet : r.peak > 0.985 ? T.loud : tx(T.okLevel, {s:r.secs.toFixed(1)});
+  el.textContent = msg;
+  el.className = 'status ' + (r.peak < 0.08 || r.peak > 0.985 ? 'warn' : 'ok');
+}
+
+/* ---------- Recording ---------- */
+var stream = null, recorder = null, recBtn = null, recSet = null, chunks = [], player = null;
+function getMic(){
+  if(stream) return Promise.resolve(stream);
+  if(!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia || !window.MediaRecorder) return Promise.reject(new Error('norec'));
+  return navigator.mediaDevices.getUserMedia({audio:{echoCancellation:false, noiseSuppression:true, autoGainControl:false}}).then(function(s){ stream = s; return s; });
+}
+function showErr(msg){ $('err').textContent = msg; $('err').hidden = !msg; }
+function startRec(btn){
+  if(recorder) return;
+  var li = btn.closest('.line');
+  getMic().then(function(s){
+    showErr('');
+    chunks = [];
+    recorder = new MediaRecorder(s);
+    recBtn = btn; recSet = ST.set;
+    recorder.ondataavailable = function(e){ if(e.data && e.data.size) chunks.push(e.data); };
+    recorder.onstop = function(){ finish(li, new Blob(chunks, {type:recorder.mimeType})); };
+    recorder.start();
+    btn.textContent = T.stop; btn.classList.add('on');
+    document.querySelectorAll('[data-act=rec]').forEach(function(b){ if(b !== btn) b.disabled = true; });
+  }).catch(function(e){ showErr(e && e.message === 'norec' ? T.noRec : T.noMic); });
+}
+function stopRec(){ if(recorder && recorder.state !== 'inactive') recorder.stop(); }
+/* The browser records in its own format (webm or mp4); it is turned into a mono 22,050 Hz 16-bit
+   WAV here, the same on every browser, named as the game expects (letter-S.wav). */
+function finish(li, blob){
+  var k = li.getAttribute('data-key'), btn = recBtn, set = recSet;
+  recorder = null; recBtn = null;
+  btn.classList.remove('on');
+  blob.arrayBuffer().then(function(buf){
+    var ac = new (window.AudioContext || window.webkitAudioContext)();
+    return new Promise(function(res, rej){ ac.decodeAudioData(buf, res, rej); }).then(function(a){ try{ ac.close(); }catch(e){} return a; });
+  }).then(toWav).then(function(r){
+    // kept under the voice it was recorded for, even if the choice changed meanwhile
+    if(db){ try{ db.transaction('clips', 'readwrite').objectStore('clips').put(r, LANG + '/' + set + '/' + k); }catch(e){} }
+    if(set === ST.set) REC[k] = r;
+    li.querySelector('.status').textContent = '';
+    refresh();
+  }).catch(function(){ showErr(T.noRec); refresh(); });
+}
+function toWav(a){
+  var rate = 22050, len = Math.max(1, Math.ceil(a.duration * rate));
+  var off = new (window.OfflineAudioContext || window.webkitOfflineAudioContext)(1, len, rate);
+  var src = off.createBufferSource();
+  src.buffer = a; src.connect(off.destination); src.start();
+  return off.startRendering().then(function(b){
+    var d = b.getChannelData(0), peak = 0, i;
+    for(i = 0; i < d.length; i++){ var v = Math.abs(d[i]); if(v > peak) peak = v; }
+    var out = new DataView(new ArrayBuffer(44 + d.length * 2));
+    var str = function(o, s){ for(var j = 0; j < s.length; j++) out.setUint8(o + j, s.charCodeAt(j)); };
+    str(0, 'RIFF'); out.setUint32(4, 36 + d.length * 2, true); str(8, 'WAVEfmt ');
+    out.setUint32(16, 16, true); out.setUint16(20, 1, true); out.setUint16(22, 1, true);
+    out.setUint32(24, rate, true); out.setUint32(28, rate * 2, true); out.setUint16(32, 2, true); out.setUint16(34, 16, true);
+    str(36, 'data'); out.setUint32(40, d.length * 2, true);
+    for(i = 0; i < d.length; i++){ var x = Math.max(-1, Math.min(1, d[i])); out.setInt16(44 + i * 2, x < 0 ? x * 0x8000 : x * 0x7fff, true); }
+    return {blob:new Blob([out.buffer], {type:'audio/wav'}), peak:peak, secs:d.length / rate};
+  });
+}
+function download(blob, name){
+  var a = document.createElement('a'), u = URL.createObjectURL(blob);
+  a.href = u; a.download = name;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(function(){ URL.revokeObjectURL(u); }, 60000);
+}
+
+/* ---------- Save all: one .zip (stored, not compressed: WAV barely compresses) ---------- */
+var CRC = (function(){ var t = [], c, n, k; for(n = 0; n < 256; n++){ c = n; for(k = 0; k < 8; k++) c = c & 1 ? 0xEDB88320 ^ (c >>> 1) : c >>> 1; t[n] = c >>> 0; } return t; })();
+function crc32(u8){ var c = 0xFFFFFFFF; for(var i = 0; i < u8.length; i++) c = CRC[(c ^ u8[i]) & 255] ^ (c >>> 8); return (c ^ 0xFFFFFFFF) >>> 0; }
+function makeZip(files){   // files: [{name, data:Uint8Array}]
+  var parts = [], central = [], offset = 0, enc = new TextEncoder();
+  files.forEach(function(f){
+    var name = enc.encode(f.name), crc = crc32(f.data), h = new DataView(new ArrayBuffer(30));
+    h.setUint32(0, 0x04034b50, true); h.setUint16(4, 20, true); h.setUint16(6, 0x0800, true); h.setUint16(8, 0, true);
+    h.setUint16(10, 0, true); h.setUint16(12, 0x21, true); h.setUint32(14, crc, true);
+    h.setUint32(18, f.data.length, true); h.setUint32(22, f.data.length, true); h.setUint16(26, name.length, true); h.setUint16(28, 0, true);
+    parts.push(h.buffer, name, f.data);
+    var c = new DataView(new ArrayBuffer(46));
+    c.setUint32(0, 0x02014b50, true); c.setUint16(4, 20, true); c.setUint16(6, 20, true); c.setUint16(8, 0x0800, true); c.setUint16(10, 0, true);
+    c.setUint16(12, 0, true); c.setUint16(14, 0x21, true); c.setUint32(16, crc, true); c.setUint32(20, f.data.length, true); c.setUint32(24, f.data.length, true);
+    c.setUint16(28, name.length, true); c.setUint32(42, offset, true);
+    central.push(c.buffer, name);
+    offset += 30 + name.length + f.data.length;
+  });
+  var size = central.reduce(function(s, p){ return s + p.byteLength; }, 0), e = new DataView(new ArrayBuffer(22));
+  e.setUint32(0, 0x06054b50, true); e.setUint16(8, files.length, true); e.setUint16(10, files.length, true);
+  e.setUint32(12, size, true); e.setUint32(16, offset, true);
+  return new Blob(parts.concat(central, [e.buffer]), {type:'application/zip'});
+}
+function saveAll(){
+  var ks = KEYS.filter(function(k){ return REC[k]; });
+  if(!ks.length){ $('save-status').textContent = T.nothing; return; }
+  $('save-status').textContent = '';
+  var dir = LANG + '-' + ST.set + '/';
+  Promise.all(ks.map(function(k){ return REC[k].blob.arrayBuffer().then(function(b){ return {name:dir + k + '.wav', data:new Uint8Array(b)}; }); })).then(function(files){
+    var note = 'Animal Mail Route voice recordings\nLanguage: ' + LANG + ' (' + LANGS[LANG].name + ')\nVoice: ' + ST.set + '\nLines: ' + ks.length + ' of ' + KEYS.length +
+      '\nName for the credits: ' + (ST.credit || '(anonymous)') + '\nAgreed to the volunteer page: ' + (ST.agree ? 'yes' : 'no') + '\nMissing: ' + (KEYS.filter(function(k){ return !REC[k]; }).join(', ') || 'none') + '\n';
+    files.push({name:dir + 'credits.txt', data:new TextEncoder().encode(note)});
+    var z = makeZip(files);
+    window.__lastZip = z;   // for the touch test
+    download(z, zipName());
+  });
+}
+
+/* ---------- Events ---------- */
+var eraseArmed = 0;
+function bind(){
+  $('agree').addEventListener('change', function(){ ST.agree = this.checked; saveST(); refresh(); });
+  document.querySelectorAll('input[name=set]').forEach(function(r){
+    r.addEventListener('change', function(){ if(!this.checked) return; stopRec(); ST.set = this.value; saveST(); loadSet().then(function(){ clearStatus(); refresh(); }); });
+  });
+  $('credit').addEventListener('input', function(){ ST.credit = this.value.slice(0, 60); saveST(); refresh(); });
+  $('lines-sec').addEventListener('click', function(e){
+    var b = e.target.closest('[data-act]');
+    if(!b) return;
+    var k = b.closest('.line').getAttribute('data-key'), act = b.getAttribute('data-act');
+    if(act === 'rec'){ if(recBtn === b) stopRec(); else if(ST.agree) startRec(b); }
+    else if(act === 'play' && REC[k]){
+      try{ if(player) player.pause(); }catch(err){}
+      player = new Audio(URL.createObjectURL(REC[k].blob));
+      player.play().catch(function(){});
+    }
+    else if(act === 'save' && REC[k]) download(REC[k].blob, k + '.wav');
+  });
+  $('save-all').addEventListener('click', saveAll);
+  $('erase').addEventListener('click', function(){
+    var b = this;
+    if(Date.now() - eraseArmed > 4000){ eraseArmed = Date.now(); b.textContent = T.eraseSure; setTimeout(function(){ b.textContent = T.eraseBtn; }, 4000); return; }
+    eraseArmed = 0; b.textContent = T.eraseBtn;
+    stopRec();
+    eraseAll().then(function(){ clearStatus(); refresh(); });
+  });
+}
+function clearStatus(){ document.querySelectorAll('.line .status').forEach(function(s){ s.textContent = ''; s.className = 'status'; }); }
+
+openDb().then(loadSet).then(render);
+})();
+</script>
+</body>
+</html>
