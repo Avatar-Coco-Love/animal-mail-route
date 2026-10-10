@@ -81,7 +81,7 @@ test('malformed and oversized bodies are rejected and nothing is stored', async 
     { ...good, opens: 201 },
     { ...good, opens: -1 },
     { ...good, opens: 1.5 },
-    { ...good, started: { 6: 1 } },
+    { ...good, started: { 7: 1 } },
     { ...good, started: { 1: '3' } },
     { ...good, misses: { 1: 999 } },
     { ...good, finished: [1] },
@@ -108,6 +108,15 @@ test('parseCounts accepts exactly what the game sends', () => {
   assert.deepEqual(parseCounts({ v: 1, app: '0.2', opens: 0, started: { 4: 1 }, finished: {}, misses: {} }), [
     { metric: 'started', route: 4, n: 1 },
   ]);
+});
+
+test('parseCounts accepts the Letter sounds and Lowercase routes (5, 6), not route 7', () => {
+  assert.deepEqual(parseCounts({ v: 1, app: '1.9', opens: 0, started: { 5: 2, 6: 1 }, finished: { 6: 1 }, misses: {} }), [
+    { metric: 'started', route: 5, n: 2 },
+    { metric: 'started', route: 6, n: 1 },
+    { metric: 'finished', route: 6, n: 1 },
+  ]);
+  assert.equal(parseCounts({ v: 1, app: '1.9', opens: 0, started: { 7: 1 }, finished: {}, misses: {} }), null);
 });
 
 test('the Worker source never touches IP headers or logs', () => {

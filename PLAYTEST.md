@@ -35,6 +35,8 @@ Tick or write yes / no / unsure. A word or two of detail helps a lot.
 - [ ] Understood the animal pictures (route 2)
 - [ ] Understood numbers and stars (route 4, if reached):
 - [ ] Letter sounds (route 5, after route 3; or turn on "Unlock all routes" in the parent corner): understood "Who starts with *buh*?", tapped the speaker on the mail to hear it again, and the voice said the sounds clearly ("sss", "buh"):
+- [ ] Lowercase (route 6, after route 5): the mail shows a little letter ("b") and the houses big ones ("B"). Matched them without the voice saying the letter's name? Which little letters were hard (b and d, p and q come together only after 4 rounds)?:
+- [ ] On a small phone: the map's circles (smaller now, so all six routes fit) were big enough to tap:
 - [ ] Knew what to press on the "Route complete" card
 - [ ] Noticed the path on the map light up after a route's second round (said or pointed at it?):
 - [ ] Noticed that the S house sometimes has Sally the Seal instead of Sammy the Skunk (confused, or liked it?):
@@ -66,7 +68,7 @@ Odd behaviour, things the child said, ideas:
 ## Parent corner (optional, after play)
 Press and hold the gear on the title screen. Copy these lines:
 - Recorded voice clips (and, once volunteers' recordings are in, which "Recorded voice" is chosen):
-- Progress (all six lines):
+- Progress (all eight lines):
 - Needs practice:
 - Number of players set up, if more than one child plays:
 - Tap "Print summary": did the print screen open, and did the page look right (or save as PDF)?
@@ -115,6 +117,7 @@ Marca o escribe sí / no / no sé. Unas palabras de detalle ayudan mucho.
 - [ ] El título "El Correo de los Animales" suena bien (¿otro nombre que te guste más?):
 - [ ] Los sonidos de las letras ("M, mmm", "P, pa", "S, sss") son como los enseñan en la escuela o en casa (¿cuáles no?):
 - [ ] La pregunta de la ruta 5, "¿Quién empieza con…?" seguida del sonido, suena natural (¿cómo la dirías?):
+- [ ] La pregunta de la ruta 6, "¿Quién recibe esta letra chiquita?", y el nombre de la ruta, "Minúsculas", suenan bien (¿dirías "letra minúscula"?):
 - [ ] Los nombres de los animales suenan bien y se entienden (Memo el Mono, Paco el Pingüino, Leo el León, Sofi la Salamandra, Tita la Tortuga…). ¿Alguno raro o confuso?:
 - [ ] Algún dibujo no parece el animal que dice su nombre:
 - [ ] Amigos nuevos: en el rincón de papás, en Letras, activa D, Ñ y Q (o toca "Todas") y juega una ronda. ¿Se reconocen Dani el Delfín, Ñico el Ñandú y Quique el Quetzal, y suenan bien sus nombres?:
@@ -132,6 +135,7 @@ Marca o escribe sí / no / no sé. Unas palabras de detalle ayudan mucho.
 - [ ] Entendió los dibujos de animales (ruta 2)
 - [ ] Entendió los números y las estrellas (ruta 4, en la línea 123):
 - [ ] Sonidos de las letras (ruta 5, después de la ruta 3; o activa "Abrir todas las rutas" en el rincón de papás): entendió "¿Quién empieza con *ba*?", tocó la bocina de la carta para oírlo otra vez, y la voz dijo bien los sonidos ("sss", "ba", "mmm"):
+- [ ] Minúsculas (ruta 6, después de la ruta 5): la carta muestra una letra chiquita ("b") y las casas la grande ("B"). ¿Las juntó sin que la voz dijera el nombre de la letra? ¿Cuáles costaron (b y d, p y q salen juntas solo después de 4 rondas)? ¿Se vio bien la "ñ"?:
 - [ ] Supo qué tocar en la tarjeta de "¡Ruta terminada!"
 
 **Pantalla**

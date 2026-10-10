@@ -167,10 +167,21 @@ svg{display:block}
 .node:not(.locked) .lock{display:none}
 .node.shake .disc{animation:shake .45s}
 /* "You are here": the player's animal sits on the route to play next */
-.here{position:absolute;left:-12px;top:-12px;z-index:2;width:clamp(40px,40%,52px);aspect-ratio:1;border-radius:50%;background:var(--bg);border:4px solid var(--paper);box-shadow:0 3px 0 rgba(36,48,77,.25);display:grid;place-items:center;animation:bob 1.6s ease-in-out infinite}
+.here{position:absolute;left:-12px;top:-12px;z-index:2;width:clamp(34px,40%,52px);aspect-ratio:1;border-radius:50%;background:var(--bg);border:4px solid var(--paper);box-shadow:0 3px 0 rgba(36,48,77,.25);display:grid;place-items:center;animation:bob 1.6s ease-in-out infinite}
 .here svg{width:84%;height:auto}
 /* a route that just opened and hasn't been played pulses until it is */
 .node.fresh .disc::after{content:"";position:absolute;inset:-7px;border-radius:50%;border:5px solid var(--sun);animation:ring 1.6s ease-out infinite;pointer-events:none}
+/* Discs shrink to fit the longest track (--n routes) in the height: about 60 px on the small phone
+   with 5 Letters routes. The envelope, padlock and letters inside scale with the disc (cqi), so a
+   small disc still reads. Browsers without dvh or cqi keep the sizes above. */
+@supports (height:1dvh) and (width:1cqi){
+  .disc{width:clamp(60px,min(26vw,14vh,calc((100dvh - 150px) / var(--n) - 38px)),128px);container-type:inline-size}
+  .mini{width:max(62%,34px);border-width:min(6px,8cqi)}
+  .mini .l{font-size:min(clamp(1.4rem,6vw,1.9rem),40cqi)}
+  .mini.two .l{font-size:min(clamp(1rem,4.4vw,1.4rem),28cqi)}
+  .lock{width:min(38px,58cqi);height:min(38px,58cqi)}
+  .lock svg{width:min(20px,30cqi);height:min(20px,30cqi)}
+}
 
 /* who's playing */
 .who{background:linear-gradient(180deg,var(--sky-top) 0%,var(--sky-low) 80%,var(--grass) 80%,var(--grass-deep) 100%)}
@@ -513,7 +524,7 @@ svg{display:block}
       </div>
       <div class="block" id="vol-block"><b data-t="volunteer">Volunteer voices</b><p class="hint-text" data-t="volunteerHint"></p><a class="pbtn" id="vol-link" href="volunteer.html" target="_blank" rel="noopener" data-t="volunteerBtn">Lend your voice</a></div>
       <div class="row"><b data-t="everyone">Everyone</b><button class="pbtn danger" type="button" id="b-reset" data-t="reset">Erase everything</button></div>
-      <p class="note"><span id="note">Prototype 1.8. Voice prompts use your device's built-in speech until recorded voices are added.</span> <span id="share-note" data-t="shareNote" hidden>"Share play counts" sends only anonymous totals, such as rounds played per route, and is off unless you turn it on.</span> <a id="privacy-link" href="privacy.html" target="_blank" rel="noopener" data-t="privacy">Privacy</a></p>
+      <p class="note"><span id="note">Prototype 1.9. Voice prompts use your device's built-in speech until recorded voices are added.</span> <span id="share-note" data-t="shareNote" hidden>"Share play counts" sends only anonymous totals, such as rounds played per route, and is off unless you turn it on.</span> <a id="privacy-link" href="privacy.html" target="_blank" rel="noopener" data-t="privacy">Privacy</a></p>
       <button class="close" type="button" id="p-close" data-t="done">Done</button>
     </div>
   </div>
@@ -675,7 +686,7 @@ var LOCK = '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="11" width
 var MAX_PLAYERS = 8, NAME_MAX = 20;
 var MIN_LETTERS = 2;
 var PROG = ['animal', 'rounds', 'stickers', 'weak', 'seen', 'letters', 'setRounds', 'last'];
-function newPlayer(id, animal){ return {id:id, name:'', animal:animal || STARTERS[0], rounds:{1:0,2:0,3:0,4:0,5:0}, stickers:[], weak:{}, seen:{}, letters:STARTERS.slice(), setRounds:0, last:1, other:{}}; }
+function newPlayer(id, animal){ return {id:id, name:'', animal:animal || STARTERS[0], rounds:{1:0,2:0,3:0,4:0,5:0,6:0}, stickers:[], weak:{}, seen:{}, letters:STARTERS.slice(), setRounds:0, last:1, other:{}}; }
 function defaults(){ return {v:2, device:{lang:LANG, voice:true, sfx:true, share:false, unlockAll:false, lettersSame:false, voices:{}}, current:1, players:[newPlayer(1)]}; }
 /* voices (1.6): the recorded voice chosen per language, 'female', 'male' or 'device' (the built-in
    speech); a language with no choice uses the set with the most recordings. */
@@ -962,7 +973,7 @@ function hush(){
    Off unless a parent turns on "Share play counts". Only totals per route are kept, with no
    identifier or timestamp, and they are sent once when the page is hidden. The setting is
    not shown at all while COUNT_URL is empty. */
-var VERSION = '1.8';
+var VERSION = '1.9';
 var COUNT_URL = '';      // the Worker, e.g. 'https://animal-mail-counts.<account>.workers.dev/v1/counts'
 var CKEY = 'animal-mail-route-counts', CAP = 200, METRICS = ['started','finished','misses'];
 function emptyCounts(){ return {opens:0, started:{}, finished:{}, misses:{}}; }
@@ -1001,7 +1012,7 @@ document.addEventListener('visibilitychange', function(){ if(document.visibility
 /* Tracks: each has its own unlock chain, so numbers don't wait for letters. A route's saved
    rounds key is its id (1 to 4 as before 0.9), whatever track it is on; new routes get new ids. */
 var TRACKS = [
-  {id:'letters', name:'ABC', label:t('trackLetters'), routes:[1, 2, 3, 5]},
+  {id:'letters', name:'ABC', label:t('trackLetters'), routes:[1, 2, 3, 5, 6]},
   {id:'numbers', name:'123', label:t('trackNumbers'), routes:[4]}
 ];
 function trackOf(l){ return TRACKS.filter(function(t){ return t.routes.indexOf(l) >= 0; })[0]; }
@@ -1011,7 +1022,7 @@ function nextIn(l){ var r = trackOf(l).routes; return r[r.indexOf(l) + 1] || 0; 
 var STARS = 2;
 function unlocked(l, p){ var b = prevIn(l); return !b || S.unlockAll || ((p || P).rounds[b] || 0) >= STARS; }
 function houseCount(l){
-  var grow = l === 1 ? 2 + (P.rounds[1] || 0) : (l === 2 || l === 4 || l === 5) ? 3 + (P.rounds[l] || 0) : 5;
+  var grow = l === 1 ? 2 + (P.rounds[1] || 0) : (l === 2 || l === 4 || l === 5 || l === 6) ? 3 + (P.rounds[l] || 0) : 5;
   return Math.min(5, grow, l === 4 ? 5 : P.letters.length);
 }
 /* The letters for a round on a letter route. A set that fits on the street is used in its order,
@@ -1024,19 +1035,28 @@ function roundLetters(n, l){
     var weak = function(x){ var w = P.weak[x] || 0; return w >= 2 ? w : 0; };
     order.sort(function(a, b){ return (weak(b) - weak(a)) || (met(a) - met(b)) || (set.indexOf(a) - set.indexOf(b)); });
   }
-  return l === 5 ? soundLetters(order, n) : order.slice(0, n);
+  if(l === 5) return distinctLetters(order, n, function(x){ return !hasSound(x); }, soundsAlike);
+  if(l === 6 && (P.rounds[6] || 0) < LOWER_EARLY) return distinctLetters(order, n, function(){ return false; }, mirrored);
+  return order.slice(0, n);
 }
 /* Letter sounds (route 5): only letters with a sound (not Spanish H), and never two that sound
    alike (L10N.alike: English C and K; Spanish S and Z, B and V, C and K), so every mail has one
-   right house by ear. The first of a pair in the order wins. If the set leaves fewer than 2, the
-   first letters of the alphabet's friends (LETTERS order) fill in, so the round still has 2 houses. */
+   right house by ear. Lowercase (route 6): in its first LOWER_EARLY rounds, never b with d or p with
+   q, which are the same shape turned round. In both, the first of a pair in the order wins. If the
+   set leaves fewer than 2, the first letters of the alphabet's friends (LETTERS order) fill in, so
+   the round still has 2 houses. */
+var LOWER_EARLY = 4;
+var MIRRORED = [['B','D'], ['P','Q']];
+function lower(l){ return l.toLowerCase(); }
 function hasSound(l){ return !!L10N.sounds[l]; }
-function soundsAlike(a, b){ return (L10N.alike || []).some(function(g){ return g.indexOf(a) >= 0 && g.indexOf(b) >= 0; }); }
-function soundLetters(order, n){
+function inGroup(groups, a, b){ return groups.some(function(g){ return g.indexOf(a) >= 0 && g.indexOf(b) >= 0; }); }
+function soundsAlike(a, b){ return inGroup(L10N.alike || [], a, b); }
+function mirrored(a, b){ return inGroup(MIRRORED, a, b); }
+function distinctLetters(order, n, skip, clash){
   var out = [];
   order.concat(LETTERS).forEach(function(x, i){
     if(out.length >= n || (i >= order.length && out.length >= MIN_LETTERS)) return;
-    if(!hasSound(x) || out.indexOf(x) >= 0 || out.some(function(y){ return soundsAlike(x, y); })) return;
+    if(skip(x) || out.indexOf(x) >= 0 || out.some(function(y){ return clash(x, y); })) return;
     out.push(x);
   });
   return out;
@@ -1046,6 +1066,7 @@ function kindFor(l){
   if(l === 2) return 'picture';
   if(l === 4) return Math.random() < 0.5 ? 'number' : 'count';
   if(l === 5) return 'sound';
+  if(l === 6) return 'lower';
   return Math.random() < 0.5 ? 'letter' : 'picture';
 }
 function shuffle(a){
@@ -1152,7 +1173,8 @@ var LEVELS = [
   {id:2, mini:art(STARTERS[2]), two:false},
   {id:3, mini:'<span class="l">' + STARTERS[1] + '</span>' + art(STARTERS[4]), two:true},
   {id:4, mini:'<span class="l">3</span>', two:false},
-  {id:5, mini:SPEAKER.replace('<svg ', '<svg class="spk" '), two:false}
+  {id:5, mini:SPEAKER.replace('<svg ', '<svg class="spk" '), two:false},
+  {id:6, mini:'<span class="l">' + STARTERS[1] + lower(STARTERS[1]) + '</span>', two:false}
 ];
 var LEVEL_NAME = {};
 LEVELS.forEach(function(L){ LEVEL_NAME[L.id] = t('levels')[L.id - 1]; });
@@ -1317,6 +1339,9 @@ function promptFor(item){
     var snd = L10N.sounds[item.id];
     return {cap:t('capSound', {s:snd}), say:['who-starts-with', 'sound-' + item.id], label:t('mailSound', {s:snd})};
   }
+  if(item.kind === 'lower'){
+    return {cap:t('capLower', {l:lower(item.id)}), say:['little-letter'], label:t('mailLower', {l:lower(item.id)})};
+  }
   if(item.kind === 'count'){
     return {cap:t('capCount'), say:['count-prompt'], label:t('mailCount', {n:NUM[item.id]})};
   }
@@ -1326,6 +1351,7 @@ function paperHTML(item){
   if(item.kind === 'letter') return '<span class="big">' + item.id + '</span>';
   if(item.kind === 'number') return '<span class="big">' + NUM[item.id] + '</span>';
   if(item.kind === 'sound') return '<span class="spk">' + SPEAKER + '</span>';
+  if(item.kind === 'lower') return '<span class="big">' + lower(item.id) + '</span>';
   if(item.kind === 'count'){
     var s = '';
     for(var i=0;i<NUM[item.id];i++) s += STAR;
