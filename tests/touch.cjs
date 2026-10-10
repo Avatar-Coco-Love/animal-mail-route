@@ -15,8 +15,9 @@ function check(name, ok, info) {
   console.log((ok ? 'ok   ' : 'FAIL ') + name + (info !== undefined ? '  ' + JSON.stringify(info) : ''));
 }
 
-async function newPage(browser, w, h, init) {
-  const ctx = await browser.newContext({ viewport: { width: w, height: h }, hasTouch: true, isMobile: true });
+// opts: {path} added to the address (e.g. '?lang=es'), {locale} the device's language
+async function newPage(browser, w, h, init, opts = {}) {
+  const ctx = await browser.newContext({ viewport: { width: w, height: h }, hasTouch: true, isMobile: true, locale: opts.locale || 'en-US' });
   const page = await ctx.newPage();
   const cdp = await ctx.newCDPSession(page);
   const errors = [];
@@ -27,7 +28,7 @@ async function newPage(browser, w, h, init) {
   await page.addInitScript(() => { try { speechSynthesis.speak = () => {}; } catch (e) {} });
   // init: {key: value} seeded into localStorage once, before the game's first load
   if (init) await page.addInitScript((kv) => { if (!sessionStorage.seeded) { sessionStorage.seeded = 1; for (const k in kv) localStorage.setItem(k, JSON.stringify(kv[k])); } }, init);
-  await page.goto(BASE, { timeout: 60000 });
+  await page.goto(BASE + (opts.path || ''), { timeout: 60000 });
   await page.waitForTimeout(600);
   const touch = (type, x, y) => cdp.send('Input.dispatchTouchEvent', { type, touchPoints: type === 'touchEnd' ? [] : [{ x, y }] });
   return { ctx, page, touch, errors, hosts };
@@ -66,9 +67,9 @@ const wanted = (page) => page.evaluate(() => document.querySelector('#caption').
     if (name === 'pixel') {
       const html = await page.content();
       check('crane is Cody the Crane', !/Charlie/.test(html) && /id:'C', +letter:'C', name:'Cody the Crane'/.test(html));
-      // id -> [letter, name] from the FRIENDS list in the page source
+      // id -> [letter, name] from the English friends list in the page source
       const friends = {};
-      for (const m of html.matchAll(/\{id:'(\w+)', +letter:'(\w)', name:'([^']+)'/g)) friends[m[1]] = [m[2], m[3]];
+      for (const m of html.slice(html.indexOf('var EN_FRIENDS'), html.indexOf('var ES_FRIENDS')).matchAll(/\{id:'(\w+)', +letter:'(\w)', name:'([^']+)'/g)) friends[m[1]] = [m[2], m[3]];
       // the title cast: 5 friends, each a different letter, named as in FRIENDS, and a new pick on each load
       const cast = () => page.$$eval('#cast .pal', (b) => b.map((x) => x.getAttribute('data-id')));
       const casts = [await cast()];
@@ -694,6 +695,147 @@ const wanted = (page) => page.evaluate(() => document.querySelector('#caption').
     check('offline: privacy page available', priv);
     check('offline: no script or console errors', errors.length === 0, errors.length ? errors : undefined);
     await ctx.close();
+  }
+
+  // ---------- Languages ----------
+  // Spanish is a draft (not offered yet): reachable only at ?lang=es, with its own words, friends and progress.
+  {
+    const enSave = { v: 2, device: { voice: true, sfx: true, share: false, unlockAll: false, lettersSame: false }, current: 1,
+      players: [{ id: 1, name: 'Ana', animal: 'K', rounds: { 1: 3, 2: 0, 3: 0, 4: 0 }, stickers: [{ c: 'S' }, { c: 'B' }, { c: 'K' }], weak: { S: 2 }, seen: {}, letters: ['S', 'B', 'K', 'C', 'P'], setRounds: 3, last: 1 }] };
+    // English: one language offered, so no language button or row; a Spanish device still gets English
+    {
+      const { ctx, page, touch, errors } = await newPage(browser, 412, 915, null, { locale: 'es-MX' });
+      const st = await page.evaluate(() => ({ lang: document.documentElement.lang, btn: document.querySelector('#lang-btn').hidden, title: document.title }));
+      await holdGear(page, touch);
+      st.row = await page.$eval('#lang-row', (e) => e.hidden);
+      check('languages: English by default, no language button or row while Spanish is a draft', st.lang === 'en' && st.btn && st.row && st.title === 'Animal Mail Route', st);
+      await ctx.close();
+      check('languages: no errors in English on a Spanish device', errors.length === 0, errors.length ? errors : undefined);
+    }
+    // a save from before languages stays English, also on a Spanish device
+    {
+      const { ctx, page } = await newPage(browser, 412, 915, { 'animal-mail-route-v2': enSave }, { locale: 'es-MX' });
+      check('languages: a save from before languages stays English', (await page.evaluate(() => document.documentElement.lang)) === 'en');
+      await ctx.close();
+    }
+    // Spanish preview at every size: the title screen and its language button fit, nothing overlaps
+    for (const [name, [w, h]] of Object.entries(SIZES)) {
+      const { ctx, page, errors } = await newPage(browser, w, h, null, { path: '?lang=es' });
+      const st = await page.evaluate(() => {
+        const box = (s) => document.querySelector(s).getBoundingClientRect();
+        const hit = (a, b) => a.left < b.right && b.left < a.right && a.top < b.bottom && b.top < a.bottom;
+        const lb = box('#lang-btn');
+        return { lang: document.documentElement.lang, h1: document.querySelector('h1').textContent, play: document.querySelector('.playbtn').textContent.trim(),
+          btn: document.querySelector('#lang-btn').textContent, aria: document.querySelector('#lang-btn').getAttribute('aria-label'),
+          clear: !['#gear', '.playbtn', '.corner-l .rbtn', '#cast', 'h1'].some((s) => hit(lb, box(s))) };
+      });
+      check(`${name}: Spanish title screen`, st.lang === 'es' && st.h1 === 'El Correo de los Animales' && st.play === 'Jugar' && st.btn === 'English' && st.aria === 'Play in English' && st.clear, st);
+      check(`${name}: Spanish title buttons on screen`, await allOnScreen(page, '.playbtn, .title .rbtn, #lang-btn'));
+      check(`${name}: no errors in Spanish`, errors.length === 0, errors.length ? errors : undefined);
+      await ctx.close();
+    }
+    // Spanish: a round, the words on every screen, the friends, the voice
+    {
+      const { ctx, page, touch, errors } = await newPage(browser, 412, 915, null, { path: '?lang=es' });
+      const english = /\b(Play|Sticker|Parent|Route|Letters|Who gets|Back to|Hear|House|Mail with|Progress|Players|Erase|Print|Done|Voice|Sound effects|Unlock|Needs|None yet|More|First five|Paper|Everyone|Privacy|Prototype|stars?)\b/;
+      const words = () => page.evaluate(() => [...document.querySelectorAll('#app *')].filter((e) => !e.closest('[hidden]') && !e.closest('#lang-btn') && !e.closest('[data-lang]'))
+        .map((e) => [e.getAttribute('aria-label') || '', e.getAttribute('placeholder') || '', [...e.childNodes].filter((n) => n.nodeType === 3).map((n) => n.textContent).join(' ')].join(' ')).join(' | '));
+      let seen = await words();
+      await page.evaluate(() => { window.__said = []; speechSynthesis.speak = (u) => window.__said.push([u.lang, u.text]); });
+      await page.tap('.playbtn');
+      await page.waitForTimeout(300);
+      seen += await words();
+      const map = await page.evaluate(() => [...document.querySelectorAll('#route .node')].map((n) => n.getAttribute('aria-label')));
+      check('Spanish map: route names', map[0].startsWith('Ruta 1, Letras') && map[3].startsWith('Ruta 4, Números'), map);
+      await page.tap('.node[data-level="1"]');
+      await page.waitForTimeout(1700);
+      const cap = await page.$eval('#caption', (e) => e.textContent);
+      const id = await wanted(page);
+      check('Spanish round: the caption asks in Spanish, for one of the first five', /^¿Quién recibe la [MP]\?$/.test(cap), cap);
+      const said = await page.evaluate(() => window.__said.slice(-1)[0]);
+      check('Spanish round: the prompt is spoken in Mexican Spanish', said && said[0] === 'es-MX' && said[1] === '¿Quién recibe la ' + id, said);
+      seen += await words();
+      const from = await center(page, '#mail');
+      const to = await center(page, `.house[data-id="${id}"]`);
+      await touch('touchStart', ...from);
+      for (let i = 1; i <= 12; i++) { await touch('touchMove', from[0] + (to[0] - from[0]) * i / 12, from[1] + (to[1] - from[1]) * i / 12); await page.waitForTimeout(16); }
+      await touch('touchEnd');
+      await page.waitForTimeout(400);
+      const banner = await page.$eval('#banner', (e) => e.textContent);
+      const said2 = await page.evaluate(() => window.__said.slice(-1)[0]);
+      check('Spanish round: the delivery cheers in Spanish', (await page.$$eval('.pip.on', (x) => x.length)) === 1 && new RegExp('^¡' + id + ' de (Memo el Mono|Paco el Pingüino)!$').test(banner) && said2[1] === '¡' + id + '! ¡' + banner.slice(1), [banner, said2]);
+      seen += await words();
+      await page.tap('#s-play [data-go="map"]');
+      await page.waitForTimeout(300);
+      await page.tap('#s-map [data-go="book"]');
+      await page.waitForTimeout(300);
+      check('Spanish sticker book', (await page.$eval('#book-count', (e) => e.textContent)) === '0 estampas');
+      seen += await words();
+      await page.tap('#s-book [data-go="map"]');
+      await page.tap('#s-map [data-go="title"]');
+      await page.waitForTimeout(300);
+      await holdGear(page, touch);
+      await page.tap('#players [data-more]');
+      await page.waitForTimeout(200);
+      seen += await words();
+      const leftover = seen.match(english);
+      check('Spanish: no English words on the title, map, round, sticker book or parent corner', !leftover, leftover && seen.slice(Math.max(0, leftover.index - 80), leftover.index + 80));
+      const fr = await page.evaluate(() => [...document.querySelectorAll('#players [data-ani]')].map((b) => [b.getAttribute('data-ani'), b.getAttribute('aria-label'), b.querySelector('svg').innerHTML.length]));
+      const plain = (s) => s.normalize('NFD').replace(/[̀-ͯ]/g, '');
+      check('Spanish friends: 33, each with a picture, a unique name starting with their letter', fr.length === 33 && new Set(fr.map((f) => f[1])).size === 33 && fr.every(([id, n, a]) => a > 50 && plain(n)[0] === id[0]), fr.filter(([id, n, a]) => !(a > 50 && plain(n)[0] === id[0])));
+      const grid = await page.$$eval('#lgrid button', (b) => b.map((x) => [x.textContent, x.disabled && x.classList.contains('none'), x.getAttribute('aria-pressed')]));
+      const none = grid.filter((g) => g[1]).map((g) => g[0]).join('');
+      const on = grid.filter((g) => g[2] === 'true').map((g) => g[0]).join('');
+      check('Spanish letters: A to Z with Ñ; D, Ñ, Q, U, W, X have no friend yet; M, P, L, S, T on', grid.length === 27 && grid[14][0] === 'Ñ' && none === 'DÑQUWX' && on === 'LMPST', [none, on]);
+      const row = await page.evaluate(() => ({ hidden: document.querySelector('#lang-row').hidden, b: [...document.querySelectorAll('#langs [data-lang]')].map((x) => x.textContent + ':' + x.getAttribute('aria-pressed')) }));
+      check('Spanish parent corner: a language row with both, Español chosen', !row.hidden && row.b.join() === 'English:false,Español:true', row);
+      check('Spanish parent corner fits the width', await page.evaluate(() => { const c = document.querySelector('#parent .card'); return c.scrollWidth <= c.clientWidth + 1; }));
+      check('Spanish: no errors', errors.length === 0, errors.length ? errors : undefined);
+      await ctx.close();
+    }
+    // Progress is per language: Spanish starts fresh, keeps the name, and English progress is untouched
+    {
+      const both = JSON.parse(JSON.stringify(enSave));
+      both.players[0].langs = { es: { animal: 'L', rounds: { 1: 1, 2: 0, 3: 0, 4: 0 }, stickers: [{ c: 'M' }], weak: {}, seen: {}, letters: ['M', 'P'], setRounds: 1, last: 1 } };
+      const { ctx, page, touch, errors } = await newPage(browser, 412, 915, { 'animal-mail-route-v2': enSave }, { path: '?lang=es' });
+      await page.tap('#s-title [data-go="book"]');
+      await page.waitForTimeout(300);
+      const es0 = await page.$eval('#book-count', (e) => e.textContent);
+      const saved = await page.evaluate(() => JSON.parse(localStorage.getItem('animal-mail-route-v2')));
+      const p0 = saved.players[0], e0 = enSave.players[0];
+      check('per language: Spanish starts with no stickers; the save keeps English at the top, as before', es0 === '0 estampas' && saved.device.lang === 'es' &&
+        ['animal', 'rounds', 'stickers', 'weak', 'letters', 'setRounds', 'last'].every((k) => JSON.stringify(p0[k]) === JSON.stringify(e0[k])) && p0.langs && p0.langs.es && p0.langs.es.animal === 'M', saved);
+      await page.tap('#s-book [data-go="map"]');
+      await page.waitForTimeout(300);
+      await page.tap('#s-map [data-go="title"]');
+      await page.waitForTimeout(300);
+      await holdGear(page, touch);
+      check('per language: the name carries over', (await page.$eval('#players input', (e) => e.value)) === 'Ana');
+      // switching from the parent corner reloads in English, without ?lang=es, with English progress
+      await Promise.all([page.waitForNavigation(), page.tap('#langs [data-lang="en"]')]);
+      await page.waitForTimeout(500);
+      const en = await page.evaluate(() => ({ lang: document.documentElement.lang, url: location.search, saved: JSON.parse(localStorage.getItem('animal-mail-route-v2')) }));
+      await page.tap('#s-title [data-go="book"]');
+      await page.waitForTimeout(300);
+      check('per language: switching to English reloads with English progress', en.lang === 'en' && en.url === '' && en.saved.device.lang === 'en' && (await page.$eval('#book-count', (e) => e.textContent)) === '3 stickers', en);
+      await ctx.close();
+      // a save with Spanish progress shows it in Spanish, and the title button switches to English
+      const b = await newPage(browser, 412, 915, { 'animal-mail-route-v2': both }, { path: '?lang=es' });
+      await b.page.tap('#s-title [data-go="book"]');
+      await b.page.waitForTimeout(300);
+      check('per language: Spanish progress shows in Spanish', (await b.page.$eval('#book-count', (e) => e.textContent)) === '1 estampa');
+      await b.page.tap('#s-book [data-go="map"]');
+      await b.page.waitForTimeout(300);
+      check('per language: Spanish avatar and progress lines', (await b.page.$eval('#route .here svg', (e) => e.innerHTML.length)) > 50 && (await b.page.$eval('.node[data-level="1"]', (e) => e.getAttribute('aria-label'))) === 'Ruta 1, Letras, sigue esta');
+      await b.page.tap('#s-map [data-go="title"]');
+      await b.page.waitForTimeout(300);
+      await Promise.all([b.page.waitForNavigation(), b.page.tap('#lang-btn')]);
+      await b.page.waitForTimeout(500);
+      const after = await b.page.evaluate(() => ({ lang: document.documentElement.lang, btn: document.querySelector('#lang-btn').hidden, saved: JSON.parse(localStorage.getItem('animal-mail-route-v2')) }));
+      check('per language: the title button switches to English and both languages\' progress stays', after.lang === 'en' && after.btn && JSON.stringify(after.saved.players[0].langs.es) === JSON.stringify(both.players[0].langs.es) && after.saved.players[0].stickers.length === 3, after);
+      check('per language: no errors', errors.length === 0 && b.errors.length === 0, errors.concat(b.errors));
+      await b.ctx.close();
+    }
   }
 
   await browser.close();
