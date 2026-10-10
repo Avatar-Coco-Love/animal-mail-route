@@ -47,6 +47,7 @@ Tick or write yes / no / unsure. A word or two of detail helps a lot.
 - [ ] Favourite animal or moment:
 
 **Screen**
+- [ ] Opened from a link in Messenger or Facebook: a yellow note on the title says the voice can't play there. "Open in Chrome" (Android) opened the game in Chrome, and the voice played there:
 - [ ] After switching language (the "Español" button by the gear, then "English" to come back), the buttons at the bottom were above the phone's Back / Home / Recent apps bar, not under it:
 
 **Offline (optional)**
@@ -140,6 +141,7 @@ Marca o escribe sí / no / no sé. Unas palabras de detalle ayudan mucho.
 - [ ] Supo qué tocar en la tarjeta de "¡Ruta terminada!"
 
 **Pantalla**
+- [ ] Abierto desde un enlace en Messenger o Facebook: una nota amarilla en el inicio dice que la voz no puede sonar ahí. "Abrir en Chrome" (Android) abrió el juego en Chrome, y ahí sí sonó la voz:
 - [ ] Después de cambiar de idioma (el botón "English" junto al engrane, y "Español" para volver), los botones de abajo quedaron arriba de la barra del teléfono (Atrás, Inicio, Apps recientes), no debajo:
 
 **Cómo le fue**
