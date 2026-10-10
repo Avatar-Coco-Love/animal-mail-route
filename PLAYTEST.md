@@ -107,6 +107,7 @@ Marca o escribe sí / no / no sé. Unas palabras de detalle ayudan mucho.
 - [ ] Los sonidos de las letras ("M, mmm", "P, pa", "S, sss") son como los enseñan en la escuela o en casa (¿cuáles no?):
 - [ ] Los nombres de los animales suenan bien y se entienden (Memo el Mono, Paco el Pingüino, Leo el León, Sofi la Salamandra, Tita la Tortuga…). ¿Alguno raro o confuso?:
 - [ ] Algún dibujo no parece el animal que dice su nombre:
+- [ ] Amigos nuevos: en el rincón de papás, en Letras, activa D, Ñ y Q (o toca "Todas") y juega una ronda. ¿Se reconocen Dani el Delfín, Ñico el Ñandú y Quique el Quetzal, y suenan bien sus nombres?:
 - [ ] Alguna palabra que no se usa en tu casa (por ejemplo "estampa", "engrane", "rincón de papás"), y cuál usarías:
 - [ ] Alguna palabra en inglés que se quedó sin traducir:
 

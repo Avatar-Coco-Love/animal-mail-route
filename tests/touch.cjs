@@ -826,15 +826,45 @@ const wanted = (page) => page.evaluate(() => document.querySelector('#caption').
       check('Spanish: no English words on the title, map, round, sticker book or parent corner', !leftover, leftover && seen.slice(Math.max(0, leftover.index - 80), leftover.index + 80));
       const fr = await page.evaluate(() => [...document.querySelectorAll('#players [data-ani]')].map((b) => [b.getAttribute('data-ani'), b.getAttribute('aria-label'), b.querySelector('svg').innerHTML.length]));
       const plain = (s) => s.normalize('NFD').replace(/[̀-ͯ]/g, '');
-      check('Spanish friends: 33, each with a picture, a unique name starting with their letter', fr.length === 33 && new Set(fr.map((f) => f[1])).size === 33 && fr.every(([id, n, a]) => a > 50 && plain(n)[0] === id[0]), fr.filter(([id, n, a]) => !(a > 50 && plain(n)[0] === id[0])));
+      // Ñ is its own letter, so compare it as is; other accents (Á, Ó) are dropped
+      const first = (n) => n[0] === 'Ñ' ? 'Ñ' : plain(n)[0];
+      check('Spanish friends: 36, each with a picture, a unique name starting with their letter', fr.length === 36 && new Set(fr.map((f) => f[1])).size === 36 && fr.every(([id, n, a]) => a > 50 && first(n) === id[0]), fr.filter(([id, n, a]) => !(a > 50 && first(n) === id[0])));
       const grid = await page.$$eval('#lgrid button', (b) => b.map((x) => [x.textContent, x.disabled && x.classList.contains('none'), x.getAttribute('aria-pressed')]));
       const none = grid.filter((g) => g[1]).map((g) => g[0]).join('');
       const on = grid.filter((g) => g[2] === 'true').map((g) => g[0]).join('');
-      check('Spanish letters: A to Z with Ñ; D, Ñ, Q, U, W, X have no friend yet; M, P, L, S, T on', grid.length === 27 && grid[14][0] === 'Ñ' && none === 'DÑQUWX' && on === 'LMPST', [none, on]);
+      check('Spanish letters: A to Z with Ñ; U, W, X have no friend; M, P, L, S, T on', grid.length === 27 && grid[14][0] === 'Ñ' && none === 'UWX' && on === 'LMPST', [none, on]);
       const row = await page.evaluate(() => ({ hidden: document.querySelector('#lang-row').hidden, b: [...document.querySelectorAll('#langs [data-lang]')].map((x) => x.textContent + ':' + x.getAttribute('aria-pressed')) }));
       check('Spanish parent corner: a language row with both, Español chosen', !row.hidden && row.b.join() === 'English:false,Español:true', row);
       check('Spanish parent corner fits the width', await page.evaluate(() => { const c = document.querySelector('#parent .card'); return c.scrollWidth <= c.clientWidth + 1; }));
       check('Spanish: no errors', errors.length === 0, errors.length ? errors : undefined);
+      await ctx.close();
+    }
+    // The new Spanish friends: a round with only D, Ñ and Q (Dani el Delfín, Ñico el Ñandú, Quique el Quetzal)
+    {
+      const dnq = JSON.parse(JSON.stringify(enSave));
+      dnq.device.lang = 'es';
+      dnq.players[0].langs = { es: { animal: 'Ñ', rounds: { 1: 0, 2: 0, 3: 0, 4: 0 }, stickers: [], weak: {}, seen: {}, letters: ['D', 'Ñ', 'Q'], setRounds: 0, last: 1 } };
+      const { ctx, page, errors } = await newPage(browser, 412, 915, { 'animal-mail-route-v2': dnq });
+      const NAMES = { D: 'Dani el Delfín', 'Ñ': 'Ñico el Ñandú', Q: 'Quique el Quetzal' };
+      await page.tap('.playbtn');
+      await page.waitForTimeout(300);
+      check('new Spanish friends: Ñico the rhea is the player\'s animal on the map', (await page.$eval('#route .here svg', (e) => e.innerHTML.length)) > 50);
+      await page.tap('.node[data-level="1"]');
+      await page.waitForTimeout(1700);
+      const houses = await page.$$eval('.house', (h) => h.map((x) => [x.getAttribute('data-id'), x.textContent.trim(), x.querySelector('svg') ? x.querySelector('svg').innerHTML.length : 0]));
+      const banners = [];
+      for (let i = 0; i < 5; i++) {
+        const id = await wanted(page);
+        await page.tap('#mail');
+        await page.tap(`.house[data-id="${id}"]`, { force: true });
+        await page.waitForTimeout(400);
+        banners.push([id, await page.$eval('#banner', (e) => e.textContent)]);
+        await page.waitForTimeout(2300);
+      }
+      check('new Spanish friends: houses are only D, Ñ and Q, each with a picture', houses.length >= 2 && houses.every(([id, , a]) => 'DÑQ'.includes(id) && a > 50), houses);
+      check('new Spanish friends: every delivery cheers with the friend\'s name', banners.every(([id, b]) => b === '¡' + id + ' de ' + NAMES[id] + '!'), banners);
+      check('new Spanish friends: the round finishes', !(await page.$eval('#win', (e) => e.hidden)));
+      check('new Spanish friends: no errors', errors.length === 0, errors.length ? errors : undefined);
       await ctx.close();
     }
     // Progress is per language: Spanish starts fresh, keeps the name, and English progress is untouched
