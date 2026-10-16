@@ -921,8 +921,10 @@ function speechMissing(){
   if(!('speechSynthesis' in window)) return true;
   try{ return IN_APP && !window.speechSynthesis.getVoices().length; }catch(e){ return true; }
 }
+/* The voice is on but can't play: no speech, and no recorded voice in use. */
+function voiceMissing(){ return speechMissing() && !!S.voice && !chosenSet(); }
 function checkVoice(){
-  var off = !speechMissing() || !S.voice || !!chosenSet();
+  var off = !voiceMissing();
   $('novoice').hidden = off;
   if(off) return;
   var a = $('novoice-open'), android = /Android/i.test(navigator.userAgent);
@@ -1049,26 +1051,31 @@ function hush(){
 }
 
 /* ---------- Play counts (see TELEMETRY.md) ----------
-   Off unless a parent turns on "Share play counts". Only totals per route are kept, with no
-   identifier or timestamp, and they are sent once when the page is hidden. The setting is
-   not shown at all while COUNT_URL is empty. */
-var VERSION = '2.1';
+   Off unless a parent turns on "Share play counts". Only totals are kept (per route, or for
+   the whole open), with no identifier or timestamp, and they are sent once when the page is
+   hidden. The setting is not shown at all while COUNT_URL is empty. Since 2.2 (data review,
+   October 16): crashes, how often the wiggling-house help showed, and opens with no voice. */
+var VERSION = '2.2';
 var COUNT_URL = '';      // the Worker, e.g. 'https://animal-mail-counts.<account>.workers.dev/v1/counts'
-var CKEY = 'animal-mail-route-counts', CAP = 200, METRICS = ['started','finished','misses'];
-function emptyCounts(){ return {opens:0, started:{}, finished:{}, misses:{}}; }
+var CKEY = 'animal-mail-route-counts', CAP = 200;
+var TOTALS = ['opens','crashes','novoice'], METRICS = ['started','finished','misses','hints'];
+function emptyCounts(){ return {app:VERSION, opens:0, crashes:0, novoice:0, started:{}, finished:{}, misses:{}, hints:{}}; }
 function capN(v){ return Math.max(0, Math.min(CAP, Math.floor(+v || 0))); }
 var C = emptyCounts();
 try{
   var oc = JSON.parse(localStorage.getItem(CKEY) || 'null');
   if(oc && typeof oc === 'object'){
     C.opens = capN(oc.opens);
+    C.novoice = capN(oc.novoice);
+    // crashes are filed under the game version, so unsent ones from an older version are dropped
+    if(oc.app === VERSION) C.crashes = capN(oc.crashes);
     METRICS.forEach(function(m){ for(var r=1;r<=9;r++){ var n = capN(oc[m] && oc[m][r]); if(n) C[m][r] = n; } });
   }
 }catch(e){}
 function sharing(){ return !!(COUNT_URL && S.share); }
 function count(metric, route){
   if(!sharing()) return;
-  if(metric === 'opens') C.opens = capN(C.opens + 1);
+  if(TOTALS.indexOf(metric) >= 0) C[metric] = capN(C[metric] + 1);
   else C[metric][route] = capN((C[metric][route] || 0) + 1);
   try{ localStorage.setItem(CKEY, JSON.stringify(C)); }catch(e){}
 }
@@ -1076,10 +1083,30 @@ function clearCounts(){
   C = emptyCounts();
   try{ localStorage.removeItem(CKEY); }catch(e){}
 }
+/* Crashes: an open where one of the game's own scripts hit an error, counted once per open.
+   Only the count is kept, never the error's text. Errors from other files, such as scripts an
+   app's browser adds to the page, are left out. */
+var crashed = false;
+window.addEventListener('error', function(e){
+  var dir = location.origin + location.pathname.replace(/[^\/]*$/, '');
+  if(crashed || !e || !e.filename || e.filename.indexOf(dir) !== 0) return;
+  crashed = true;
+  count('crashes');
+});
+/* No voice: an open where the voice couldn't play (the title showed its note), counted once,
+   when the page is first hidden with the note up, since voices can arrive after the page loads. */
+var novoiceDone = false;
+function countNoVoice(){
+  if(novoiceDone || !sharing() || !voiceMissing()) return;
+  novoiceDone = true;
+  count('novoice');
+}
 function sendCounts(){
   if(!sharing() || !navigator.sendBeacon) return;
-  if(!C.opens && !METRICS.some(function(m){ return Object.keys(C[m]).length; })) return;
-  var body = JSON.stringify({v:1, app:VERSION, opens:C.opens, started:C.started, finished:C.finished, misses:C.misses});
+  countNoVoice();
+  if(!TOTALS.some(function(m){ return C[m]; }) && !METRICS.some(function(m){ return Object.keys(C[m]).length; })) return;
+  var body = JSON.stringify({v:1, app:VERSION, opens:C.opens, crashes:C.crashes, novoice:C.novoice,
+    started:C.started, finished:C.finished, misses:C.misses, hints:C.hints});
   var ok = false;
   // text/plain keeps this a simple request (no CORS preflight, which sendBeacon can't do)
   try{ ok = navigator.sendBeacon(COUNT_URL, new Blob([body], {type:'text/plain'})); }catch(e){}
@@ -1655,6 +1682,7 @@ function wrong(h){
   if(R.misses >= 2){
     var right = street.querySelector('.house[data-id="' + R.current.id + '"]');
     if(right) right.classList.add('hint');
+    if(R.misses === 2) count('hints', R.level);   // once per mail: the help showed
     say(['hint']);
   }else{
     say(['try-again']);

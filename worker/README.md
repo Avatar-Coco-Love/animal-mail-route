@@ -12,7 +12,7 @@ The tests run the Worker against SQLite (Node 22 or newer). For a local run with
 ## Deploy (free plan is enough)
 1. `npx wrangler login`
 2. `npx wrangler d1 create animal-mail-counts` and paste the printed `database_id` into `wrangler.toml`.
-3. `npx wrangler d1 execute animal-mail-counts --remote --file=schema.sql`
+3. `npx wrangler d1 execute animal-mail-counts --remote --file=schema.sql` (creates both tables; safe to run again after a schema change)
 4. `npx wrangler deploy`. It prints a URL like `https://animal-mail-counts.<your-subdomain>.workers.dev`.
 5. In the Cloudflare dashboard, open the Worker > Settings > Observability and confirm Workers Logs is off.
 6. In `../index.html`, set `COUNT_URL` to that URL plus `/v1/counts`, then commit. The "Share play counts" setting only appears in the parent corner once `COUNT_URL` is set.
@@ -23,4 +23,9 @@ If the game is hosted somewhere other than `https://avatar-coco-love.github.io`,
 ```
 npx wrangler d1 execute animal-mail-counts --remote --command "SELECT day, metric, route, n FROM counts ORDER BY day DESC, metric, route"
 ```
-Metrics: `opens` (route 0), `started`, `finished`, `misses` (routes 1 to 5).
+Metrics: `opens` and `novoice` (route 0), `started`, `finished`, `misses` and `hints` (routes 1 to 7).
+
+Crashes by game version:
+```
+npx wrangler d1 execute animal-mail-counts --remote --command "SELECT day, app, n FROM crashes ORDER BY day DESC, app"
+```

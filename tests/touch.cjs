@@ -1460,6 +1460,84 @@ const wanted = (page) => page.evaluate(() => document.querySelector('#caption').
     }
   }
 
+  // ---------- Play counts (2.2, data review October 16): crashes, wiggling-house help, no voice ----------
+  // The game is served with a test COUNT_URL and sendBeacon only records, so nothing leaves the test.
+  {
+    const ANDROID = 'Mozilla/5.0 (Linux; Android 14; Pixel 7) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/129.0 Mobile Safari/537.36 [FB_IAB/Orca-Android;FBAV/480.0.0.0;]';
+    const setup = (extra) => async (ctx) => {
+      const serve = async (r) => { const res = await r.fetch(); r.fulfill({ response: res, body: (await res.text()).replace("var COUNT_URL = '';", "var COUNT_URL = 'https://counts.test/v1/counts';") }); };
+      await ctx.route(BASE, serve);
+      await ctx.route(BASE + 'index.html', serve);
+      await ctx.addInitScript(() => { window.__sent = []; navigator.sendBeacon = (u, b) => { b.text().then((t) => window.__sent.push(JSON.parse(t))); return true; }; });
+      if (extra) await extra(ctx);
+    };
+    const hide = async (page) => {
+      await page.evaluate(() => { Object.defineProperty(document, 'visibilityState', { get: () => 'hidden', configurable: true }); document.dispatchEvent(new Event('visibilitychange')); });
+      await page.waitForTimeout(100);
+      return page.evaluate(() => window.__sent.pop());
+    };
+    const shareOn = async (page) => {
+      await page.$eval('#t-share', (b) => b.click());
+      await page.reload(); await page.waitForTimeout(600);
+    };
+    const KEYS = 'v,app,opens,crashes,novoice,started,finished,misses,hints';
+    {
+      const { ctx, page, touch } = await newPage(browser, 412, 915, null, { noSW: true, setup: setup() });
+      check('play counts: nothing is sent while sharing is off', (await hide(page)) === undefined);
+      await holdGear(page, touch);
+      check('play counts: the setting shows once COUNT_URL is set', !(await page.$eval('#share-row', (e) => e.hidden)));
+      await shareOn(page);
+      // a round of route 1: 2 wrong houses on the first mail (the help shows), 3 on the second (once more)
+      await page.tap('.playbtn');
+      await page.tap('.node[data-level="1"]');
+      for (const tries of [2, 3]) {
+        await page.waitForTimeout(1700);
+        const id = await wanted(page);
+        await page.tap('#mail');
+        const wrong = await page.$(`.house:not([data-id="${id}"])`);
+        for (let i = 0; i < tries; i++) { await wrong.tap(); await page.waitForTimeout(500); }
+        await page.tap(`.house[data-id="${id}"]`, { force: true });
+        await page.waitForTimeout(2700);
+      }
+      // two errors in the game's own page count as one crash; one from another file doesn't count
+      await page.evaluate(() => {
+        window.dispatchEvent(new ErrorEvent('error', { message: 'secret text', filename: location.href }));
+        window.dispatchEvent(new ErrorEvent('error', { message: 'secret text', filename: location.href }));
+        window.dispatchEvent(new ErrorEvent('error', { message: 'other', filename: 'https://injected.example/x.js' }));
+      });
+      const m = await hide(page);
+      check('play counts: one message with exactly the documented keys, no error text', !!m && Object.keys(m).join() === KEYS && !JSON.stringify(m).includes('secret'), m);
+      check('play counts: help counted once per mail, crash once per open, voice fine', m && m.app === '2.2' && m.opens === 1 && JSON.stringify(m.hints) === '{"1":2}' && JSON.stringify(m.misses) === '{"1":5}' && JSON.stringify(m.started) === '{"1":1}' && m.crashes === 1 && m.novoice === 0, m);
+      check('play counts: sent counts are cleared', (await page.evaluate(() => localStorage.getItem('animal-mail-route-counts'))) === null);
+      await ctx.close();
+    }
+    {
+      // unsent counts from an older version: totals go, crashes are dropped (they belong to that version).
+      // Sharing is on in the save, since a reload would itself send them (the page is hidden as it unloads).
+      const old = { 'animal-mail-route-counts': { app: '2.1', opens: 2, crashes: 3, novoice: 1, started: { 2: 1 }, finished: {}, misses: {}, hints: {} },
+        'animal-mail-route-v2': { v: 2, device: { voice: true, sfx: true, share: true, unlockAll: false, lettersSame: false }, current: 1, players: [{ id: 1, animal: 'S', rounds: {}, stickers: [], weak: {} }] } };
+      const { ctx, page } = await newPage(browser, 412, 915, old, { noSW: true, setup: setup() });
+      const m = await hide(page);
+      check('play counts: crashes saved by an older version are dropped, the other totals kept', m && m.crashes === 0 && m.opens === 3 && m.novoice === 1 && JSON.stringify(m.started) === '{"2":1}', m);
+      await ctx.close();
+    }
+    {
+      // Messenger with no speech: the open is counted once as "no voice"
+      const noSpeech = (ctx) => ctx.addInitScript(() => { delete window.speechSynthesis; delete window.SpeechSynthesisUtterance; });
+      const { ctx, page } = await newPage(browser, 412, 915, null, { noSW: true, ua: ANDROID, setup: setup(noSpeech) });
+      await shareOn(page);
+      const m1 = await hide(page);
+      const m2 = await page.evaluate(() => { window.dispatchEvent(new ErrorEvent('error', { filename: location.href })); }).then(() => hide(page));
+      check('play counts: an open with no voice is counted once', m1 && m1.novoice === 1 && m2 && m2.novoice === 0 && m2.crashes === 1, [m1, m2]);
+      // the parent turned the voice off: that isn't a voice that couldn't play
+      await page.$eval('#t-voice', (b) => b.click());
+      await page.reload(); await page.waitForTimeout(600);
+      const m3 = await hide(page);
+      check('play counts: no "no voice" count when the parent turned the voice off', m3 && m3.novoice === 0 && m3.opens === 1, m3);
+      await ctx.close();
+    }
+  }
+
   // ---------- Voice sets (1.6) ----------
   // audio/<language>/<female|male>/, each with its own clips.json. Recordings are served here by routes
   // (a short silent WAV for every clip), so the test doesn't depend on files in the repo.

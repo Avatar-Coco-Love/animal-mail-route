@@ -2,27 +2,33 @@
 // See ../TELEMETRY.md. Rules this file keeps:
 // - never reads the caller's IP address or any other header except Origin and Content-Length
 // - never logs a request
-// - stores only (UTC day, metric, route) -> total
+// - stores only (UTC day, metric, route) -> total, and crashes as (UTC day, game version) -> total
 
 const MAX_BODY = 1024;
 const CAP = 200;
-const METRICS = ['started', 'finished', 'misses'];
+const TOTALS = ['opens', 'crashes', 'novoice'];
+const METRICS = ['started', 'finished', 'misses', 'hints'];
 const ROUTES = ['1', '2', '3', '4', '5', '6', '7'];
-const KEYS = new Set(['v', 'app', 'opens', ...METRICS]);
+const KEYS = new Set(['v', 'app', ...TOTALS, ...METRICS]);
 
 function isCount(n) {
   return Number.isInteger(n) && n >= 0 && n <= CAP;
 }
 
 // Returns [{metric, route, n}] for a valid message, or null. Anything unexpected is rejected.
+// Every key must be there: the game has sent all of them since 2.2, the first version with a
+// server (2.1 and earlier had no COUNT_URL, so they never send). A crash row is
+// {metric: 'crashes', app, n}: crashes are kept by game version.
 export function parseCounts(body) {
   if (!body || typeof body !== 'object' || Array.isArray(body)) return null;
   for (const k of Object.keys(body)) if (!KEYS.has(k)) return null;
   if (body.v !== 1) return null;
   if (typeof body.app !== 'string' || !/^\d{1,3}\.\d{1,3}(\.\d{1,3})?$/.test(body.app)) return null;
-  if (!isCount(body.opens)) return null;
+  for (const m of TOTALS) if (!isCount(body[m])) return null;
   const rows = [];
   if (body.opens > 0) rows.push({ metric: 'opens', route: 0, n: body.opens });
+  if (body.novoice > 0) rows.push({ metric: 'novoice', route: 0, n: body.novoice });
+  if (body.crashes > 0) rows.push({ metric: 'crashes', app: body.app, n: body.crashes });
   for (const m of METRICS) {
     const o = body[m];
     if (!o || typeof o !== 'object' || Array.isArray(o)) return null;
@@ -79,7 +85,11 @@ export default {
       'INSERT INTO counts (day, metric, route, n) VALUES (?1, ?2, ?3, ?4) ' +
         'ON CONFLICT (day, metric, route) DO UPDATE SET n = n + excluded.n'
     );
-    await env.DB.batch(rows.map((r) => add.bind(day, r.metric, r.route, r.n)));
+    const crash = env.DB.prepare(
+      'INSERT INTO crashes (day, app, n) VALUES (?1, ?2, ?3) ' +
+        'ON CONFLICT (day, app) DO UPDATE SET n = n + excluded.n'
+    );
+    await env.DB.batch(rows.map((r) => (r.metric === 'crashes' ? crash.bind(day, r.app, r.n) : add.bind(day, r.metric, r.route, r.n))));
     return reply(204, origin);
   },
 };
