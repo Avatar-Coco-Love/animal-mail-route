@@ -6,7 +6,7 @@ Read this first, then open `index.html`. It is the whole game, as a standalone p
 
 An older copy also exists as a Claude artifact. It predates the fixes below, so treat this repo as the source of truth.
 
-## Where things stand (October 10, 2026)
+## Where things stand (October 16, 2026)
 - Playable and public. Tested in emulated Android Chrome with real touch input at 5 phone and tablet sizes, on the live site too. All checks pass.
 - Not yet played on a real device or by a child.
 - Voice is the device's built-in speech; no recordings yet.
@@ -40,11 +40,12 @@ An older copy also exists as a Claude artifact. It predates the fixes below, so 
 - Version 2.0.1 (fifteenth session, owner report: "none of the voices play when loading the game through Messenger, but it works fine in the browser"): Messenger and Facebook open links in their own in-app browser, which usually has no built-in speech, and the game has no recordings yet, so it was silent. The game can't add speech to that browser; it now tells the parent. When speech is missing (no `speechSynthesis`, or an in-app browser with no voices), the title shows a yellow note, "The voice can't play in this app's browser. Open the game in Chrome or Safari to hear it.", with an "Open in Chrome" button on Android. The note goes once a recorded voice is in use, or when the parent turns the voice off. Recorded voices (volunteers) will play in Messenger too. The touch test passes all 450 checks locally.
 - PR #26 (2.0.1) merged; the touch test passed all 450 checks against the live site afterwards.
 - Version 2.1 (fifteenth session): **Beginning sounds**, route 7 on the Letters track after route 6, in English and Spanish. The mail shows a picture (ball, sun, kite…), the voice asks "Who starts like *ball*?" / "¿Quién empieza como *pelota*?", and the child sends it to the house of the word's first letter. Each language has its own objects (ball is B, pelota is P), drawn once in `OBJ_ART` (38 pictures, 25 English objects, 22 Spanish, 9 pictures shared). Letters with no sound (Spanish H) or no object (Spanish Ñ) are left out, and letters that sound alike are never on the street together, as on route 5. Tapping the mail says the word; a delivery says the word, then the letter, sound and friend. New lines: `starts-like` and a `word-<L>` per letter (184 English lines, 158 Spanish). Old saves get 0 rounds on route 7; the play-count Worker accepts route 7. The touch test passes all 478 checks locally.
-- **Next:** Phase 5, Numbers to 10 (Numbers track, route 8). If Spanish review notes or playtest notes arrive, fix those first.
+- Version 2.2 (sixteenth session, data review of October 16, first approved item): **three new play counts**, in the same opt-in message, all totals with no identifier: `crashes` (an open where one of the game's own scripts hit an error, once per open; the error text is never sent; the Worker keeps them by game version in a new `crashes` table), `hints` (the wiggling-house help, by route, once per mail) and `novoice` (an open where the voice couldn't play, as in Messenger, once per open). The Worker requires every key and rejects anything else (11 tests); `TELEMETRY.md` and both privacy pages list them. Still nothing is collected until the Worker is deployed and `COUNT_URL` is set. The touch test passes all 486 checks locally (9 new "play counts" checks, run with a test `COUNT_URL` and a recording `sendBeacon`).
+- **Next:** the second approved item of the data review, the "What's new" line in the parent corner (then keep it updated each version). Then Phase 5, Numbers to 10 (Numbers track, route 8). If Spanish review notes or playtest notes arrive, fix those first.
 
-## Data review, October 16, 2026 (not built yet)
+## Data review, October 16, 2026
 - The game collects nothing today: the play-count Worker was never deployed (`COUNT_URL` is empty), so there are no counts and no crash reports. **Owner step:** deploy it (`worker/README.md`, about 15 minutes), then set `COUNT_URL`.
-- **Approved by the owner (October 16):** add three counts to the same message, all totals with no identifier (COPPA-safe): crashes by game version, how often the wiggling-house help showed per route, and opens where the voice couldn't play (the Messenger case). Update the Worker's strict validation, `TELEMETRY.md` and both privacy pages with them. The owner's rule: collect only what's useful.
+- **Approved by the owner (October 16), done in 2.2:** add three counts to the same message, all totals with no identifier (COPPA-safe): crashes by game version, how often the wiggling-house help showed per route, and opens where the voice couldn't play (the Messenger case). Update the Worker's strict validation, `TELEMETRY.md` and both privacy pages with them. The owner's rule: collect only what's useful.
 - **Approved by the owner (October 16):** a "What's new" line in the parent corner, updated with each version, so parents can see what changed.
 - **Ideas raised, not decided:** stop sounds in English are written with an extra "uh" (`buh`, `kuh`, `puh` in `words.js`), which phonics teachers avoid ("pure sounds"); recorded voices would fix it best. iPhone and iPad are untested: Safari can clear saved progress after about 7 days without a visit unless the game is installed or calls `navigator.storage.persist()`, and the silent switch mutes sound effects. An "S A T P I N" letter-set preset would match how many schools start.
 
@@ -67,7 +68,7 @@ An older copy also exists as a Claude artifact. It predates the fixes below, so 
 | `audio/` | voice sets, `audio/<en|es>/<female|male>/`, each with recordings (none yet) and `clips.json`, the list of clips that set has; `README.txt` |
 | `TELEMETRY.md` | play counts design and rules (COPPA, Google Families) |
 | `worker/` | Cloudflare Worker + D1 for play counts, with tests and deploy steps |
-| `tests/touch.cjs` | touch smoke test (478 checks), local or live |
+| `tests/touch.cjs` | touch smoke test (486 checks), local or live |
 | `manifest.webmanifest`, `sw.js` | install and offline play; bump `VERSION` in `sw.js` on every release |
 | `icons/` | app icons: `icon.svg` and `icon-maskable.svg` are the sources, `export.cjs` makes the PNGs. `share.png` and `share-es.png` are the link preview pictures, made by `share.cjs` from the title screen (`node icons/share.cjs [url] es` for Spanish) |
 | `.github/workflows/test.yml` | CI on pull requests: worker tests and the touch test |
@@ -661,6 +662,14 @@ Since 1.1 every word comes from `LANGS`, so each new route needs both languages 
 
 ### After these phases: older children
 Short words (send "cat" to Cody's house: first letter, then whole word), CVC word building, sight words, spelling. This is where the game hub idea comes in: likely a second game for ages 5 to 7 sharing the same player profiles, rather than more routes here. Plan it with the owner when Phases 1 to 7 are done.
+
+## Decisions made by Claude (October 16, 2026, sixteenth session): play counts (2.2)
+- **Crashes** are counted once per open (the first error), not per error: a broken loop would otherwise fill the cap in a second, and "how many opens crashed" is the useful number. Only errors whose file is the game's own (`index.html`, `words.js`) count, since Messenger's and Facebook's browsers add their own scripts. The count can't see an error before the play-count code loads (very early in start-up).
+- Crashes are kept in their own table, `crashes(day, app, n)`, so the `counts` table stays as it was. Unsent crashes saved by an older version are dropped on load rather than filed under the new version.
+- **Help** is counted once per mail, when the 2nd wrong house lights the right one (the house keeps wiggling after more misses; that isn't counted again).
+- **No voice** uses the same rule as the title's note (`voiceMissing()`: no speech, voice on, no recorded voice in use), and is counted when the page is first hidden, since an in-app browser's voices can arrive after start-up. Voice turned off by the parent is not counted.
+- The Worker requires the three new keys rather than treating them as optional: no version before 2.2 can send (`COUNT_URL` was empty), so there are no old senders to accept.
+- No "What's new" line yet: that is the next PR.
 
 ## Ideas for later
 Most earlier ideas are now phases in the roadmap above. These two stay here:
