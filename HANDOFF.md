@@ -44,7 +44,8 @@ An older copy also exists as a Claude artifact. It predates the fixes below, so 
 
 ## Data review, October 16, 2026 (not built yet)
 - The game collects nothing today: the play-count Worker was never deployed (`COUNT_URL` is empty), so there are no counts and no crash reports. **Owner step:** deploy it (`worker/README.md`, about 15 minutes), then set `COUNT_URL`.
-- **Proposed, waiting for the owner's yes or no:** add three counts to the same message, all totals with no identifier (COPPA-safe): crashes by game version, how often the wiggling-house help showed per route, and opens where the voice couldn't play (the Messenger case). The owner's rule: collect only what's useful.
+- **Approved by the owner (October 16):** add three counts to the same message, all totals with no identifier (COPPA-safe): crashes by game version, how often the wiggling-house help showed per route, and opens where the voice couldn't play (the Messenger case). Update the Worker's strict validation, `TELEMETRY.md` and both privacy pages with them. The owner's rule: collect only what's useful.
+- **Approved by the owner (October 16):** a "What's new" line in the parent corner, updated with each version, so parents can see what changed.
 - **Ideas raised, not decided:** stop sounds in English are written with an extra "uh" (`buh`, `kuh`, `puh` in `words.js`), which phonics teachers avoid ("pure sounds"); recorded voices would fix it best. iPhone and iPad are untested: Safari can clear saved progress after about 7 days without a visit unless the game is installed or calls `navigator.storage.persist()`, and the silent switch mutes sound effects. An "S A T P I N" letter-set preset would match how many schools start.
 
 ## Owner decisions, October 10, 2026
